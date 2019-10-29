@@ -1,0 +1,55 @@
+include: "conf.sk"
+import os
+# preliminary qc on all data
+rule merge:
+    input: [DATA+"/"+c for c in COUNTS]
+    output: "merged.tsv.gz"
+    params: tool=BIN_DIR+"/merge", nogz=lambda wildcards, output: os.path.splitext(str(output))[0]
+    shell:
+        """
+            {params.tool} {params.nogz} {input}
+            gzip {params.nogz}
+        """
+
+
+rule qc_plots:
+    input: counts="merged.tsv.gz", metadata=METADATA
+    output: "{meta}_high.Rdata"
+    params: tool=BIN_DIR+"/deseq2_qc", design=lambda wildcards, input: "~"+wildcards.meta, prefix="H", minc=5, minsamples=2
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {wildcards.meta} {params.minc} {params.minsamples} {output}
+        """
+    
+# we work on chemio only since the dataset is so diverse
+rule chemio_metadata:
+    input: METADATA_ALL
+    output: "chemio_median"
+    params: tool=BIN_DIR+"/median_vols"
+    log: "chemio_median.log"
+    shell:  
+        """
+            {params.tool} {input} {output} &> {log}
+        """   
+
+rule chemio_filter_expr:
+    input: counts="merged.tsv.gz", metadata="chemio_median"
+    output: "chemio_merged.tsv.gz"
+    shell:
+        """
+            zcat {input.counts} | transpose | tee >(bawk 'NR==1{{print}}' > {output}.tmp) | filter_1col 1 <(sed 1d {input.metadata} | cut -f 1) > {output}.tmp2
+            cat {output}.tmp {output}.tmp2 | transpose | gzip > {output}
+            rm {output}.tmp*
+        """
+
+#minsamples is defined looking at chemio_median.log, here we have huge groups...
+rule chemio_plots:
+    input: counts="chemio_merged.tsv.gz", metadata="chemio_median"
+    output: "chemio_high.Rdata"
+    params: tool=BIN_DIR+"/deseq2_qc", design="~batch+depth+vol", prefix="H", minc=5, minsamples=10
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} chemio {params.minc} {params.minsamples} {output}
+        """
+    
+# we work on chemio only since the dataset is so diverse

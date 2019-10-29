@@ -1,0 +1,23 @@
+bit_rnaseq_2.7) egrassi@bioclust-n4:/srv/storage/NGS/data/pdxprofiling/bioidiversa/BiT/dataset/batch2$ for f in rseqc/fastq/*bam_stat.txt; do grep Total $f  | tr -s " " "\t" |cut -f 3 | awk -F'\t' -v OFS='\t' -v N=$f '{print N, $1}' ; done | tr "/" "\t" | tr "." "\t" | cut -f 3,6 > nreads
+
+bawk '$2>40000000{print $1,"high"} $2<=40000000{print $1,"low"}' nreads_first nreads_second  > hilo
+join -t$'\t' <(sed 1d metadata_merged  |sort -k1,1) <(sort -k1,1 hilo) > metadata_merged_hl
+
+(base) grassi@philae:~/RNAseq_biodiversa/local/share/data$ filter_1col 1 basali_fra.tsv < metadata_merged_hl | bawk '{print $0, "basale"}' > step1; filter_1col -v 1 basali_fra.tsv < metadata_merged_hl | bawk '{p
+rint $0, "notbasale"}' > step2; cat step1 step2 > metadata_merged_hl_basali
+
+base) grassi@philae:~/RNAseq_biodiversa/local/share/data$ join -t$'\t' <(bawk '{print substr($1,0,7),$1}' basali_fra.tsv | sort -k1,1) <(sed 1d ~/strata/local/share/data/pre_irino/sept2019/w3.txt | sort -k1,1) 
+> chemio_w3_sept2019_inrociato_basali
+
+
+(base) grassi@philae:~/RNAseq_biodiversa/local/share/data$ translate -v -e NA -a <(bawk '{print $2,$3}' chemio_w3_sept2019_inrociato_basali) 1 < metadata_merged_hl_basali > metadata_merged_hl_basali_w3
+
+
+checks:
+(base) grassi@philae:~/RNAseq_biodiversa/local/share/data$ bawk '$2!="NA"{print}' metadata_merged_hl_basali_w3 | cut -f4 |sort | uniq
+LMX
+(base) grassi@philae:~/RNAseq_biodiversa/local/share/data$ bawk '$2!="NA"{print}' metadata_merged_hl_basali_w3 | cut -f6 |sort | uniq
+basale
+(base) grassi@philae:~/RNAseq_biodiversa/local/share/data$ bawk '$2!="NA"{print}' metadata_merged_hl_basali_w3 | cut -f5 |sort | uniq -c
+      9 high
+     34 low
