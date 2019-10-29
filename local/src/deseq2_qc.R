@@ -48,10 +48,11 @@ pheatmap(sampleDistMatrix,clustering_distance_rows=sampleDists, clustering_dista
 if (design != "~1") {
     out <- tryCatch(
         {
-           #pdf(paste0(outprefix, "_pca.pdf"))
-           plotPCA(vsd, intgroup=c(as.character(terms(fdesign)[[2]])))
-           ggsave(paste0(outprefix, "_pca.pdf"))
-           #dev.off()
+           ints <- attr(terms(fdesign),"term.labels")
+           for (i in seq(1, length(ints))) {
+               plotPCA(vsd, intgroup=ints[i])
+               ggsave(paste0(outprefix, "_", ints[i], "_pca.pdf"))
+           }
         },
         error=function(cond) {
             message(cond)
@@ -67,7 +68,7 @@ cc <- counts(dds,normalized=TRUE)
 select <- order(rowMeans(counts(dds,normalized=TRUE)),
                 decreasing=TRUE)[1:20]
 if (design != "~1") {
-    df <- as.data.frame(colData(dds)[,as.character(terms(fdesign)[[2]]),drop=F])
+    df <- as.data.frame(colData(dds)[,attr(terms(fdesign),"term.labels"), drop=F])
 } else {
     df <- as.data.frame(colData(dds)[,c(terms(fdesign)[[2]]),drop=F])
 }

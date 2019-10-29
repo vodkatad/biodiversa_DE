@@ -18,3 +18,5 @@ SRC_DIR=PRJ_ROOT+"/local/src"
 COUNTS=["secondbatch_GEP.count.gz","firstbatch_GEP.count.gz"]
 METADATA=DATA+"/metadata_merged"
 METADATA_ALL=DATA+"/metadata_merged_hl_basali_w3"
+LFC=0.5849625 # 1.5 FC
+CORES=4
