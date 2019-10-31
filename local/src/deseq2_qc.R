@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-options(error=traceback)
+#options(error=traceback)
 args <- commandArgs(trailingOnly=TRUE)
 counts <- args[[1]]
 metadataf <- args[[2]]

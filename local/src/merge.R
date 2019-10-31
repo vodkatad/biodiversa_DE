@@ -1,5 +1,4 @@
 #!/usr/bin/env Rscript
-options(error=traceback)
 args <- commandArgs(trailingOnly=TRUE)
 output <- args[[1]]
 
