@@ -21,11 +21,11 @@ rule qc_plots:
             {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {wildcards.meta} {params.minc} {params.minsamples} {output}
         """
     
-# we work on chemio only since the dataset is so diverse
+# we work on chemio only since the dataset is so diverse. files are called median but right now we are dividing on terziles
 rule chemio_metadata:
     input: METADATA_ALL
     output: meta="chemio_median", plot="chemio_median.png"
-    params: tool=BIN_DIR+"/median_vols"
+    params: tool=BIN_DIR+"/quartiles_vols"
     log: "chemio_median.log"
     shell:  
         """
@@ -42,7 +42,7 @@ rule chemio_filter_expr:
             rm {output}.tmp*
         """
 
-#minsamples is defined looking at chemio_median.log, here we have huge groups...
+#minsamples is defined looking at chemio_median.log, here we have huge groups... change order of formula?
 rule chemio_plots:
     input: counts="chemio_merged.tsv.gz", metadata="chemio_median"
     output: "chemio_high.Rdata"
@@ -83,3 +83,22 @@ rule go:
     params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
     script: SRC_DIR+"/go.R"
 
+
+# copied code to try out chemio de withot (not useful?) batch correction
+
+#minsamples is defined looking at chemio_median.log, here we have huge groups... change order of formula?
+rule chemio_plots_nb:
+    input: counts="chemio_merged.tsv.gz", metadata="chemio_median"
+    output: "nb_chemio_high.Rdata"
+    params: tool=BIN_DIR+"/deseq2_qc", design="~chemio", prefix="H", minc=5, minsamples=10
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} chemio {params.minc} {params.minsamples} {output}
+        """
+    
+# we work on chemio only since the dataset is so diverse
+rule chemio_de_nb:
+    input: "nb_chemio_high.Rdata"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2nb.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2nb.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff.R"

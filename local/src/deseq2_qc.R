@@ -85,3 +85,4 @@ res <- data.frame(highg=highgenes, highsdgenes=highsdgenes)
 write.table(res, file=paste0(outprefix, "_high.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
 
 save.image(image)
+### TODO add write cpm
