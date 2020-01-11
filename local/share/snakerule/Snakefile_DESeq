@@ -170,3 +170,49 @@ rule cgo:
     script: SRC_DIR+"/go.R"
 
 
+#### Dot plots and selection of genes annoted
+rule sign:
+    input: outliers="chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv", nooutliers="with_cook/chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv"
+    output: "chemio_de_005.tsv"
+    shell:
+        """
+            bawk '$7<0.05' {input.outliers} | translate -a -v -e "outliers"  <(bawk '$7<0.05 {{print $1,"nooutliers"}}' {input.nooutliers}) 1 | cut -f 1,2,3,4,7,8  | sed s'/H_//1'  | sed 1d > {output}
+        """
+
+rule select_annote:
+    input: "chemio_de_005.tsv" 
+    output: "chemio_de_005_genedesc.tsv"
+    params: tool=BIN_DIR+"/add_description"
+    shell:
+        """
+            {params.tool} -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
+        """
+
+def defwhat(wildcards):
+    if (wildcards.what == "de"):
+        return {'wanted': 'chemio_de_005_genedesc.tsv'}
+    else:
+        return {'wanted': DATA+'/'+wildcards.what}
+
+rule striplots_chemio:
+    input: unpack(defwhat), dds="chemio_high.Rdata"
+    output: directory("{what}_plots")
+    params: tool=BIN_DIR+"/striplots"
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} 
+        """
+
+rule select_hr:
+    input: outliers="chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv", nooutliers="with_cook/chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv", wanted= DATA+'/hr'
+    output: "hr_deg.tsv"
+    params: tool=BIN_DIR+"/add_description"
+    shell:
+        """
+            bawk '{{print "H_"$1}}' {input.wanted} > {output}.tmp
+            filter_1col 1 {output}.tmp < {input.outliers} | translate -a -v -e "outliers"  <(filter_1col 1 {output}.tmp < {input.nooutliers} | bawk '{{print $1,"nooutliers"}}') 1 | cut -f 1,2,3,4,7,8  | sed s'/H_//1'  | sed 1d > {output}.1tmp
+            {params.tool} -i {output}.1tmp -o {output} -t GENENAME -f SYMBOL -n 1
+            rm {output}.*tmp
+        """
+
