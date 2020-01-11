@@ -102,3 +102,71 @@ rule chemio_de_nb:
     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2nb.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2nb.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff.R"
+
+### try cetuxi
+# downsampling for painful comparison with chemio, not downsampled results have been moved to the 'cetuxi' directory.
+#
+rule cetuxi_metadata:
+    input: METADATA_ALL_CETUXI
+    output: meta="cetux_median", plot="cetux_median.png"
+    params: tool=BIN_DIR+"/quartiles_vols_subs", n=43
+    log: "cetux_median.log"
+    shell:  
+        """
+            {params.tool} {input} {output.meta} {output.plot} {params.n} &> {log}
+        """   
+
+rule cetuxi_filter_expr:
+    input: counts="merged.tsv.gz", metadata="cetux_median"
+    output: "cetux_merged.tsv.gz"
+    shell:
+        """
+            zcat {input.counts} | transpose | tee >(bawk 'NR==1{{print}}' > {output}.tmp) | filter_1col 1 <(sed 1d {input.metadata} | cut -f 1) > {output}.tmp2
+            cat {output}.tmp {output}.tmp2 | transpose | gzip > {output}
+            rm {output}.tmp*
+        """
+
+#minsamples is defined looking at chemio_median.log, here we have huge groups... change order of formula?
+rule cetuxi_plots:
+    input: counts="cetux_merged.tsv.gz", metadata="cetux_median"
+    output: "cetuxi_high.Rdata"
+    params: tool=BIN_DIR+"/deseq2_qc", design="~batch+coverage+chemio", prefix="H", minc=5, minsamples=10
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} chemio {params.minc} {params.minsamples} {output}
+        """
+    
+# we work on chemio only since the dataset is so diverse
+rule cetuxi_de:
+    input: "cetuxi_high.Rdata"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxdeseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxdeseq2.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff.R"
+
+
+
+
+rule cgo_input:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxdeseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxgoinsplit.tsv"
+    params: lfc=LFC
+    shell:
+        """
+            sed 1d {input} | bawk '$7 < 0.05 && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\tH_(.+)/\\t$1/g' > {output}
+        """
+
+rule cgo_universe:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxdeseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxgouniverse.tsv"
+    shell:
+        """
+            sed 1d {input} | cut -f 1 | perl -pane 's/^H_(.+)/$1/g' > {output}
+        """
+
+rule cgo:
+    input: classes="{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxgoinsplit.tsv", universe="{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxgouniverse.tsv"
+    output: "cetuxgo_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+    params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
+    script: SRC_DIR+"/go.R"
+
+

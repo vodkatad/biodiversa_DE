@@ -4,10 +4,13 @@ args <- commandArgs(trailingOnly=TRUE)
 input <- args[[1]]
 output <- args[[2]]
 outputplot <- args[[3]]
+n <- as.numeric(args[[4]])
 
 
 indf <- read.table(input, sep="\t", header=TRUE, stringsAsFactors=FALSE)
 indf <- indf[!is.na(indf$vol), ]
+indexes <- sample.int(nrow(indf), n)
+indf <- indf[indexes,]
 
 # TODO get quantiles as params and generalize at the rule level
 thrs <- quantile(indf$vol, c(1/3, 2/3))
