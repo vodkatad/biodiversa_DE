@@ -49,10 +49,11 @@ write_xls <- function(data) {
   data$nMoreExtreme <- NULL
   data$name <- NULL
   data$size <- NULL
-  WriteXLS(data, ExcelFileName=paste0(paste(name, sep="_"), ".gsea_001.xls"), row.names=FALSE, col.names=TRUE)
+  data <- data[order(data$pval),]
+  WriteXLS(data, ExcelFileName=paste0(paste(name, sep="_"), ".gsea.xls"), row.names=FALSE, col.names=TRUE)
 }
 
-garbage <- by(sign, sign$name, write_xls)
+garbage <- by(res, res$name, write_xls)
 
 plot_es <- function(row, all_de_data) {
   #name <- as.character(unique(all_de_data$name))
@@ -69,7 +70,7 @@ plot_es <- function(row, all_de_data) {
   ggsave(paste0(c(row[8], row[1], row[9], "pdf"), collapse="."))
 }
 
-sign <- sign[order(sign$name, -abs(sign$NES)),]
+sign <- sign[order(sign$name, sign$pval),]
 #to_plot <- lapply(levels(sign$name), function(x) { w <- sign[sign$name==x,];  head(w, n=20)})
 #top <- do.call("rbind", to_plot)
 #garbage <- apply(top, 1, plot_es, all)

@@ -1,0 +1,47 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+                                                    
+DATA=PRJ_ROOT+"/local/share/data"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+COUNTS="../DESeq/merged.tsv.gz"
+DESIGN="~batch+coverage+class"
+SPECIES="H"
+MINC=5
+MINSAMPLES=2
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/bp_hs_symbol.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+NAME="cetuxi_wt"
+CETUXI=DATA+'/DTB_Treatments_Update_Novembre2019_w3.txt'
+MUTINFO=DATA+'/DTB_mutations_011420.txt'
+RNASEQ=DATA+'/metadata_merged_hl_basali'
+
+# Chiedere ad Eugy se quelli senza LM sono PR
+
+rule filter_wt:
+    input: cetuxi="../cetuximab_all/samples_data", genes=MUTINFO
+    output: "samples_data"
+    shell:
+        """
+            sed 1d {input.genes} | bawk '$1!="" && $6=="wt" && $7=="wt" && $8=="wt" {{print substr($1,0,10)}}' > {output}.tmp
+            head -n1 {input.cetuxi} > {output} 
+            cat {input.cetuxi} | filter_1col 2 {output}.tmp >> {output} 
+        """
+
+
+LFC=0.5849625 # 1.5 FC
+CORES=4
+PVAL=0.05
