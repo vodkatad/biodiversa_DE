@@ -26,7 +26,12 @@ CETUXI=DATA+'/DTB_Treatments_Update_Novembre2019_w3.txt'
 RNASEQ=DATA+'/metadata_merged_hl_basali'
 
 
-GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/Hallmark_curated_hs_symbol.RData"
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/bp_hs_symbol.RData"
 GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
 #GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
