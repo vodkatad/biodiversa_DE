@@ -1,0 +1,57 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+                                                    
+DATA=PRJ_ROOT+"/local/share/data"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+COUNTS="../DESeq/merged.tsv.gz"
+DESIGN="~batch+coverage+class"
+SPECIES="H"
+MINC=5
+MINSAMPLES=10
+
+NAME="cetuxi"
+CETUXI=DATA+'/DTB_Treatments_Update_Novembre2019_w3.txt'
+RNASEQ=DATA+'/metadata_merged_hl_basali'
+
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/Hallmark_curated_hs_symbol.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+
+# Chiedere ad Eugy se quelli senza LM sono PR
+rule metadata:
+    input: cetuxi=CETUXI, rna=RNASEQ
+    output: "samples_cetuxi"
+    shell:
+        """
+           grep LM {input.cetuxi} | bawk '$2!="n.a." && $2!="" {{print $1"X", $2}}' > {output}.tmp
+           bawk '$5=="basale" {{print $1, substr($1,0,10),$2,$3,$4,$5}}' {input.rna} | translate -a -k {output}.tmp 2 > {output}
+           rm {output}.tmp
+        """
+
+rule samples_data:
+    input: "samples_cetuxi"
+    output: "samples_data"
+    log: "samples_data.log"
+    params: tool=BIN_DIR+"/responders"
+    shell:
+        """
+            {params.tool} {input} {output} &> {log}
+        """
+
+LFC=0.5849625 # 1.5 FC
+CORES=4
+PVAL=0.05
