@@ -2,41 +2,36 @@
 #options(error=traceback)
 args <- commandArgs(trailingOnly=TRUE)
 counts <- args[[1]]
-metadataf <- args[[2]]
-design <- args[[3]]
-prefix <- args[[4]] # if all do not filter, otherwise keep ^prefix_ only genes. 
+len <- args[[2]]
+prefix <- args[[3]] # if all do not filter, otherwise keep ^prefix_ only genes. 
 #useful for xeno mice-man counts matrices made by Ivan's pipeline.
-outprefix <- args[[5]]
-minc <- as.numeric(args[[6]])
-minsamples <- as.numeric(args[[7]])
-image <- args[[8]]
-# check numeric etc
+minc <- as.numeric(args[[4]])
+minsamples <- as.numeric(args[[5]])
+image <- args[[6]]
+fpkmf <- args[[7]]
+outprefix <- args[[8]]
+design <- "~1"
+fdesign <- as.formula(design)
+save.image('pippo.Rdata')
 
-save.image(image)
 library("BiocParallel")
+library("ggplot2")
+library("RColorBrewer")
+library("pheatmap")
+
 register(MulticoreParam(4)) # TODO from CORES
 library(DESeq2)
-library(RColorBrewer)
-library(pheatmap)
-library(ggplot2)
 
 data <- read.table(gzfile(counts), header=T, sep="\t", row=1)
 if (prefix != "all") {
   data <- data[grep(paste0("^", prefix, "_"), rownames(data)),]
 }
 
-metadata <- read.table(metadataf, sep="\t", header=T, row=1)
-fdesign <- as.formula(design)
-print(terms(fdesign)[[2]])
-rownames(metadata) <- gsub("-", ".", rownames(metadata), fixed=TRUE)
-new_data <- data[,match(rownames(metadata), colnames(data))]
-dds <- DESeqDataSetFromMatrix(countData = new_data, colData = metadata, design = fdesign)
+dds <- DESeqDataSetFromMatrix(countData = data, colData=data.frame(row.names=colnames(data)), design=fdesign)
 filterGenes <- rowSums(counts(dds) > minc) < minsamples
 dds <- dds[!filterGenes]
 dds <- DESeq(dds, parallel=FALSE, betaPrior=TRUE)
 vsd <- vst(dds, blind=FALSE)
-
-save.image(image)
 
 sampleDists <- dist(t(assay(vsd)))
 sampleDistMatrix <- as.matrix(sampleDists)
@@ -81,8 +76,12 @@ pheatf3 <- paste0(outprefix, "_cc_highsd.pdf")
 pheatmap(highsd, cluster_rows=FALSE, show_rownames=FALSE, cluster_cols=FALSE, annotation_col=df, file=pheatf3)
 highsdgenes <- rownames(highsd)
 
-res <- data.frame(highg=highgenes, highsdgenes=highsdgenes)
-write.table(res, file=paste0(outprefix, "_high.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
+lens <- read.table(len, sep="\t", header=T)
+order <- rownames(mcols(dds))
+lens <- lens[match(order, lens$Geneid), ]
+all(lens$Geneid == order)
+mcols(dds)$basepairs  <- lens$length
+fpkm_d <- fpkm(dds)
+write.table(fpkm_d, gzfile(fpkmf), quote=F, row.names=T, col.names=T, sep="\t")
 
 save.image(image)
-### TODO add write cpm

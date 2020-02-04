@@ -1,0 +1,37 @@
+include: "conf.sk"
+
+rule counts:
+    input: counts=MATRIX, metadata=SAMPLES
+    output: "selected_merged.tsv.gz"
+    shell:
+        """
+            zcat {input.counts} | transpose | tee >(bawk 'NR==1{{print}}' > {output}.tmp) | filter_1col 1 <(cat {input.metadata} | cut -f 1) > {output}.tmp2
+            cat {output}.tmp {output}.tmp2 | transpose | gzip > {output}
+            rm {output}.tmp*
+        """
+
+rule fpkm:
+    input: counts="selected_merged.tsv.gz", len=DATA+"/gene_len"
+    output: "dds.Rdata", "all_fpkm.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_fpkm", prefix="H", minc=5, minsamples=2
+    shell:
+        """
+            {params.tool} {input.counts} {input.len} {params.prefix} {params.minc} {params.minsamples} {output[0]} {output[1]} all
+        """
+
+#### Dot plots and selection of genes annoted
+def defwhat(wildcards):
+    if (wildcards.what == "de"):
+        return {'wanted': 'chemio_de_005_genedesc.tsv'}
+    else:
+        return {'wanted': DATA+'/'+wildcards.what}
+
+rule striplots_chemio:
+    input: unpack(defwhat), dds="dds.Rdata"
+    output: directory("{what}_plots")
+    params: tool=BIN_DIR+"/striplots"
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} 
+        """
