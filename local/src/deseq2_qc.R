@@ -9,7 +9,9 @@ prefix <- args[[4]] # if all do not filter, otherwise keep ^prefix_ only genes.
 outprefix <- args[[5]]
 minc <- as.numeric(args[[6]])
 minsamples <- as.numeric(args[[7]])
-image <- args[[8]]
+len <- args[[8]]
+image <- args[[9]]
+fpkmf <- args[[10]]
 # check numeric etc
 
 save.image(image)
@@ -84,5 +86,12 @@ highsdgenes <- rownames(highsd)
 res <- data.frame(highg=highgenes, highsdgenes=highsdgenes)
 write.table(res, file=paste0(outprefix, "_high.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
 
+lens <- read.table(len, sep="\t", header=TRUE)
+order <- rownames(mcols(dds))
+lens <- lens[match(order, lens$Geneid), ]
+all(lens$Geneid == order)
+mcols(dds)$basepairs  <- lens$length
+fpkm_d <- fpkm(dds)
+write.table(fpkm_d, gzfile(fpkmf), quote=F, row.names=T, col.names=T, sep="\t")
+
 save.image(image)
-### TODO add write cpm

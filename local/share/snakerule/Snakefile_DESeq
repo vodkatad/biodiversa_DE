@@ -13,14 +13,15 @@ rule merge:
 
 
 rule qc_plots:
-    input: counts="merged.tsv.gz", metadata=METADATA
-    output: "{meta}_high.Rdata"
-    params: tool=BIN_DIR+"/deseq2_qc", design=lambda wildcards, input: "~"+wildcards.meta, prefix="H", minc=5, minsamples=2
+    input: counts="merged.tsv.gz", metadata=METADATA_ALL, len=DATA+"/gene_len"
+    output: "all_high.Rdata", "all_fpkm.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc", design="~batch+coverage", prefix="H", minc=5, minsamples=2
     shell:
         """
-            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {wildcards.meta} {params.minc} {params.minsamples} {output}
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} all {params.minc} {params.minsamples} {input.len} {output}
         """
-    
+#(rnaseq) grassi@philae:~/RNAseq_biodiversa/dataset/DESeq$ zcat all_fpkm.tsv.gz  | sed  -E 's/^H_//1' | gzip > all_fpkm_noH.tsv.gz
+#
 # we work on chemio only since the dataset is so diverse. files are called median but right now we are dividing on terziles
 rule chemio_metadata:
     input: METADATA_ALL
