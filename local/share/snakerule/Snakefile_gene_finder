@@ -1,0 +1,23 @@
+include: "conf.sk"
+
+rule all_plot_stats:
+    input: expand("{gene}_{{samples}}.stats", gene=GENES)
+    output: "all_genes_{samples}.stats.tsv"
+    shell:
+        """
+            rm -f {output}
+            for f in {input}; do \
+                cat $f | bawk -vF=$f '{print F,$0}' >> {output}; \
+            done;
+        """
+
+rule plot_stats:
+    input: MATRIX
+    output: "{gene}_{samples}.histo.pdf", "{gene}_{samples}.dist.pdf", "{gene}_{samples}.stats"
+    params: tool=BIN_DIR+"/gene_summary", thr=THR
+    log: "{gene}_{samples}.log"    
+    shell:
+        """
+            {params.tool} {input} {wildcards.gene} {wildcards.samples} {output} {params.thr} 2> {log}
+        """
+
