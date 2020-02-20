@@ -1,0 +1,55 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+                                                    
+NAME="CRC0076_tonon"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR='/mnt/trcanmed/bioinfotree/prj/CRC0076_tonon/dataset/v1'
+
+COUNTS=BIT_DIR+"/GEP.count.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+DESIGN="~treatment"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/bp_hs_symbol.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+
+
+# TODO for biodiversa change - in . in metadata
+
+rule samples_data:
+    input: DATA+"/samples_data"
+    output: "samples_data"
+    shell:
+        """
+            ln -s {input} {output}
+        """
+
+LFC=0.5849625 # 1.5 FC
+CORES=4
+PVAL=0.05
+

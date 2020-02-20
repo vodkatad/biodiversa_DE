@@ -1,22 +1,25 @@
 #!/usr/bin/env Rscript
-#options(error=traceback)
+#options(error=traceback
+
+# TODO switch to getopt
 args <- commandArgs(trailingOnly=TRUE)
 counts <- args[[1]]
 metadataf <- args[[2]]
 design <- args[[3]]
 prefix <- args[[4]] # if all do not filter, otherwise keep ^prefix_ only genes. 
 #useful for xeno mice-man counts matrices made by Ivan's pipeline.
-outprefix <- args[[5]]
-minc <- as.numeric(args[[6]])
-minsamples <- as.numeric(args[[7]])
-len <- args[[8]]
-image <- args[[9]]
-fpkmf <- args[[10]]
-# check numeric etc
+minc <- as.numeric(args[[5]])
+minsamples <- as.numeric(args[[6]])
+len <- args[[7]]
+image <- args[[8]]
+fpkmf <- args[[9]]
+cores <- as.numeric(args[[10]])
+
+outprefix <- 'qc'
 
 save.image(image)
 library("BiocParallel")
-register(MulticoreParam(4)) # TODO from CORES
+register(MulticoreParam(cores)) # TODO from CORES
 library(DESeq2)
 library(RColorBrewer)
 library(pheatmap)
@@ -30,12 +33,14 @@ if (prefix != "all") {
 metadata <- read.table(metadataf, sep="\t", header=T, row=1)
 fdesign <- as.formula(design)
 print(terms(fdesign)[[2]])
-rownames(metadata) <- gsub("-", ".", rownames(metadata), fixed=TRUE)
+# this was needed for ad hoc biodiversa stuff/strunz
+#rownames(metadata) <- gsub("-", ".", rownames(metadata), fixed=TRUE)
 new_data <- data[,match(rownames(metadata), colnames(data))]
 dds <- DESeqDataSetFromMatrix(countData = new_data, colData = metadata, design = fdesign)
+# filterGenes are the genes that will be removed cause they have 'noise reads' in less than minsamples
 filterGenes <- rowSums(counts(dds) > minc) < minsamples
 dds <- dds[!filterGenes]
-dds <- DESeq(dds, parallel=FALSE, betaPrior=TRUE)
+dds <- DESeq(dds, parallel=TRUE, betaPrior=TRUE)
 vsd <- vst(dds, blind=FALSE)
 
 save.image(image)
@@ -89,7 +94,9 @@ write.table(res, file=paste0(outprefix, "_high.tsv"), sep="\t", quote=FALSE, row
 lens <- read.table(len, sep="\t", header=TRUE)
 order <- rownames(mcols(dds))
 lens <- lens[match(order, lens$Geneid), ]
-all(lens$Geneid == order)
+if (! all(lens$Geneid == order)) {
+    stop('something wrong with lengths and mcols genes')
+}
 mcols(dds)$basepairs  <- lens$length
 fpkm_d <- fpkm(dds)
 write.table(fpkm_d, gzfile(fpkmf), quote=F, row.names=T, col.names=T, sep="\t")

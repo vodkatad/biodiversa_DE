@@ -28,7 +28,7 @@ save.image(paste0(tsv, "_DESeq.Rdata"))
 
 load(snakemake@input[[1]])
 
-res <- results(dds, alpha=alpha, contrast=con, parallel=parallel, cooksCutoff=FALSE)
+res <- results(dds, alpha=alpha, contrast=con, parallel=parallel)
 
 plot_volcano <- function(resnona, alpha, lfc, outfile, title) {
         #title <- trimws(strsplit(elementMetadata(res)[2,2], ":")[[1]][2])
