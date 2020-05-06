@@ -1,0 +1,209 @@
+include: "conf.sk"
+import os
+# preliminary qc on all data
+
+rule qc_plots:
+    input: counts="merged.tsv.gz", metadata=METADATA, len=DATA+"/gene_len"
+    output: "all_high.Rdata", "all_fpkm.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc", design="~batch+coverage", prefix="H", minc=5, minsamples=2
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} all {params.minc} {params.minsamples} {input.len} {output}
+        """
+#(rnaseq) grassi@philae:~/RNAseq_biodiversa/dataset/DESeq$ zcat all_fpkm.tsv.gz  | sed  -E 's/^H_//1' | gzip > all_fpkm_noH.tsv.gz
+#
+# we work on chemio only since the dataset is so diverse. files are called median but right now we are dividing on terziles
+rule chemio_metadata:
+    input: METADATA_ALL
+    output: meta="chemio_median", plot="chemio_median.png"
+    params: tool=BIN_DIR+"/quartiles_vols"
+    log: "chemio_median.log"
+    shell:  
+        """
+            {params.tool} {input} {output.meta} {output.plot} &> {log}
+        """   
+
+rule chemio_filter_expr:
+    input: counts="merged.tsv.gz", metadata="chemio_median"
+    output: "chemio_merged.tsv.gz"
+    shell:
+        """
+            zcat {input.counts} | transpose | tee >(bawk 'NR==1{{print}}' > {output}.tmp) | filter_1col 1 <(sed 1d {input.metadata} | cut -f 1) > {output}.tmp2
+            cat {output}.tmp {output}.tmp2 | transpose | gzip > {output}
+            rm {output}.tmp*
+        """
+
+#minsamples is defined looking at chemio_median.log, here we have huge groups... change order of formula?
+rule chemio_plots:
+    input: counts="chemio_merged.tsv.gz", metadata="chemio_median"
+    output: "chemio_high.Rdata"
+    params: tool=BIN_DIR+"/deseq2_qc", design="~batch+coverage+chemio", prefix="H", minc=5, minsamples=10
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} chemio {params.minc} {params.minsamples} {output}
+        """
+    
+# we work on chemio only since the dataset is so diverse
+rule chemio_de:
+    input: "chemio_high.Rdata"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff.R"
+
+
+rule go_input:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv"
+    params: lfc=LFC
+    shell:
+        """
+            sed 1d {input} | bawk '$7 < 0.05 && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\tH_(.+)/\\t$1/g' > {output}
+        """
+
+rule go_universe:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    shell:
+        """
+            sed 1d {input} | cut -f 1 | perl -pane 's/^H_(.+)/$1/g' > {output}
+        """
+
+rule go:
+    input: classes="{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv", universe="{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+    params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
+    script: SRC_DIR+"/go.R"
+
+
+# copied code to try out chemio de withot (not useful?) batch correction
+
+#minsamples is defined looking at chemio_median.log, here we have huge groups... change order of formula?
+rule chemio_plots_nb:
+    input: counts="chemio_merged.tsv.gz", metadata="chemio_median"
+    output: "nb_chemio_high.Rdata"
+    params: tool=BIN_DIR+"/deseq2_qc", design="~chemio", prefix="H", minc=5, minsamples=10
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} chemio {params.minc} {params.minsamples} {output}
+        """
+    
+# we work on chemio only since the dataset is so diverse
+rule chemio_de_nb:
+    input: "nb_chemio_high.Rdata"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2nb.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2nb.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff.R"
+
+### try cetuxi
+# downsampling for painful comparison with chemio, not downsampled results have been moved to the 'cetuxi' directory.
+#
+rule cetuxi_metadata:
+    input: METADATA_ALL_CETUXI
+    output: meta="cetux_median", plot="cetux_median.png"
+    params: tool=BIN_DIR+"/quartiles_vols_subs", n=43
+    log: "cetux_median.log"
+    shell:  
+        """
+            {params.tool} {input} {output.meta} {output.plot} {params.n} &> {log}
+        """   
+
+rule cetuxi_filter_expr:
+    input: counts="merged.tsv.gz", metadata="cetux_median"
+    output: "cetux_merged.tsv.gz"
+    shell:
+        """
+            zcat {input.counts} | transpose | tee >(bawk 'NR==1{{print}}' > {output}.tmp) | filter_1col 1 <(sed 1d {input.metadata} | cut -f 1) > {output}.tmp2
+            cat {output}.tmp {output}.tmp2 | transpose | gzip > {output}
+            rm {output}.tmp*
+        """
+
+#minsamples is defined looking at chemio_median.log, here we have huge groups... change order of formula?
+rule cetuxi_plots:
+    input: counts="cetux_merged.tsv.gz", metadata="cetux_median"
+    output: "cetuxi_high.Rdata"
+    params: tool=BIN_DIR+"/deseq2_qc", design="~batch+coverage+chemio", prefix="H", minc=5, minsamples=10
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} chemio {params.minc} {params.minsamples} {output}
+        """
+    
+# we work on chemio only since the dataset is so diverse
+rule cetuxi_de:
+    input: "cetuxi_high.Rdata"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxdeseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxdeseq2.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff.R"
+
+
+
+
+rule cgo_input:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxdeseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxgoinsplit.tsv"
+    params: lfc=LFC
+    shell:
+        """
+            sed 1d {input} | bawk '$7 < 0.05 && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\tH_(.+)/\\t$1/g' > {output}
+        """
+
+rule cgo_universe:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxdeseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxgouniverse.tsv"
+    shell:
+        """
+            sed 1d {input} | cut -f 1 | perl -pane 's/^H_(.+)/$1/g' > {output}
+        """
+
+rule cgo:
+    input: classes="{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxgoinsplit.tsv", universe="{what}_cutoff{alpha}-{nom}.vs.{den}.cetuxgouniverse.tsv"
+    output: "cetuxgo_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+    params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
+    script: SRC_DIR+"/go.R"
+
+
+#### Dot plots and selection of genes annoted
+rule sign:
+    input: outliers="chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv", nooutliers="with_cook/chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv"
+    output: "chemio_de_005.tsv"
+    shell:
+        """
+            bawk '$7<0.05' {input.outliers} | translate -a -v -e "outliers"  <(bawk '$7<0.05 {{print $1,"nooutliers"}}' {input.nooutliers}) 1 | cut -f 1,2,3,4,7,8  | sed s'/H_//1'  | sed 1d > {output}
+        """
+
+rule select_annote:
+    input: "chemio_de_005.tsv" 
+    output: "chemio_de_005_genedesc.tsv"
+    params: tool=BIN_DIR+"/add_description"
+    shell:
+        """
+            {params.tool} -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
+        """
+
+def defwhat(wildcards):
+    if (wildcards.what == "de"):
+        return {'wanted': 'chemio_de_005_genedesc.tsv'}
+    else:
+        return {'wanted': DATA+'/'+wildcards.what}
+
+rule striplots_chemio:
+    input: unpack(defwhat), dds="chemio_high.Rdata"
+    output: directory("{what}_plots")
+    params: tool=BIN_DIR+"/striplots"
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} 
+        """
+
+rule select_hr:
+    input: outliers="chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv", nooutliers="with_cook/chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv", wanted= DATA+'/hr'
+    output: "hr_deg.tsv"
+    params: tool=BIN_DIR+"/add_description"
+    shell:
+        """
+            bawk '{{print "H_"$1}}' {input.wanted} > {output}.tmp
+            filter_1col 1 {output}.tmp < {input.outliers} | translate -a -v -e "outliers"  <(filter_1col 1 {output}.tmp < {input.nooutliers} | bawk '{{print $1,"nooutliers"}}') 1 | cut -f 1,2,3,4,7,8  | sed s'/H_//1'  | sed 1d > {output}.1tmp
+            {params.tool} -i {output}.1tmp -o {output} -t GENENAME -f SYMBOL -n 1
+            rm {output}.*tmp
+        """
+

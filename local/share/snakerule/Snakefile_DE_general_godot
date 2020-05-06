@@ -90,13 +90,13 @@ def defwhat(wildcards):
         return {'wanted': DATA+'/'+wildcards.what}
 
 rule striplots_chemio:
-    input: unpack(defwhat), dds="chemio_high.Rdata"
+    input: unpack(defwhat), dds="dds.Rdata"
     output: directory("{what}_plots")
-    params: tool=BIN_DIR+"/striplots"
+    params: tool=BIN_DIR+"/striplots", TODO="treatment"
     shell:
         """
             mkdir -p {output}
-            {params.tool} {input.wanted} {input.dds} {output} 
+            {params.tool} {input.wanted} {input.dds} {output} {params.TODO}
         """
 
 ### GSEA
