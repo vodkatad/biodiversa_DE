@@ -1,0 +1,65 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+                                                    
+NAME="Biodiversa_up4"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/april2020/'
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+DESIGN="~batch+time+treat"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+
+
+# for biodiversa change - in . in metadata
+rule wanted:
+	output: "wanted"
+	shell:
+		"""
+		 echo -e "LMX_cetux_6w\\nLMX_cetux_6w_NT\\nLMX_cetux_72h\\nLMX_cetux_72h_NT" > {output}
+		"""
+
+rule samples_data:
+    input: meta=BIT_DIR+"/selected_metadata", wanted="wanted"
+    output: "samples_data"
+    shell:
+        """
+			echo -e "id\\tsample\\tbatch\\ttime\\ttreat" > {output}
+			cat {input.meta} | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/'  \
+			| cut -f 1,2,3 | tr "." "\\t" | filter_1col 3 {input.wanted}  | tr "_" "\\t" \
+			| bawk '$6=="NT" {{print $1, substr($1,0,7), $2, $5,"NT"}} $6!="NT"{{print $1,substr($1,0,7),$2,$5,"cetuxi"}}' >> {output}
+        """
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"

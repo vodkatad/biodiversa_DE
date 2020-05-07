@@ -192,3 +192,12 @@ wilcox.test(df[df$type=="X",'count'],df[df$type=="H",'count'])
 wilcox.test(df[df$hx=="X",'count'],df[df$hx=="H",'count'])
 t.test(df[df$hx=="X",'count'],df[df$hx=="H",'count'])
 
+setwd('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up4_cetuxi_treat_PDX')
+load('dds.Rdata')
+library(DESeq2)
+cetuxi <- read.table('/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/april2020/selected_metadata', header=F, sep="\t")
+p <- plotPCA(vsd, 'treat', returnData=T)
+m <- merge(p, cetuxi, by.x="row.names", by.y="V1")
+m$recist <- ifelse(m$V4 < -0.50, 'OR', ifelse(m$V4 > 0.35, 'PD', 'SD'))
+ggplot(data=m, aes(PC1, PC2, color=as.factor(recist)))+geom_point()+theme_bw()
+
