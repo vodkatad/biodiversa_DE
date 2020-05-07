@@ -36,6 +36,13 @@ rule de:
     script: SRC_DIR+"/deseq2_diff.R"
 
 
+# TODO change to getopt and remove H_ via shell before
+rule cris:
+    input: expr="fpkm.tsv.gz"#, cris=CRIS
+    params: prefix="all",debug=DEBUG
+    output: "all_prediction_result.xls"
+    script: SRC_DIR+"/cris_classify.R"
+
 # todo limma de and comparison of limma-deseq results
 
 
