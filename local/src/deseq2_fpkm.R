@@ -4,28 +4,38 @@ args <- commandArgs(trailingOnly=TRUE)
 counts <- args[[1]]
 len <- args[[2]]
 prefix <- args[[3]] # if all do not filter, otherwise keep ^prefix_ only genes. 
-#useful for xeno mice-man counts matrices made by Ivan's pipeline.
+#useful for xeno mice-man counts matrices made by ivan's pipeline.
 minc <- as.numeric(args[[4]])
 minsamples <- as.numeric(args[[5]])
 image <- args[[6]]
 fpkmf <- args[[7]]
-outprefix <- args[[8]]
+tmmf <- args[[8]]
+outprefix <- args[[9]]
 design <- "~1"
 fdesign <- as.formula(design)
-save.image('pippo.Rdata')
 
-library("BiocParallel")
+library("biocparallel")
 library("ggplot2")
-library("RColorBrewer")
+library("rcolorbrewer")
 library("pheatmap")
+library("edger")
 
-register(MulticoreParam(4)) # TODO from CORES
-library(DESeq2)
+register(multicoreparam(4)) # todo from cores
+library(deseq2)
 
-data <- read.table(gzfile(counts), header=T, sep="\t", row=1)
+data <- read.table(gzfile(counts), header=t, sep="\t", row=1)
 if (prefix != "all") {
   data <- data[grep(paste0("^", prefix, "_"), rownames(data)),]
 }
+
+## TMM from edgeR without filtering expression ###
+group <- as.factor(colnames(data))
+y <- DGEList(counts=data, group=group)
+#https://www.biostars.org/p/317701/
+y <- calcNormFactors(y)
+tmm <- cpm(y)
+write.table(tmm, gzfile(tmmf), quote=F, row.names=T, col.names=T, sep="\t")
+####
 
 dds <- DESeqDataSetFromMatrix(countData = data, colData=data.frame(row.names=colnames(data)), design=fdesign)
 filterGenes <- rowSums(counts(dds) > minc) < minsamples

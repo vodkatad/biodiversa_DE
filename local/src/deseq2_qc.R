@@ -13,7 +13,8 @@ minsamples <- as.numeric(args[[6]])
 len <- args[[7]]
 image <- args[[8]]
 fpkmf <- args[[9]]
-cores <- as.numeric(args[[10]])
+tmmf <- args[[10]]
+cores <- as.numeric(args[[11]])
 
 outprefix <- 'qc'
 
@@ -24,17 +25,33 @@ library(DESeq2)
 library(RColorBrewer)
 library(pheatmap)
 library(ggplot2)
+library(edgeR)
 
 data <- read.table(gzfile(counts), header=T, sep="\t", row=1)
 if (prefix != "all") {
   data <- data[grep(paste0("^", prefix, "_"), rownames(data)),]
 }
-
 metadata <- read.table(metadataf, sep="\t", header=T, row=1)
 fdesign <- as.formula(design)
 print(terms(fdesign)[[2]])
+
+save.image('tmm.Rdata')
+## TMM from edgeR without filtering expression ###
+#group <- as.factor(metadataf$terms(fdesign)[[2]])
+#manca filtro idiota!
+efilterGenes <- rowSums(data > minc) < minsamples
+edata <- data[!efilterGenes,]
+e_new_data <- edata[,match(rownames(metadata), colnames(edata))]
+y <- DGEList(counts=e_new_data, samples=metadata)
+#https://www.biostars.org/p/317701/
+y <- calcNormFactors(y)
+tmm <- cpm(y)
+write.table(tmm, gzfile(tmmf), quote=F, row.names=T, col.names=T, sep="\t")
+####
+
 # this was needed for ad hoc biodiversa stuff/strunz
 #rownames(metadata) <- gsub("-", ".", rownames(metadata), fixed=TRUE)
+###  colnames(data) <- gsub(".2", "", colnames(data), fixed=TRUE)
 new_data <- data[,match(rownames(metadata), colnames(data))]
 dds <- DESeqDataSetFromMatrix(countData = new_data, colData = metadata, design = fdesign)
 # filterGenes are the genes that will be removed cause they have 'noise reads' in less than minsamples

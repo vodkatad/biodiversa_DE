@@ -200,4 +200,107 @@ p <- plotPCA(vsd, 'treat', returnData=T)
 m <- merge(p, cetuxi, by.x="row.names", by.y="V1")
 m$recist <- ifelse(m$V4 < -0.50, 'OR', ifelse(m$V4 > 0.35, 'PD', 'SD'))
 ggplot(data=m, aes(PC1, PC2, color=as.factor(recist)))+geom_point()+theme_bw()
+###########
+
+setwd('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up4')
+#load('')
+load('dds.Rdata')
+metadata$typenonum <- unlist(lapply(metadata$type, function(x) {
+y <- strsplit(as.character(x), '.', fixed=TRUE)[[1]][1]
+# y2 <- strsplit(y, '_', fixed=TRUE)[[1]]
+# last <- length(y2)
+# if (!is.na(as.integer(y2[last]))) {
+#   y2 <- y2[-last]
+# }
+# return(paste(y2, collapse="_"))
+return(y)
+}))
+head(metadata)
+head(dds)
+dim(vst)
+dim(vsd)
+dim(fpkm_d)
+#sds <- apply()
+formula
+fdesign
+sds <-apply(vds, 1, sd)
+sds <-apply(vsd, 1, sd)
+sds <-apply(as.matrix(vsd), 1, sd)
+sds <-apply(assay(vsd), 1, sd)
+dim(sds)
+head(sds)
+mat <- assay(vsd)
+#mat[order(sds, decreasing=TRUE)[1:2000],]
+head(mat)
+highsd <- mat[order(sds, decreasing=TRUE)[1:2000],]
+View(metadata)
+pheatmap(highsd, cluster_rows=FALSE, show_rownames=FALSE, cluster_cols=TRUE, annotation_col=metadata[,c("typenonum","batch")])
+pheatmap(highsd, cluster_rows=FALSE, show_rownames=FALSE, cluster_cols=TRUE, annotation_col=metadata[,c("typenonum","batch")])
+pcs <- plotPCA(vsd, ingroup="type", returnData=TRUE)
+pcs <- plotPCA(vsd, intgroup="type", returnData=TRUE)
+head(pcs)
+pcs[PC2>42,]
+pcs[pcs$PC2>42,]
+substr(rownames(pcs[pcs$PC2>42,]), 0, 9)
+substr(rownames(pcs[pcs$PC2>42,]), 0, 10)
+as.data.frame(substr(rownames(pcs[pcs$PC2>42,]), 0, 10))
+as.data.frame(substr(rownames(pcs[pcs$PC2>20,]), 0, 10))
+pp <- rownames(pcs[pcs$PC2>20,]))
+pp <- rownames(pcs[pcs$PC2>20,])
+pp
+metadata[rownames(metadata) %in% pp,m]
+metadata[rownames(metadata) %in% pp,]
+pp2 <- rownames(pcs[pcs$PC2>42,])
+metadata[rownames(metadata) %in% pp,]
+metadata[rownames(metadata) %in% pp2,]
+pp <- pheatmap(highsd, cluster_rows=FALSE, show_rownames=FALSE, cluster_cols=TRUE, annotation_col=metadata[,c("typenonum","batch")])
+head(pp)
+pp$tree_col
+cl <- cutree(pp$tree_col, k=3)
+cl
+names(cl[cl==1,])
+names(cl[cl==1])
+names(cl[cl==2])
+names(cl[cl==3])
+names(cl[cl==])
+names(cl[cl==4])
+pp2
+table(cl)
+ppp <- names(cl[cl==4])
+ppp %in% pp
+p
+p
+ppp
+pp
+pp <- metadata[rownames(metadata) %in% pp2,]
+pp
+ppp
+ppp <- names(cl[cl==4])
+interset(rownames(pp),ppp)
+intersect(rownames(pp),ppp)
+ppp
+names(cl[cl==4])
+ppp <- names(cl[cl==3])
+intersect(rownames(pp),ppp)
+length(intersect(rownames(pp),ppp))
+length(ppp)
+dim(pp)
+
+cors <- cor(mat, method="pearson")
+
+clus <- hclust(as.dist((1-cors)/2))
+cl <- cutree(clust, k=4)
+cl <- cutree(clus, k=4)
+table(cl)
+cl <- cutree(clus, k=3)
+table(cl)
+ppp <- names(cl[cl==3])
+length(intersect(rownames(pp), ppp))
+ppp
+ppp <- names(cl[cl==2])
+length(ppp)
+cl <- cutree(clus, k=4)
+ppp <- names(cl[cl==3])
+length(ppp)
+length(intersect(rownames(pp), ppp))
 

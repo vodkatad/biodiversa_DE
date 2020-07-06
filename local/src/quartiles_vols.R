@@ -7,6 +7,7 @@ outputplot <- args[[3]]
 
 
 indf <- read.table(input, sep="\t", header=TRUE, stringsAsFactors=FALSE)
+colnames(indf) <- c('id','vol')
 indf <- indf[!is.na(indf$vol), ]
 
 # TODO get quantiles as params and generalize at the rule level
@@ -19,12 +20,12 @@ indf$chemio <- factor(indf$chemio, levels=c("nonresp","grey","resp"))
 ggplot(indf, aes(y=vol,x=reorder(id, -vol),fill=chemio))+geom_col()+ylab("Delta %volume")+xlab("Case")+theme_bw()+theme(axis.text.x = element_blank())+scale_fill_manual(values=c("red","grey","blue"))+ggtitle(paste0("Thrs =",paste0(thrs,collapse=", ")))
 ggsave(outputplot)
 
-table(indf$chemio)
-indf$basale <- NULL
-indf$type <- NULL
-indf$vol <- NULL
-table(indf$chemio, indf$batch)
-table(indf$chemio, indf$coverage)
+#table(indf$chemio)
+#indf$basale <- NULL
+#indf$type <- NULL
+#indf$vol <- NULL
+#table(indf$chemio, indf$batch)
+#table(indf$chemio, indf$coverage)
 
 
 write.table(indf, file=output, sep="\t", quote=FALSE, row.names=FALSE, col.names=TRUE)

@@ -31,9 +31,9 @@ rule plots:
     
 rule de:
     input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    output: tsv="{what}_cutoff{alpha,\d\.\d+}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
-    script: SRC_DIR+"/deseq2_diff.R"
+    script: SRC_DIR+"/deseq2_diff_nocook.R"
 
 
 # TODO change to getopt and remove H_ via shell before
@@ -74,11 +74,12 @@ rule go:
 
 #### Dot plots and selection of genes annoted TODO Generalize
 rule sign:
-    input: outliers="chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv", nooutliers="with_cook/chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv"
+    input: outliers="irinotecan_cutoff0.05-resp.vs.nonresp.deseq2.tsv"
     output: "chemio_de_005.tsv"
+    params: nooutliers="with_cook/irinotecan_cutoff0.05-resp.vs.nonresp.deseq2.tsv"
     shell:
         """
-            bawk '$7<0.05' {input.outliers} | translate -a -v -e "outliers"  <(bawk '$7<0.05 {{print $1,"nooutliers"}}' {input.nooutliers}) 1 | cut -f 1,2,3,4,7,8  | sed s'/H_//1'  | sed 1d > {output}
+            bawk '$7<0.05' {input.outliers} | translate -a -v -e "outliers"  <(bawk '$7<0.05 {{print $1,"nooutliers"}}' {params.nooutliers}) 1 | cut -f 1,2,3,4,7,8  | sed s'/H_//1'  | sed 1d > {output}
         """
 
 rule select_annote:
