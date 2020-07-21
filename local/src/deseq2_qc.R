@@ -32,6 +32,11 @@ if (prefix != "all") {
   data <- data[grep(paste0("^", prefix, "_"), rownames(data)),]
 }
 metadata <- read.table(metadataf, sep="\t", header=T, row=1)
+
+if ('batch' %in% colnames(metadata)) {
+    metadata[,'batch'] <- as.factor(metadata[,'batch'])
+}
+
 fdesign <- as.formula(design)
 print(terms(fdesign)[[2]])
 

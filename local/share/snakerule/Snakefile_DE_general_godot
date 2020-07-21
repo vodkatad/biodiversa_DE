@@ -1,6 +1,8 @@
 include: "conf.sk"
 import os
 
+# sadly:
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_cetuxi_treat_PDX$ rnabioinfotree; nsnakemake counts.tsv.gz; conda deactivate
 rule filter_expr:
     input: counts=COUNTS, metadata="samples_data"
     output: "counts.tsv.gz"
