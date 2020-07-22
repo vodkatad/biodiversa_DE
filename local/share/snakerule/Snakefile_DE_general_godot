@@ -1,29 +1,8 @@
 include: "conf.sk"
 import os
 
-# sadly:
-#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_cetuxi_treat_PDX$ rnabioinfotree; nsnakemake counts.tsv.gz; conda deactivate
-rule filter_expr:
-    input: counts=COUNTS, metadata="samples_data"
-    output: "counts.tsv.gz"
-    shell:
-        """
-            zcat {input.counts} | transpose | tee >(bawk 'NR==1{{print}}' > {output}.tmp) | filter_1col 1 <(sed 1d {input.metadata} | cut -f 1) > {output}.tmp2
-            cat {output}.tmp {output}.tmp2 | transpose | gzip > {output}
-            rm {output}.tmp*
-        """
-
-def input_plots(wildcards):
-    if FILTERSAMPLES == "yes":
-        return { 'counts': "counts.tsv.gz" }
-    elif FILTERSAMPLES == "no":
-        return { 'counts': COUNTS }
-    else:
-        print("Please define FILTERSAMPLES in conf.sk! yes or no?")
-
-
 rule plots:
-    input: unpack(input_plots), metadata="samples_data"
+    input: counts=COUNTS, metadata="samples_data"
     output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz"
     params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
     shell:

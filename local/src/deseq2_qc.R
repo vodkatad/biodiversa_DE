@@ -57,7 +57,15 @@ write.table(tmm, gzfile(tmmf), quote=F, row.names=T, col.names=T, sep="\t")
 # this was needed for ad hoc biodiversa stuff/strunz
 #rownames(metadata) <- gsub("-", ".", rownames(metadata), fixed=TRUE)
 ###  colnames(data) <- gsub(".2", "", colnames(data), fixed=TRUE)
+if (length(intersect(rownames(metadata), colnames(data))) != nrow(metadata)) {
+    stop('No correspondence between metadata and counts!')
+}
+
 new_data <- data[,match(rownames(metadata), colnames(data))]
+if (!all(rownames(metadata)==colnames(new_data))) {
+    stop('match issues...')
+}
+
 dds <- DESeqDataSetFromMatrix(countData = new_data, colData = metadata, design = fdesign)
 # filterGenes are the genes that will be removed cause they have 'noise reads' in less than minsamples
 filterGenes <- rowSums(counts(dds) > minc) < minsamples
