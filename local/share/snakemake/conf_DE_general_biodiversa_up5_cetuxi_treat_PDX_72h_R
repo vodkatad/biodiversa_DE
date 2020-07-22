@@ -1,0 +1,71 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+                                                    
+NAME="Biodiversa_up5_cetuxi_treat_PDX_72h_R"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020/'
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+#DESIGN="~batch+time+treat"
+DESIGN="~sample+treat"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+
+
+# for biodiversa change - in . in metadata
+rule wanted:
+	output: "wanted"
+	shell:
+		"""
+		 echo -e "LMX_cetux_6w\\nLMX_cetux_6w_NT\\nLMX_cetux_72h\\nLMX_cetux_72h_NT" > {output}
+		"""
+
+# TODO keep only sensible cases and work on R ones in another dir to substract their 'spurious' DEG
+# decided to work separately at 72h and 6w
+rule samples_data:
+    input: meta=BIT_DIR+"/selected_metadata_annot", wanted="wanted"
+    output: "samples_data"
+    shell:
+        """
+			echo -e "id\\tsample\\tbatch\\ttreat" > {output}
+			cat {input.meta} | bawk '$2=="pass" || $2=="NA"' | bawk '$3=="pass"'| perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/'  \
+			| cut -f 1,4,5,6 | sed 's/\.1//1' | filter_1col 3 {input.wanted} | bawk '$4 > 0.3'| tr "_" "\\t" | bawk '$5=="72h"' \
+			| bawk '$6=="NT" {{print $1, substr($1,0,7), $2, "NT"}} $6!="NT"{{print $1,substr($1,0,7),$2,"cetuxi"}}' >> {output}
+        """
+
+#CRC0166LMX0A05011TUMR05000      CRC0166 1       6w      NT -> this was the first design with everything together
+# fixme or was it correct to consider the NT at different times? or we could work separately at 6w and 72h...yes, let's do that. 
+# then two separated directories for R and S cases
+
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
