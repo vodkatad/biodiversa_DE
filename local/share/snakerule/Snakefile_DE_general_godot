@@ -1,30 +1,115 @@
 include: "conf.sk"
 import os
 
+# TODO save also vst    
 rule plots:
     input: counts=COUNTS, metadata="samples_data"
-    output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz"
+    output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
     params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
     shell:
         """
             {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
         """
-    
+
 rule de:
     input: "dds.Rdata"
     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff.R"
 
+## TODO correct with limma/voom removing batch effects
 
-# TODO change to getopt and remove H_ via shell before
+## rule that removes H_ / M_ and filters only one kind of genes from metric.tsv.gz files
+rule species_specific_matrices:
+    input: "{metric}.tsv.gz"
+    output: "{metric}_noSpecie.tsv.gz"
+    params: specie=SPECIES
+    shell:
+        """
+            zcat {input} | head -n 1 > {output}.tmp || echo 'plh'
+            zcat {input} | sed 1d | sed 's/^{params.specie}_//1' >> {output}.tmp
+            gzip -c {output}.tmp > {output}
+            rm {output}.tmp
+        """
+
+
+## TODO vst PC
+
+## TODO PC plots
+
+
+# 1 TODO change to getopt and remove H_ via shell before
 rule cris:
     input: expr="fpkm.tsv.gz"#, cris=CRIS
     params: prefix="all",debug=DEBUG
     output: "all_prediction_result.xls"
     script: SRC_DIR+"/cris_classify.R"
 
-# todo limma de and comparison of limma-deseq results
+rule cris_v2:
+    input: expr="{metric}_noSpecie.tsv.gz"
+    params: prefix="cris_{metric}"
+    output: "cris_{metric}_prediction_result.xls"
+    script: SRC_DIR+"/cris_classify_V2.R"
+
+rule wipe_up_after_cris:
+    input: "cris_{metric}_prediction_result.xls"
+    output: tsv="cris_{metric}_prediction_result.tsv", png="cris_{metric}_prediction_result.png"
+    shell:
+        """
+            mv {input} {output.tsv}
+            mv cris_{wildcards.metric}_heatmp.png {output.png}
+            rm cris_{wildcards.metric}_sample_info.txt cris_{wildcards.metric}_sorted.dataset.gct cris_{wildcards.metric}_predicted*sorted.cls cris_{wildcards.metric}_*png  cris_{wildcards.metric}_features.xls
+        """
+
+rule cris_classes:
+    input: tsv="cris_{metric}_prediction_result.tsv"
+    output: tsv="cris_{metric}_{thr}_classes.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input.tsv, sep="\t", header=None, names=["sample","GSM","cris","fdr"])
+        thr = float(wildcards.thr)
+        d = d[d['fdr'] < thr]
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output.tsv, sep="\t")
+
+#FDR_THR = 0.2 # cris paper uses this, we mark NC as not classified samples and NS as samples that change across samplings (are they XA/XB?)
+rule cris_microarray:
+    input: CRIS_UARRAY
+    output: "cris_uarray_{thr}.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input[0], sep="\t", header=None, names=["sample","GSM","cris","fdr"])
+        thr = float(wildcards.thr)
+        d = d[d['fdr'] < thr]
+        spl = [x.split('-')  for x in d['sample'].values]
+        d['genealogy'] = [x[0] + "LMX0" + x[1] for x in spl]
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output[0], sep="\t")
+
+## 2 TODO compare CRIS with uarray ones
+# per nuovi cris tenere solo basali non filtrati attualmente e sottoporli allo stesso trattamento
+
+### regola per calcolo score
+def definput(wildcards):
+    if (wildcards.expr == "fpkm"):
+        return {'expr': 'fpkm.tsv.gz'}
+    else:
+        return {'expr': 'tmm.tsv.gz'}
+
+rule score:
+    input: unpack(definput), genes=MARKER
+    params: tool=BIN_DIR+"/lymphoma_score"
+    output: "{expr}_lymphoma_scores.tsv.gz"
+    shell:
+        """
+            {params.tool} -e {input.expr} -g {input.genes} -o {output}
+        """
 
 
 # GO

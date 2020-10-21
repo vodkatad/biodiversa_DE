@@ -14,7 +14,8 @@ len <- args[[7]]
 image <- args[[8]]
 fpkmf <- args[[9]]
 tmmf <- args[[10]]
-cores <- as.numeric(args[[11]])
+vsdf <- args[[11]]
+cores <- as.numeric(args[[12]])
 
 outprefix <- 'qc'
 
@@ -40,7 +41,6 @@ if ('batch' %in% colnames(metadata)) {
 fdesign <- as.formula(design)
 print(terms(fdesign)[[2]])
 
-save.image('tmm.Rdata')
 ## TMM from edgeR without filtering expression ###
 #group <- as.factor(metadataf$terms(fdesign)[[2]])
 #manca filtro idiota!
@@ -74,6 +74,9 @@ dds <- DESeq(dds, parallel=TRUE, betaPrior=TRUE)
 vsd <- vst(dds, blind=FALSE)
 
 save.image(image)
+
+write.table(assay(vsd), gzfile(vsdf), quote=F, row.names=T, col.names=T, sep="\t")
+
 
 sampleDists <- dist(t(assay(vsd)))
 sampleDistMatrix <- as.matrix(sampleDists)

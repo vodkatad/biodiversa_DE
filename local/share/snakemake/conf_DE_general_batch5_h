@@ -11,20 +11,31 @@ def find_prj_root(path=os.getcwd()):
 
 PRJ_ROOT=find_prj_root()
                                                     
-NAME="Biodiversa_up5"
+NAME="batch_5_h"
 DATA=PRJ_ROOT+"/local/share/data/"+NAME
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
 
-CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
-#BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020'
-BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020'
+BIT_DIR='/mnt/bioionfotree/prj/RNAseq_biodiversa/dataset/v1_human'
+BIT_DIR2='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020'
 
-COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+COUNTS="counts.tsv.gz"
+
+rule counts:
+	input: counts=BIT_DIR+"/fastq.featurecounts.ribo.ex.count.gz", samples="samples_data"
+	output: COUNTS
+	shell:
+		"""
+			cut -f 1 {input.samples} > {output}.tmp
+			echo "Geneid" >> {output}.tmp
+			zcat {input.counts} | cut -f 2,3,4,5,6 --complement | transpose | filter_1col 1 {output}.tmp | transpose | gzip > {output}
+
+		"""
+
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
 DESIGN="~type"
-SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
 
@@ -43,13 +54,15 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 
 # for biodiversa change - in . in metadata
 
+# freta freatta
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/batch5_h$ zcat counts.tsv.gz  | head -n1 | tr "\t" "\n" > ~/samples
 rule samples_data:
-    input: BIT_DIR+"/selected_metadata"
+    input: m=BIT_DIR2+"/selected_metadata", s="/home/egrassi/samples"
     output: "samples_data"
     shell:
         """
-			echo -e "id\\tbatch\\ttype\\tcetuxi\\tirino" > {output}
-			cat {input} | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/' >> {output}
+			echo -e "id\\tbatch\\ttype" > {output}
+			cat {input.m} | bawk '$2=="4" {{print $1,$2,$3}}' | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/' | filter_1col 1 {input.s} >> {output}
         """
 
 LFC=0.5849625 # 1.5 FC
@@ -57,6 +70,3 @@ CORES=6
 PVAL=0.05
 
 DEBUG="yes"
-
-### rule score -
-MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
