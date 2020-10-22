@@ -58,7 +58,8 @@ rule wipe_up_after_cris:
         """
             mv {input} {output.tsv}
             mv cris_{wildcards.metric}_heatmp.png {output.png}
-            rm cris_{wildcards.metric}_sample_info.txt cris_{wildcards.metric}_sorted.dataset.gct cris_{wildcards.metric}_predicted*sorted.cls cris_{wildcards.metric}_*png  cris_{wildcards.metric}_features.xls
+            rm cris_{wildcards.metric}_sample_info.txt cris_{wildcards.metric}_sorted.dataset.gct cris_{wildcards.metric}_predicted*sorted.cls cris_{wildcards.metric}_FDR*png cris_{wildcards.metric}_*legend.png  cris_{wildcards.metric}_features.xls
+            rm cris_{wildcards.metric}.tmp
         """
 
 rule cris_classes:
@@ -67,7 +68,9 @@ rule cris_classes:
     run: 
         import pandas as pd
         import numpy as np
-        d = pd.read_table(input.tsv, sep="\t", header=None, names=["sample","GSM","cris","fdr"])
+        #sample.names    predict.label2  dist.to.template        dist.to.cls1.rank       nominal.p       BH.FDR  Bonferroni.p
+        d = pd.read_table(input.tsv, sep="\t", index_col=False)
+        d.rename(columns={"predict.label2": "cris", "BH.FDR": "fdr","sample.names": "genealogy"}, inplace=True)
         thr = float(wildcards.thr)
         d = d[d['fdr'] < thr]
         dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
@@ -75,25 +78,21 @@ rule cris_classes:
         res = pd.DataFrame(dp)
         res.to_csv(output.tsv, sep="\t")
 
-#FDR_THR = 0.2 # cris paper uses this, we mark NC as not classified samples and NS as samples that change across samplings (are they XA/XB?)
-rule cris_microarray:
-    input: CRIS_UARRAY
-    output: "cris_uarray_{thr}.tsv"
-    run: 
-        import pandas as pd
-        import numpy as np
-        d = pd.read_table(input[0], sep="\t", header=None, names=["sample","GSM","cris","fdr"])
-        thr = float(wildcards.thr)
-        d = d[d['fdr'] < thr]
-        spl = [x.split('-')  for x in d['sample'].values]
-        d['genealogy'] = [x[0] + "LMX0" + x[1] for x in spl]
-        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
-        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
-        res = pd.DataFrame(dp)
-        res.to_csv(output[0], sep="\t")
-
-## 2 TODO compare CRIS with uarray ones
-# per nuovi cris tenere solo basali non filtrati attualmente e sottoporli allo stesso trattamento
+# needed input:
+#LMX_lineage     prediction_LMX  BH_FDR_LMX      LMO_lineage     prediction_LMO  BH_FDR_LMO      switched        switch_type     pval_switch_sign
+#CRC0066LMX0A    CRIS-C  0.001055823318095       CRC0066LMO0A    CRIS-D  0.136031953914561       yes     CRIS-C > CRIS-D no
+HEADER='"LMX_lineage\\tprediction_LMX\\tBH_FDR_LMX\\tLMO_lineage\\tprediction_LMO\\tBH_FDR_LMO\\tswitched\\tswitch_type\\tpval_switch_sign"'
+rule cris_sankey:
+    input: m1="cris_{m1}_0.2_classes.tsv", m2="cris_{m2}_0.2_classes.tsv"
+    params: tool=BIN_DIR+"/PDX-PDO_different_plots", header=HEADER
+    output: sankey="{m1}_{m2}_sankey_diagram_PDX-PDO_CRISswitch.html", classes="{m1}_{m2}_classes_freq_in_samples.png", switch="{m1}_{m2}_switch_numbers.png", switched="{m1}_{m2}_switching_CRIS_withBARs.png"
+    shell:
+        """
+            echo -e {params.header} > {output.sankey}.tmp
+            join -t$'\\t' {input.m1} {input.m2} | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
+            {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched}
+            rm {output.sankey}.tmp
+        """
 
 ### regola per calcolo score
 def definput(wildcards):
