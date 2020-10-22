@@ -1,0 +1,39 @@
+ROOT="/scratch/trcanmed"
+MATRIX="../fpkm_noSpecie.tsv.gz"
+METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020/selected_metadata_annot_final_nolinfo_nooutlier"
+WANTED="../../../local/share/data/dambrosio"
+WANTEDT=ROOT+"/RNASeq_biod_metadata/local/share/data/xeno"
+
+rule select_wanted:
+    input: wanted=WANTED, metadata=METADATA, counts=MATRIX, types=WANTEDT
+    output: counts="selected_matrix.tsv.gz", metadata="selected_metadata.tsv"
+    shell:
+        """
+            head -n 1 {input.metadata} | cut -f 1,6,7 > {output.metadata}
+            sed 1d {input.metadata} | filter_1col 7 {input.types} | grep -f <(cut -f 1 {input.wanted}) | cut -f 1,6,7 >> {output.metadata}
+            cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | gzip > {output.counts}            
+        """ 
+
+# rule split_in_three:
+#     input: "human_counts.tsv.gz", "human_metadata.tsv", "organoids_counts.tsv.gz", "organoids_metadata.tsv", "xeno_counts.tsv.gz", "xeno_metadata.tsv"
+
+
+# rule split:
+#     input: counts="selected_counts.tsv.gz", meta="selected_metadata.tsv", filter="../../../local/share/data/{class}"
+#     output: counts="{class}_counts.tsv.gz", metadata="{class}_metadata.tsv"
+#     shell:
+#         """
+#             head -n 1 {input.meta} > {output.metadata}
+#             sed 1d {input.meta} | filter_1col 3 {input.filter} >> {output.metadata}
+#             cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
+#             zcat {input.counts} | transpose | filter_1col 1 {output.counts}.tmp | transpose | gzip > {output.counts}            
+#         """
+
+rule kras_mut:
+    input: w=WANTED, meta="selected_metadata.tsv"
+    output: "wanted_selected"
+    shell:
+        """
+            cat {input.w} | filter_1col 1 <(bawk '{{print substr($1,0,7)}}' {input.meta}) > {output}
+        """
