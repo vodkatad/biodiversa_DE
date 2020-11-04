@@ -37,3 +37,22 @@ rule kras_mut:
         """
             cat {input.w} | filter_1col 1 <(bawk '{{print substr($1,0,7)}}' {input.meta}) > {output}
         """
+
+### rule P53 mutational status
+rule single_gene_muts:
+    input: muts=ROOT+"/pdxopedia/dataset/sanger_targeted_v2/coding_muts_annotated_hg19.tsv", wanted=WANTED
+    output: "{gene}_selected.tsv"
+    shell:
+        """
+            head -n 1 {input.muts} | bawk '{{print "shortsample",$0}}' > {output}
+            sed 1d {input.muts} | bawk -v g={wildcards.gene} '$6==g {{print substr($1,0,7),$0}}' | filter_1col 1 <(cut -f 1 {input.wanted}) >> {output}
+        """
+
+rule studied_samples:
+    input: muts=ROOT+"/pdxopedia/dataset/sanger_targeted_v2/coding_muts_annotated_hg19.tsv", wanted=WANTED
+    output: "samples_selected.tsv"
+    shell:
+        """
+            echo -e "shortsample\\tsample" > {output}
+            sed 1d {input.muts} | bawk '{{print substr($1,0,7),$1}}' | filter_1col 1 <(cut -f 1 {input.wanted}) | sort | uniq >> {output}
+        """
