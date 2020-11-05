@@ -95,20 +95,16 @@ rule cris_sankey:
         """
 
 ### regola per calcolo score
-def definput(wildcards):
-    if (wildcards.expr == "fpkm"):
-        return {'expr': 'fpkm.tsv.gz'}
-    else:
-        return {'expr': 'tmm.tsv.gz'}
 
-rule score:
-    input: unpack(definput), genes=MARKER
-    params: tool=BIN_DIR+"/lymphoma_score"
-    output: "{expr}_lymphoma_scores.tsv.gz"
-    shell:
-        """
-            {params.tool} -e {input.expr} -g {input.genes} -o {output}
-        """
+
+#rule score:
+#    input: unpack(definput), genes=MARKER
+#    params: tool=BIN_DIR+"/lymphoma_score"
+#    output: "{expr}_lymphoma_scores.tsv.gz"
+#   shell:
+#        """
+#            {params.tool} -e {input.expr} -g {input.genes} -o {output}
+#        """
 
 
 # GO
@@ -137,38 +133,38 @@ rule go:
     script: SRC_DIR+"/go.R"
 
 
-#### Dot plots and selection of genes annoted TODO Generalize
+#### Dot plots and selection of genes annoted
 rule sign:
-    input: outliers="chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv", nooutliers="with_cook/chemio_cutoff0.05-resp.vs.nonresp.deseq2.tsv"
-    output: "chemio_de_005.tsv"
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
     shell:
         """
-            bawk '$7<0.05' {input.outliers} | translate -a -v -e "outliers"  <(bawk '$7<0.05 {{print $1,"nooutliers"}}' {input.nooutliers}) 1 | cut -f 1,2,3,4,7,8  | sed s'/H_//1'  | sed 1d > {output}
+            bawk '$7<0.05' {input} | bawk 'NR==1{{print "gene",$0}}NR!=1{{print $0}}'  | cut -f 1,2,3,4,7  | sed s'/H_//1'  > {output}
         """
 
 rule select_annote:
-    input: "chemio_de_005.tsv" 
-    output: "chemio_de_005_genedesc.tsv"
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign_genedesc.tsv"
     params: tool=BIN_DIR+"/add_description"
     shell:
         """
-            {params.tool} -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
+            {params.tool} -d -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
         """
 
 def defwhat(wildcards):
     if (wildcards.what == "de"):
-        return {'wanted': 'chemio_de_005_genedesc.tsv'}
+        return {'wanted': BASE}
     else:
-        return {'wanted': DATA+'/'+wildcards.what}
+        return {'wanted': BASE_DATA+'/'+wildcards.what}
 
-rule striplots_chemio:
+rule striplots:
     input: unpack(defwhat), dds="dds.Rdata"
-    output: directory("{what}_plots")
-    params: tool=BIN_DIR+"/striplots", TODO="irinotecan"
+    output: directory("{what}_plots_{class}")
+    params: tool=BIN_DIR+"/striplots"
     shell:
         """
             mkdir -p {output}
-            {params.tool} {input.wanted} {input.dds} {output} {params.TODO}
+            {params.tool} {input.wanted} {input.dds} {output} {wildcards.class}
         """
 
 ### GSEA
