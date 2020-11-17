@@ -1,0 +1,73 @@
+ROOT="/scratch/trcanmed"
+MATRIX="../fpkm_noSpecie.tsv.gz"
+METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020/selected_metadata_annot_final_nolinfo_nooutlier"
+#data@rotpunkt:~/work/geo/GSE76402$ head -n1 GSE76402_expressed_notcross_log.tsv  | cut -f 1,2 --complement |tr "\t" "\n" | bawk '{print substr($1,0,10)}' | sort | uniq > samples_selected
+#data@rotpunkt:~/work/geo/GSE76402$ scp samples_selected godot:/scratch/trcanmed/DE_RNASeq/local/share/data/GSE76402_samples_selected_shortg.tsv
+#samples_selected                                                                                                                                                                                                                                        100% 2684   231.0KB/s   00:00    
+#data@rotpunkt:~/work/geo/GSE76402$ wc -l samples_selected 
+#244 samples_selected
+
+WANTED="../../../local/share/data/GSE76402_samples_selected_shortg.tsv"
+WANTEDT=ROOT+"/RNASeq_biod_metadata/local/share/data/xeno"
+
+rule select_wanted:
+    input: wanted=WANTED, metadata=METADATA, counts=MATRIX, types=WANTEDT
+    output: counts="selected_matrix.tsv.gz", metadata="selected_metadata.tsv"
+    shell:
+        """
+            head -n 1 {input.metadata} | cut -f 1,6,7 > {output.metadata}
+            sed 1d {input.metadata} | filter_1col 7 {input.types} | grep -f <(cut -f 1 {input.wanted}) | cut -f 1,6,7 >> {output.metadata}
+            cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | gzip > {output.counts}            
+        """ 
+
+# rule split_in_three:
+#     input: "human_counts.tsv.gz", "human_metadata.tsv", "organoids_counts.tsv.gz", "organoids_metadata.tsv", "xeno_counts.tsv.gz", "xeno_metadata.tsv"
+
+
+# rule split:
+#     input: counts="selected_counts.tsv.gz", meta="selected_metadata.tsv", filter="../../../local/share/data/{class}"
+#     output: counts="{class}_counts.tsv.gz", metadata="{class}_metadata.tsv"
+#     shell:
+#         """
+#             head -n 1 {input.meta} > {output.metadata}
+#             sed 1d {input.meta} | filter_1col 3 {input.filter} >> {output.metadata}
+#             cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
+#             zcat {input.counts} | transpose | filter_1col 1 {output.counts}.tmp | transpose | gzip > {output.counts}            
+#         """
+
+rule kras_mut:
+    input: w=WANTED, meta="selected_metadata.tsv"
+    output: "wanted_selected"
+    shell:
+        """
+            cat {input.w} | filter_1col 1 <(bawk '{{print substr($1,0,7)}}' {input.meta}) > {output}
+        """
+
+### rule P53 mutational status
+rule single_gene_muts:
+    input: muts=ROOT+"/pdxopedia/dataset/sanger_targeted_v2_genealogy/fl_coding_muts_annotated_hg19.tsv", wanted=WANTED
+    output: "{gene}_selected.tsv"
+    shell:
+        """
+            head -n 1 {input.muts} | bawk '{{print "shortsample",$0}}' > {output}
+            sed 1d {input.muts} | bawk -v g={wildcards.gene} '$6==g {{print substr($1,0,10),$0}}' | filter_1col 1 <(cut -f 1 {input.wanted}) >> {output}
+        """
+
+rule studied_samples:
+    input: muts=ROOT+"/pdxopedia/dataset/sanger_targeted_v2_genealogy/fl_coding_muts_annotated_hg19.tsv", wanted=WANTED
+    output: "samples_selected.tsv"
+    shell:
+        """
+            echo -e "shortsample\\tsample" > {output}
+            sed 1d {input.muts} | bawk '{{print substr($1,0,10),$1}}' | filter_1col 1 <(cut -f 1 {input.wanted}) | sort | uniq >> {output}
+        """
+
+rule all_muts:
+    input: muts=ROOT+"/pdxopedia/dataset/sanger_targeted_v2_genealogy/fl_coding_muts_annotated_hg19.tsv", wanted=WANTED
+    output: "muts_selected.tsv"
+    shell:
+        """
+            head -n 1 {input.muts} | bawk '{{print "shortsample",$0}}' > {output}
+            sed 1d {input.muts} | bawk  '{{print substr($1,0,10),$0}}' | filter_1col 1 <(cut -f 1 {input.wanted}) >> {output}
+        """
