@@ -1,0 +1,16 @@
+ROOT="/scratch/trcanmed"
+MATRIX="../vsd.tsv.gz"
+METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020/selected_metadata_annot_final_nolinfo_nooutlier"
+WANTEDT=ROOT+"/RNASeq_biod_metadata/local/share/data/basali_human_xeno"
+
+rule select_wanted:
+    input: metadata=METADATA, counts=MATRIX, types=WANTEDT
+    output: counts="selected_matrix.tsv.gz", metadata="selected_metadata.tsv"
+    shell:
+        """
+            head -n 1 {input.metadata} | cut -f 1,6,7 > {output.metadata}
+            sed 1d {input.metadata} | filter_1col 7 {input.types} | cut -f 1,6,7 >> {output.metadata}
+            cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """ 
