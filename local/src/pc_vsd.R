@@ -1,3 +1,4 @@
+
 ppca <- function (data, meta, intgroup, pc1, pc2, ntop=500, returnData=FALSE)
 {
   
@@ -19,10 +20,39 @@ ppca <- function (data, meta, intgroup, pc1, pc2, ntop=500, returnData=FALSE)
     return(d)
   }
   d$group <- as.factor(d$group) 
-  ggplot(data = d, aes_string(x = "PC1", y = "PC2", color = "group")) + 
+  print(ggplot(data = d, aes_string(x = "PC1", y = "PC2", color = "group")) + 
     geom_point(size = 2) + xlab(paste0("PC", pc1, ': ', round(percentVar[1] *  
                                                                 100), "% variance")) + ylab(paste0("PC", pc2, ":", round(percentVar[2] * 
-                                                                                                                           100), "% variance")) + coord_fixed()+theme_bw()
+                                                                                                                           100), "% variance"))+theme_bw())
+  return(percentVar)
+}
+
+
+cppca <- function (data, meta, intgroup, pc1, pc2, ntop=500, returnData=FALSE)
+{
+  
+  rv <- rowVars(data)
+  select <- order(rv, decreasing = TRUE)[seq_len(min(ntop, 
+                                                     length(rv)))]
+  pca <- prcomp(t(data[select, ]))
+  percentVar <- pca$sdev^2/sum(pca$sdev^2)
+  if (!all(intgroup %in% names(meta))) {
+    stop("the argument 'intgroup' should specify columns of colData(dds)")
+  }
+  intgroup.df <- as.data.frame(meta[, intgroup, 
+                                    drop = FALSE])
+  group <- meta[, intgroup]
+  d <- data.frame(PC1 = pca$x[, pc1], PC2 = pca$x[, pc2], group = group,
+                  name = colnames(data))
+  if (returnData) {
+    attr(d, "percentVar") <- percentVar[1:2]
+    return(d)
+  }
+  print(ggplot(data = d, aes_string(x = "PC1", y = "PC2", color = "group")) + 
+          geom_point(size = 2) + xlab(paste0("PC", pc1, ': ', round(percentVar[1] *  
+                                                                      100), "% variance")) + ylab(paste0("PC", pc2, ":", round(percentVar[2] * 
+                                                                                                                                 100), "% variance")) +theme_bw())
+  return(pca$rotation)
 }
 
 metadata <- read.table('/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5/magnum/selected_metadata.tsv', sep="\t", header=TRUE, row.names = 1)
@@ -45,18 +75,22 @@ ppca(as.matrix(mat), metadata, 'batch', 1,2)
 ###################
 # TODO REMOVE lymphomas and outlier!
 data <- read.table(gzfile('/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5/vsd.tsv.gz'), sep="\t", header=TRUE, row.names=1)
+
+meta <- read.table('/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020/selected_metadata_annot_final_nolinfo_nooutlier', sep="\t", header=TRUE)
+data <- data[, colnames(data) %in% meta$sample_id_R,]
+
 sds <- apply(data, 1, sd)
 means <- rowMeans(data)
 library(ggplot2)
 pdata <- data.frame(row.names=names(means), mean=means, sd=sds, median=apply(data, 1, median))
 library(reshape2)
 mpdata <- melt(pdata)
-library(DESeq2)
-load('/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5/dds.Rdata')
-library(vsn)
-meanSdPlot(assay(vsd))
-pdata$mrank <- rank(pdata$mean)
-plot(pdata$mrank, pdata$sd)
+#library(DESeq2)
+#load('/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5/dds.Rdata')
+#library(vsn)
+#meanSdPlot(assay(vsd))
+#pdata$mrank <- rank(pdata$mean)
+#plot(pdata$mrank, pdata$sd)
 
 
 # for each decile of expression we extract the lowest decile in sd inside that selection of genes to obtain housekeeping genes
@@ -76,6 +110,9 @@ gethighestdecilesd <- function(data) {
   levels(data$deciles) <- s
   return(rownames(data[data$deciles == s[length(s)-1],]))
 }
+
+getlowestdecilesd(pdata[pdata$meandeciles==0.9,])
+gethighestdecilesd(pdata[pdata$meandeciles==0.9,])
 
 #hist(as.numeric(data[rownames(data)=="H_CTCF",]))
 pdata2 <- data.frame(CTCF=as.numeric(data[rownames(data)=="H_CTCF",]), IGFBP2=as.numeric(data[rownames(data)=="H_IGFBP2",]), LGALS3=as.numeric(data[rownames(data)=="H_LGALS3",]))
