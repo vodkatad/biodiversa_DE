@@ -71,3 +71,15 @@ rule all_muts:
             head -n 1 {input.muts} | bawk '{{print "shortsample",$0}}' > {output}
             sed 1d {input.muts} | bawk  '{{print substr($1,0,10),$0}}' | filter_1col 1 <(cut -f 1 {input.wanted}) >> {output}
         """
+
+## TP53 cnv
+CN=ROOT+'/pdxopedia/local/share/data/targeted_sanger_v2/our_cn_genes2_genealogy.tsv.gz'
+rule cn:
+    input: cn=CN, wanted=WANTED
+    output: "TP53_CNselected.tsv"
+    shell:
+        """
+            echo -en "chr\\tb\\te\\tgenealogy\\tlogFC\\tweight\\tn_probes\\tchrg\\tbg\\teg\\tgene_symbol\\n" > {output}
+            zcat {input.cn} | bawk '$12=="TP53" && $5=="firstlevel" {{print substr($4,0,10), $0}}' | filter_1col 1 {input.wanted} |
+            cut -f 2,3,4,5,7,8,9,10,11,12,13 >> {output} 
+        """
