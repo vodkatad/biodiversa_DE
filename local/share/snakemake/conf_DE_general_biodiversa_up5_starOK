@@ -17,8 +17,8 @@ BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
 
 CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
-#BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020'
-BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020'
+BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+#BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020'
 
 COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
