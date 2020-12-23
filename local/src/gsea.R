@@ -32,7 +32,7 @@ run_gsea <- function(pathway_i, rnk, name) {
 # already in the loaded rdata:
 #pathways <- list(Mm.H, Mm.c2, Mm.c3, Mm.c4, Mm.c6, Mm.c7)
 #names(pathways) <- c("hallmark", "curated", "motif", "computational", "oncogenic", "immunologic")
-pathways <- pathways[c(1)] # we keep only hallmark
+#pathways <- pathways[c(1)] # we keep only hallmark
 all <- read.table(input, header=TRUE, sep="\t")
 
 dir.create(outdir)

@@ -185,3 +185,8 @@ rule gsea:
     script: GSEA
 
 
+rule gsea_not_hallmark:
+    input: tsv="{what}_cutoff0.05-{nom}.vs.{den}.gseain.tsv", pathways=GSEA_PATHWAYS_NOTHALL
+    output: outdir=directory("{what}_gseanh_{nom}vs{den}"), outtable="{what}_{nom}.vs.{den}.significant_NES_gseanh", outtableall="{what}_{nom}.vs.{den}.all_NES_gseanh"
+    params: save="gseanh_{what}_{nom}.vs.{den}.Rdata", cores=CORES, debug="no"
+    script: GSEA
