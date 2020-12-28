@@ -190,3 +190,11 @@ rule gsea_not_hallmark:
     output: outdir=directory("{what}_gseanh_{nom}vs{den}"), outtable="{what}_{nom}.vs.{den}.significant_NES_gseanh", outtableall="{what}_{nom}.vs.{den}.all_NES_gseanh"
     params: save="gseanh_{what}_{nom}.vs.{den}.Rdata", cores=CORES, debug="no"
     script: GSEA
+
+rule gsea_rnk:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.rnk"
+    shell:
+        """
+            cut -f 1,3 {input} | sed 1d | sort | uniq > {output}
+        """
