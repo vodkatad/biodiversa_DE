@@ -75,6 +75,8 @@ ppca(as.matrix(mat), metadata, 'batch', 1,2)
 ###################
 # TODO REMOVE lymphomas and outlier!
 data <- read.table(gzfile('/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5/vsd.tsv.gz'), sep="\t", header=TRUE, row.names=1)
+#/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK/
+data <- read.table(gzfile('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK/vsd.tsv.gz'), sep="\t", header=TRUE, row.names=1)
 
 meta <- read.table('/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020/selected_metadata_annot_final_nolinfo_nooutlier', sep="\t", header=TRUE)
 meta$sample_id_R <- gsub('-','.', meta$sample_id_R, fixed=TRUE)
@@ -276,5 +278,63 @@ oth <- other_genes[sample.int(581285656, size =34097)]
 pd <- data.frame(values=c(cor_genes, oth), class=c(rep('diagonal',length(cor_genes)), rep('other', length(oth))))
 ggplot(data=pd, aes(y=values, x=class, color=class))+geom_boxplot()+theme_bw()+ggtitle('genes')+theme(text=element_text(size=21))
 
+#### dnah5
+
+#data <- read.table(gzfile('/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5/vsd.tsv.gz'), sep="\t", header=TRUE, row.names=1)
+#/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK/
+data <- read.table(gzfile('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK/tmm.tsv.gz'), sep="\t", header=TRUE, row.names=1)
+vsd <- read.table(gzfile('/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5/vsd.tsv.gz'), sep="\t", header=TRUE, row.names=1)
+
+meta <- read.table('/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020/selected_metadata_annot_final_nolinfo_nooutlier', sep="\t", header=TRUE)
+meta$sample_id_R <- gsub('-','.', meta$sample_id_R, fixed=TRUE)
+data <- data[, colnames(data) %in% meta$sample_id_R,]
+
+sds <- apply(data, 1, sd)
+means <- rowMeans(data)
+library(ggplot2)
+pdata <- data.frame(row.names=names(means), mean=means, sd=sds, median=apply(data, 1, median))
+library(reshape2)
+mpdata <- melt(pdata)
+#library(DESeq2)
+#load('/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5/dds.Rdata')
+#library(vsn)
+#meanSdPlot(assay(vsd))
+#pdata$mrank <- rank(pdata$mean)
+#plot(pdata$mrank, pdata$sd)
 
 
+# for each decile of expression we extract the lowest decile in sd inside that selection of genes to obtain housekeeping genes
+pdata$meandeciles <- cut( pdata$mean, quantile(pdata$mean, prob = seq(0, 1, length = 11), type = 5), include.lowest=TRUE )
+levels(pdata$meandeciles) <- seq(0,1, length=11)
+
+
+pdata[grepl('DNAH', rownames(pdata)),]
+pdata[grepl('CTCF', rownames(pdata)),]
+pdata[grepl('CETN2', rownames(pdata)),]
+pdata[grepl('HES3', rownames(pdata)),]
+pdata2 <- data.frame(CTCF=as.numeric(data[rownames(data)=="H_CTCF",]), CETN2=as.numeric(data[rownames(data)=="H_CETN2",]), DNAH5=as.numeric(data[rownames(data)=="H_DNAH5",]),HES3=as.numeric(data[rownames(data)=="H_HES3",]))
+mpdata2 <- melt(pdata2)
+mpdata3 <- mpdata2[mpdata$variable !="HES3",]
+mpdata3 <- mpdata2[mpdata2$variable !="HES3",]
+ggplot(data=mpdata2, aes(x=value,fill=variable))+geom_density()
+ggplot(data=mpdata3, aes(x=value,fill=variable))+geom_density()
+
+single_plot_enh <- function(data, meta, gene, log=FALSE) {
+  pdata2 <- data.frame(gene=as.numeric(data[rownames(data)==gene,]), type=meta$type)
+  pdata2$sample <- as.factor(sapply(strsplit(as.character(pdata2$type), ".", fixed=TRUE), function(x) {x[1]}))
+  pdata2 <- pdata2[order(pdata2$sample),]
+  d <- melt(pdata2)
+  if (log) {
+    d$value <- log(d$value)/log(2)
+  }
+  
+  d$x = seq(1, nrow(d))
+  ggplot(data=d, aes(y=value,x=sample,fill=sample))+geom_jitter(position=position_jitter(0.2))+geom_violin(alpha=0.4,trim=FALSE)+geom_boxplot(width=0.1)+theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), text = element_text(size = 15))+ggtitle(gene)
+  
+  ###
+  
+}
+
+
+data <- data[, colnames(data) %in% meta$sample_id_R,]
+vsd<- vsd[, colnames(vsd) %in% meta$sample_id_R,]

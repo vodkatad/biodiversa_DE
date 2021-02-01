@@ -36,6 +36,7 @@ FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
 #> pathways <- list(p1)
 #> save(pathways, file="bp_hs_symbol.RData")
 GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
 GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
 #GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
