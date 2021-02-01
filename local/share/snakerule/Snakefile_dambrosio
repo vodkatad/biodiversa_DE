@@ -56,3 +56,5 @@ rule studied_samples:
             echo -e "shortsample\\tsample" > {output}
             sed 1d {input.muts} | bawk '{{print substr($1,0,7),$1}}' | filter_1col 1 <(cut -f 1 {input.wanted}) | sort | uniq >> {output}
         """
+
+# heatmap given a list of genes (e.g. of a given pathway, from pipeline or manual) annotates them in the list of all DEG

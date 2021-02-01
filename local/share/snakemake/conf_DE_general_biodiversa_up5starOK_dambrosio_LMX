@@ -1,0 +1,79 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT= os.getenv('SNAKE_ROOT')                                                
+NAME="Biodiversa_up5starOK_dambrosio_LMX"
+BASE_DATA=PRJ_ROOT+"/local/share/data/"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+BASE="mut_cutoff0.05-MUT.vs.WT.deseq2_sign_genedesc.tsv"
+BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+DESIGN="~batch+mut" # dir batch_mut
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/new_Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+
+METADATA=ROOT+"/prj/RNASeq_biod_metadata/dataset/july2020/selected_metadata_annot_final_nolinfo_nooutlier"
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/local/share/data$ sed 's/4WT/WT/g' < dambrosio2 > dambrosio3
+# 4WT is not suitable name for an R factor level (maybe not?)
+WANTED=PRJ_ROOT+"/local/share/data/dambrosio3"
+WANTEDT=PRJ_ROOT+"/local/share/data/xeno_basali"
+
+# for biodiversa change - in . in metadata
+rule wanted:
+	input: WANTEDT
+	output: "wanted"
+	shell:
+		"""
+		 ln -s {input} {output}
+		"""
+
+rule samples_data:
+    input: meta=METADATA, wantedt="wanted", wanteds=WANTED
+    output: "samples_data"
+    shell:
+        """
+			echo -e "id\\tsample\\tmut\\tbatch\\ttype" > {output}
+			cat {input.meta} | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/'  \
+			| cut -f 1,6,7 | sed 's/\.1//1' | filter_1col 3 {input.wantedt}  \
+			| grep LMX | bawk '{{print $1,substr($1,0,7),$2,$3}}' | translate -a -k -n {input.wanteds} 2 >> {output}
+        """
+
+#CRC0166LMX0A05011TUMR05000      CRC0166 1       6w      NT -> this was the first design with everything together
+# fixme or was it correct to consider the NT at different times? or we could work separately at 6w and 72h...yes, let's do that. 
+# then two separated directories for R and S cases
+
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
