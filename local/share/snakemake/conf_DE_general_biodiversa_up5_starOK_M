@@ -25,7 +25,7 @@ COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
 DESIGN="~type"
-SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+SPECIES="M" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
 
