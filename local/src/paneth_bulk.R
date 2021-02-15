@@ -14,9 +14,18 @@ basali <- unique(substr(pdo_basali[,'id'],0,7))
 
 d <- read.table(gzfile('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5/fpkm.tsv.gz'), sep="\t", header=T)
 paneth <- read.table(gzfile('/mnt/trcanmed/snaketree/prj/scRNA/local/share/data/paneth_s_r_signature'), sep="\t", header=F)
+wanted <- c('ATOH1','DEFA5','DEFA6','DLL1','GFI1','AREG', 'EREG','EGF','HBEGF','TGFA','BTC')
+h_wanted <- paste0('H_', wanted)
+
+ppaneth <- data.frame(gs=wanted, hgs=h_wanted, class=c(rep('paneth core',5), rep('ligands',6)))
+
 
 colnames(paneth) <- 'gs'
 paneth$hgs <- paste0('H_', paneth$gs)
+paneth$class <- 'extended'
+paneth <- paneth[!paneth$gs %in% ppaneth$gs,]
+
+paneth <- rbind(paneth, ppaneth)
 fpkm <- d[rownames(d) %in% paneth$hgs,]
 fpkm_pdo_treat <- fpkm[,colnames(fpkm) %in% pdo_treat$id]
 fpkm_pdo_basali <- fpkm[,colnames(fpkm) %in% pdo_basali$id]
@@ -34,6 +43,12 @@ pdo_treat_annot$model <- substr(rownames(pdo_treat_annot), 0, 7)
 pdo_treat_annot <- pdo_treat_annot[order(pdo_treat_annot$ctx, pdo_treat_annot$model, pdo_treat_annot$type) ,]
 lfpkm_pdo_treat <- lfpkm_pdo_treat[, match(rownames(pdo_treat_annot), colnames(lfpkm_pdo_treat))]
 pheatmap(lfpkm_pdo_treat, show_rownames=TRUE, show_colnames=FALSE, annotation_col = pdo_treat_annot, cluster_cols = F)
+
+annot_row <- data.frame(row.names=paneth$gs, class=paneth$class)
+pheatmap(lfpkm_pdo_treat, show_rownames=TRUE, show_colnames=FALSE, annotation_col = pdo_treat_annot, cluster_cols = F, annotation_row=annot_row)
+
+lfpkm_pdo_treat <- lfpkm_pdo_treat[ match(rownames(annot_row), rownames(lfpkm_pdo_treat)),]
+pheatmap(lfpkm_pdo_treat, show_rownames=TRUE, show_colnames=FALSE, annotation_col = pdo_treat_annot, cluster_cols = F, cluster_rows=F, annotation_row=annot_row)
 
 ave <- colMeans(fpkm_pdo_treat)
 paneth_treat <- data.frame(ave =ave, id = names(ave))
@@ -371,3 +386,9 @@ ggplot(data, aes(y=mean,x=reorder(x, -mean), fill=ctx,))+geom_col()+ylab("averag
 
 
 
+########### indagini IRe
+wanted <- c('ATOH1','DEFA5','DEFA6','DLL1','GFI1')
+h_wanted <- paste0('H_', wanted)
+
+all_all_fc[grepl('CRC0069', rownames(all_all_fc)), colnames(all_all_fc) %in% wanted]
+all_all_fc[grepl('CRC0322', rownames(all_all_fc)), colnames(all_all_fc) %in% wanted]
