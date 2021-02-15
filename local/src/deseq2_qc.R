@@ -41,19 +41,6 @@ if ('batch' %in% colnames(metadata)) {
 fdesign <- as.formula(design)
 print(terms(fdesign)[[2]])
 
-## TMM from edgeR without filtering expression ###
-#group <- as.factor(metadataf$terms(fdesign)[[2]])
-#manca filtro idiota!
-efilterGenes <- rowSums(data > minc) < minsamples
-edata <- data[!efilterGenes,]
-e_new_data <- edata[,match(rownames(metadata), colnames(edata))]
-y <- DGEList(counts=e_new_data, samples=metadata)
-#https://www.biostars.org/p/317701/
-y <- calcNormFactors(y)
-tmm <- cpm(y)
-write.table(tmm, gzfile(tmmf), quote=F, row.names=T, col.names=T, sep="\t")
-####
-
 # this was needed for ad hoc biodiversa stuff/strunz
 #rownames(metadata) <- gsub("-", ".", rownames(metadata), fixed=TRUE)
 ###  colnames(data) <- gsub(".2", "", colnames(data), fixed=TRUE)
@@ -65,6 +52,20 @@ new_data <- data[,match(rownames(metadata), colnames(data))]
 if (!all(rownames(metadata)==colnames(new_data))) {
     stop('match issues...')
 }
+
+## TMM from edgeR without filtering expression ###
+#group <- as.factor(metadataf$terms(fdesign)[[2]])
+#manca filtro idiota!
+# TMM Should be done after selectoin of samples though, move!
+efilterGenes <- rowSums(new_data > minc) < minsamples
+edata <- new_data[!efilterGenes,]
+e_new_data <- edata[,match(rownames(metadata), colnames(edata))]
+y <- DGEList(counts=e_new_data, samples=metadata)
+#https://www.biostars.org/p/317701/
+y <- calcNormFactors(y)
+tmm <- cpm(y)
+write.table(tmm, gzfile(tmmf), quote=F, row.names=T, col.names=T, sep="\t")
+####
 
 dds <- DESeqDataSetFromMatrix(countData = new_data, colData = metadata, design = fdesign)
 # filterGenes are the genes that will be removed cause they have 'noise reads' in less than minsamples
