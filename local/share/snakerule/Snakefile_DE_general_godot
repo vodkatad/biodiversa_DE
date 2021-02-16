@@ -1,7 +1,6 @@
 include: "conf.sk"
 import os
 
-# TODO save also vst    
 rule plots:
     input: counts=COUNTS, metadata="samples_data"
     output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
@@ -17,12 +16,12 @@ rule de:
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff.R"
 
-## TODO correct with limma/voom removing batch effects
+## correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
 
 ## rule that removes H_ / M_ and filters only one kind of genes from metric.tsv.gz files
 rule species_specific_matrices:
     input: "{metric}.tsv.gz"
-    output: "{metric}_noSpecie.tsv.gz"
+    output: "{metric}_"+SPECIES+".tsv.gz"
     params: specie=SPECIES
     shell:
         """
@@ -32,21 +31,14 @@ rule species_specific_matrices:
             rm {output}.tmp
         """
 
-
-## TODO vst PC
-
-## TODO PC plots
-
-
-# 1 TODO change to getopt and remove H_ via shell before
-rule cris:
-    input: expr="fpkm.tsv.gz"#, cris=CRIS
-    params: prefix="all",debug=DEBUG
-    output: "all_prediction_result.xls"
-    script: SRC_DIR+"/cris_classify.R"
+## TODO print all pc instead of only 1-2
+rule pcs:
+    input: "dds.Rdata"
+    output: "pcs"
+    script: SRC_DIR+"/pcs.R"
 
 rule cris_v2:
-    input: expr="{metric}_noSpecie.tsv.gz"
+    input: expr="{metric}_" +SPECIES+".tsv.gz"
     params: prefix="cris_{metric}"
     output: "cris_{metric}_prediction_result.xls"
     script: SRC_DIR+"/cris_classify_V2.R"
@@ -96,15 +88,20 @@ rule cris_sankey:
 
 ### regola per calcolo score
 
+def definput(wildcards):
+    if (wildcards.expr == "fpkm"):
+        return {'expr': "fpkm.tsv.gz"}
+    else:
+        return {'expr': "tmm.tsv.gz"}
 
-#rule score:
-#    input: unpack(definput), genes=MARKER
-#    params: tool=BIN_DIR+"/lymphoma_score"
-#    output: "{expr}_lymphoma_scores.tsv.gz"
-#   shell:
-#        """
-#            {params.tool} -e {input.expr} -g {input.genes} -o {output}
-#        """
+rule score:
+   input: expr="fpkm.tsv.gz", genes=MARKER
+   params: tool=BIN_DIR+"/lymphoma_score"
+   output: "{expr}_lymphoma_scores.tsv.gz"
+   shell:
+       """
+           {params.tool} -e {input.expr} -g {input.genes} -o {output}
+       """
 
 
 # GO

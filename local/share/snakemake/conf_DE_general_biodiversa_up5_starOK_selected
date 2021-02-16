@@ -1,0 +1,125 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+                                                    
+NAME="Biodiversa_up5"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
+BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+# DATA_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data/'
+#BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020'
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+DESIGN="~type"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/bp_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+
+
+# for biodiversa change - in . in metadata
+
+rule samples_data:
+    input: meta=BIT_DIR+"/selected_metadata", keep=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
+    output: "samples_data"
+    shell:
+        """
+			echo -e "id\\tbatch\\ttype\\tcetuxi\\tirino" > {output}
+			cat {input.meta} | filter_1col 1 <(sed 1d {input.keep} | cut -f1) | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/' >> {output}
+        """
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+
+### rule score -
+MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
+### cris comparisons
+#FDR_THR = 0.2 # cris paper uses this, we mark NC as not classified samples and NS as samples that change across samplings (are they XA/XB?)
+rule cris_microarray:
+    input: CRIS_UARRAY
+    output: "cris_uarray_{thr}.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input[0], sep="\t", header=None, names=["sample","GSM","cris","fdr"])
+        thr = float(wildcards.thr)
+        d = d[d['fdr'] < thr]
+        spl = [x.split('-')  for x in d['sample'].values]
+        d['genealogy'] = [x[0] + "LMX0" + x[1] for x in spl]
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output[0], sep="\t")
+
+
+rule cris_basali_NS:
+    input: "cris_fpkm_0.2_classes_lmx_basali.tsv"
+    output: "cris_fpkm_0.2_classes_lmx_basali_ns.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input[0], sep="\t", index_col=False)
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output[0], sep="\t")
+
+
+#rule prepare_sankey:
+#	input: array="cris_uarray_{thr}.tsv", meta=
+#	output:
+
+META="../../../RNASeq_biod_metadata/dataset/july2020/selected_metadata_annot_final_nolinfo_nooutlier"
+rule cris_basali:
+	input: me=META, cris="cris_fpkm_0.2_classes.tsv"
+	output: "cris_fpkm_0.2_classes_lmx_basali.tsv"
+	shell:
+		"""
+			head -n1 {input.cris}  > {output}
+			filter_1col 1 <(bawk '$7 ~ "LMX_BASALE" {{print $1}}' {input.me}) < {input.cris} | bawk '{{print substr($1,0,12),$2}}' >> {output}
+		"""
+
+
+## 2 TODO compare CRIS with uarray ones
+# per nuovi cris tenere solo basali non filtrati attualmente e sottoporli allo stesso trattamento
+HEADER='"LMX_lineage\\tprediction_LMX\\tBH_FDR_LMX\\tLMO_lineage\\tprediction_LMO\\tBH_FDR_LMO\\tswitched\\tswitch_type\\tpval_switch_sign"'
+rule array_cris_sankey:
+    input:  m1="cris_fpkm_0.2_classes_lmx_basali_ns.tsv", m2="cris_uarray_0.2.tsv"
+    params: tool=BIN_DIR+"/PDX-PDO_different_plots", header=HEADER
+    output: sankey="sankey_fpkm_uarray_CRISswitch.html", classes="sankey_fpkm_uarray_classes_freq_in_samples.png", switch="sankey_fpkm_uarray_switch_numbers.png", switched="sankey_fpkm_uarray_switching_CRIS_withBARs.png"
+    shell:
+        """
+            echo -e {params.header} > {output.sankey}.tmp
+            join -t$'\\t' <(bawk '$2!="NS"' {input.m1}) <(sed 's/CRIS/CRIS-/1' < {input.m2} | bawk '$2!="NS"') | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
+            {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched}
+        """
