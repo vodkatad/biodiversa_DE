@@ -61,7 +61,9 @@ PVAL=0.05
 DEBUG="yes"
 
 ### rule score -
-MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+H_MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+M_MARKER='/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_M/Leuco_gene-marker_M'
+
 MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
 ### cris comparisons
 #FDR_THR = 0.2 # cris paper uses this, we mark NC as not classified samples and NS as samples that change across samplings (are they XA/XB?)

@@ -27,7 +27,7 @@ SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'S
 MINC=5
 MINSAMPLES=2
 
-FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data # WTF :(
 
 #> library(fgsea)
 #Loading required package: Rcpp
@@ -52,7 +52,7 @@ rule wanted:
 # work on sensible cases only and work on R ones in another dir to substract their 'spurious' DEG
 # decided to work separately at 72h and 6w
 rule samples_data:
-    input: meta=BIT_DIR+"/selected_metadata_annot", wanted="wanted", cetuxi=PDO_CETUXI
+    input: meta=BIT_DIR+"/../july2020/selected_metadata_annot", wanted="wanted", cetuxi=PDO_CETUXI
     output: "samples_data"
     shell:
         """
@@ -67,9 +67,13 @@ rule samples_data:
 # then two separated directories for R and S cases
 
 
-#LFC=0.5849625 # 1.5 FC
-LFC=0
+LFC=0.5849625 # 1.5 FC
+#LFC=0
 CORES=6
 PVAL=0.05
 
 DEBUG="yes"
+
+
+MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"

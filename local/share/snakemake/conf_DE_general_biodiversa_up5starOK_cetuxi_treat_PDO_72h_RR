@@ -72,3 +72,5 @@ CORES=6
 PVAL=0.05
 
 DEBUG="yes"
+MARKER=""
+MEDA=""

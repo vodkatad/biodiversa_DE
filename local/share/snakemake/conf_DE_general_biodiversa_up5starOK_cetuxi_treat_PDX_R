@@ -22,20 +22,16 @@ BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starO
 COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
-DESIGN="~batch+time+treat"
-#DESIGN="~sample+time+treat"
+#DESIGN="~batch+time+treat"
+DESIGN="~sample+time+treat"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
 
 FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
 
-#> library(fgsea)
-#Loading required package: Rcpp
-#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
-#> pathways <- list(p1)
-#> save(pathways, file="bp_hs_symbol.RData")
 GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
 GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
 #GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
@@ -53,12 +49,12 @@ rule wanted:
 # decided to work separately at 72h and 6w
 # TODO add time to work together for the two times...
 rule samples_data:
-    input: meta=BIT_DIR+"/selected_metadata_annot", wanted="wanted"
+    input: meta=BIT_DIR+"/selected_metadata_annot", wanted="wanted", keep=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
     output: "samples_data"
     shell:
         """
 			echo -e "id\\tsample\\tbatch\\ttreat\\ttime" > {output}
-			cat {input.meta} | bawk '$2=="pass" || $2=="NA"' | bawk '$3=="pass"'| perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/'  \
+			cat {input.meta} | filter_1col 1 <(sed 1d {input.keep} | cut -f1) | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/'  \
 			| cut -f 1,4,5,6 | sed 's/\.1//1' | filter_1col 3 {input.wanted} | bawk '$4 > 0.3'| tr "_" "\\t" | bawk '$5=="6w" || $5=="72h"' \
 			| bawk '$6=="NT" {{print $1, substr($1,0,7), $2,"NT",$5}} $6!="NT"{{print $1,substr($1,0,7),$2,"cetuxi",$5}}' >> {output}
         """
@@ -73,3 +69,5 @@ CORES=6
 PVAL=0.05
 
 DEBUG="yes"
+MARKER=""
+MEDA=""
