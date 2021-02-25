@@ -338,3 +338,70 @@ single_plot_enh <- function(data, meta, gene, log=FALSE) {
 
 data <- data[, colnames(data) %in% meta$sample_id_R,]
 vsd<- vsd[, colnames(vsd) %in% meta$sample_id_R,]
+          
+########33 DNAh5 2
+d <- read.table(gzfile('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/fpkm.tsv.gz'), sep="\t", header=T)
+
+rownames(d) <- substr(rownames(d), 3, nchar(rownames(d)))
+
+sds <- apply(d, 1, sd)
+means <- rowMeans(d)
+pdata <- data.frame(row.names=names(means), mean=means, sd=sds, median=apply(d, 1, median))
+mpdata <- melt(pdata)
+
+
+pdata$meandeciles <- cut( pdata$mean, quantile(pdata$mean, prob = seq(0, 1, length = 11), type = 5), include.lowest=TRUE )
+levels(pdata$meandeciles) <- seq(0,1, length=11)
+
+pdata[grepl('DNAH', rownames(pdata)),]
+pdata[grepl('CTCF', rownames(pdata)),]
+pdata[grepl('CETN2', rownames(pdata)),]
+pdata[grepl('HES3', rownames(pdata)),]
+pdata2 <- data.frame(CTCF=as.numeric(d[rownames(d)=="CTCF",]), CETN2=as.numeric(d[rownames(d)=="CETN2",]), DNAH5=as.numeric(d[rownames(d)=="DNAH5",]),HES3=as.numeric(d[rownames(d)=="HES3",]))
+mpdata2 <- melt(pdata2)
+mpdata3 <- mpdata2[mpdata2$variable !="HES3",]
+ggplot(data=mpdata2, aes(x=log2(value+0.0001),fill=variable))+geom_density()+theme_bw()
+
+mpdata4 <- mpdata2[mpdata2$variable %in% c("HES3","DNAH5"),]
+ggplot(data=mpdata4, aes(x=value,fill=variable))+geom_density()+theme_bw()
+ggplot(data=mpdata3, aes(x=log2(value+0.0001),fill=variable))+geom_density()+theme_bw()
+
+meta <- read.table('/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier', sep="\t", header=TRUE)
+
+meta$sample_id_R <- gsub("-", ".", meta$sample_id_R, fixed=TRUE)
+m <- merge(pdata2, meta, by.x="row.names", by.y="sample_id_R")
+m$type <- gsub(".1", "", m$type, fixed=TRUE)
+m$type <- gsub(".2", "", m$type, fixed=TRUE)
+ggplot(data=m, aes(DNAH5,fill=type))+geom_histogram(position="dodge", bins=10)+theme_bw()
+
+###
+len <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/dataset/mut_burdens/gencode_len.tsv', sep="\t", header=F)
+mb <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/dataset/mut_burdens/all_genes_mb_wilcox_TCGA', sep="\t", header=T)
+colnames(len) <- c('gene', 'len')
+len$deciles <- cut( len$len, quantile(len$len, prob = seq(0, 1, length = 11), type = 5), include.lowest=TRUE )
+levels(len$deciles) <- seq(0,1, length=11)
+len[len$gene=="DNAH5",]
+decile <- len[len$deciles==0.9,]
+mb_d <- mb[rownames(mb)%in%decile$gene,]
+m <- merge(mb, len, by.x="row.names", by.y="gene")
+mb_d[grepl('DNAH5', rownames(mb_d)),]
+plot(density(mb_d$pvalue))+abline(v=0.03863, col="red")
+pp <- mb_d[grepl('DNAH5', rownames(mb_d)),'pvalue']
+table(mb_d$pvalue<pp)
+
+m$more <- ifelse(m$median_mut > m$median_wt, 'yes','no')
+m$nomsin <- ifelse(m$pvalue < 0.05,'yes','no')
+m$nomsin_more <- ifelse(m$pvalue < 0.05 & m$more =="yes",'yes','no')
+
+ggplot(data=m, aes(x=nomsin_more, y=len, fill=nomsin_more))+geom_violin()+theme_bw()+
+  scale_fill_manual(values=c("darkgoldenrod","darkgreen"))+theme(text=element_text(size=15))+geom_signif(comparisons=list(c('no','yes')))+geom_boxplot(width=0.1)
+
+###
+mut <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/dataset/mut_burdens/tcga_genes_samples_CIN', sep="\t", header=F)
+dnah5 <- mut[grepl('DNAH5', mut$V2),]
+n <- as.data.frame(table(dnah5$V1))
+mutb <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/dataset/mut_burdens/tot_mut_TCGA', sep="\t", header=F)
+m <- merge(n, mutb, by.x="Var1", by.y='V1')
+colnames(m) <- c('sample','n_mut_DNAH5','tot_mut')
+m$n_mut_DNAH5 <- as.factor(m$n_mut_DNAH5)
+ggplot(data=m, aes(x=n_mut_DNAH5, y=tot_mut))+geom_violin()+theme_bw()+theme(text=element_text(size=15))+geom_boxplot(width=0.2)+geom_signif(comparisons=list(c('1','2')))

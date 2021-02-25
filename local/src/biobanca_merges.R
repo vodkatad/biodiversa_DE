@@ -14,7 +14,7 @@ rownames(samples_data) <- samples_data$id
 samples_data$id <- NULL
 
 #THR <- 0.5849625
-THR <- 1
+THR <- 0
 PC <- 0.0001
 deg_lf <- deg[deg$log2FoldChange > THR,]
 
@@ -85,6 +85,78 @@ res$Row.names <- NULL
 res <- res[order(-res$log2FoldChange, -res$baseMean,res$padj),]
 write.table(res, gzfile('big_merge.tsv.gz'), sep="\t", quote=F, row.names=T)
 
+
+############## imbuti
+mediane <- median(res$baseMean)
+res$filter_PDX_S <- ifelse(!is.na(res$padj_PDX_S) & res$padj_PDX_S < 0.05 & res$log2FC_PDX_S > 0, TRUE, FALSE)
+res$filter_PDX_R <- ifelse(!is.na(res$padj_PDX_R) & res$padj_PDX_R >= 0.05, TRUE, FALSE) 
+res$filter_expr <- ifelse(res$baseMean > mediane, TRUE, FALSE)
+res$allfilter <- apply(res[,grepl('filter_', colnames(res))], 1, all)
+
+buckets <- read.table("../../local/share/data/Supplementary_Table_9_list_bucket.txt", sep="\t", header=T)
+buck <- aggregate(buckets$Cancer.Tissue.Type, buckets[, c(2,3,4)], FUN=function(x) {as.character(paste0(unique(x), collapse=","))} , simplify=T)
+colnames(buck)[4] <- 'cancer_type'
+
+mres <- merge(res, buck, by.x="row.names", by.y="Target", all.x=TRUE)
+rownames(mres) <- mres$Row.names
+mres$Row.names <- NULL
+write.table(res, gzfile('deg_filtersteps_tractability_group.tsv.gz'), sep="\t", quote=F, row.names=T)
+selection <- mres[!is.na(mres$Tractability.Group) & mres$Tractability.Group <=2 & mres$allfilter,]                      
+write.table(selection, gzfile('deg_filtersteps_tractability_group_up2.tsv.gz'), sep="\t", quote=F, row.names=T)
+
+
+deg_expr <- expr[rownames(expr) %in% rownames(selection),]
+samples_data <- samples_data[order(samples_data$sample, samples_data$treat),]
+deg_expr <- deg_expr[,match(rownames(samples_data), colnames(deg_expr))]
+annot_row <- data.frame(row.names=rownames(deg), expr=log(deg$baseMean), log2FoldChange=deg$log2FoldChange)
+annot_row <- annot_row[rownames(annot_row) %in% rownames(deg_expr),]
+pheatmap(log(deg_expr+PC), show_rownames=TRUE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
+
+
+gene_fc <- function(sample, expr, samples_data) {
+  meta <- samples_data[samples_data$sample == sample,]
+  expr <- expr[,colnames(expr) %in% rownames(meta)]
+  ctx <- meta[meta$treat =="cetuxi",]
+  nt <- meta[meta$treat =="NT",]
+  ave_ctx <- rowMeans(expr[,colnames(expr) %in% rownames(ctx)])
+  ave_nt <- rowMeans(expr[,colnames(expr) %in% rownames(nt)])
+  return(ave_ctx/ave_nt)
+}
+
+us <- unique(samples_data$sample)
+
+samplefc <- sapply(us, gene_fc, deg_expr, samples_data)
+colnames(samplefc) <- us
+pheatmap(samplefc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F)
+
+lfc <- log2(samplefc)
+minv <- min(lfc)
+maxv <- max(lfc)
+halfv <- 0
+neutral_value <- 0
+  bk1 <- c(seq(minv-0.1,neutral_value-0.1,by=0.35),neutral_value-0.0999)
+  bk2 <- c(neutral_value+0.001, seq(neutral_value+0.1,maxv+0.1,by=0.35))
+  bk <- c(bk1, bk2)
+  my_palette <- c(colorRampPalette(colors = c("darkblue", "lightblue"))(n = length(bk1)-1),
+                  "snow1", "snow1",
+                  c(colorRampPalette(colors = c("tomato1", "darkred"))(n = length(bk2)-1)))
+
+
+pheatmap(lfc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F, color = my_palette, breaks = bk)
+  
+ctx <- read.table('/mnt/trcanmed/snaketree/prj/biobanca/dataset/V1/cetuximab/pdo_cetuxi.tsv', sep='\t', header=T, row.names = 1)
+annot_cols <- ctx[, 1, drop=F]
+#pheatmap(lfc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F, color = my_palette, breaks = bk, annotation_col = annot_cols)
+annot_cols <- annot_cols[order(annot_cols$CTG_5000),, drop=F]
+annot_cols <- annot_cols[rownames(annot_cols) %in% colnames(lfc),, drop=F]
+lfc <- lfc[, match(rownames(annot_cols), colnames(lfc))]
+
+pheatmap(lfc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F, color = my_palette, breaks = bk, annotation_col = annot_cols)
+
+
+pheatmap(lfc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F, annotation_col = annot_cols, color = rev(brewer.pal(7,"RdBu")))
+############33
+
 test <- res[(res$log2FC_PDO_R > -0.01 & res$log2FC_PDO_R < 0.01 & res$padj_basal_NT > 0.05) | is.na(res$log2FC_PDO_R) | is.na(res$padj_basal_NT),]
 
 deg_expr <- expr[rownames(expr) %in% rownames(test),]
@@ -106,5 +178,132 @@ deg_expr <- expr[rownames(expr) %in% rownames(test),]
 deg_expr <- deg_expr[,match(rownames(samples_data), colnames(deg_expr))]
 pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
 
+############# orzan
 
+
+setwd('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Dambrosio_LMX_DE')
+
+deg <- read.table('mut_cutoff0.05-MUT.vs.WT.deseq2.tsv', comment.char="", quote='', header=T, sep="\t")
+rownames(deg) <- substr(rownames(deg), 3, nchar(rownames(deg)))
+
+## heatmap of DEG ########
+expr <- read.table(gzfile('fpkm.tsv.gz'), sep="\t", header=T)
+rownames(expr) <- substr(rownames(expr), 3, nchar(rownames(expr)))
+samples_data <- read.table('samples_data', sep="\t", header=T)
+rownames(samples_data) <- samples_data$id
+samples_data$id <- NULL
+
+#THR <- 0.5849625
+THR <- 1
+PC <- 0.0001
+deg_lf <- deg[abs(deg$log2FoldChange) > THR,]
+
+deg_expr <- expr[rownames(expr) %in% rownames(deg_lf),]
+
+samples_data <- samples_data[order(samples_data$mut),]
+samples_data <- samples_data[,c('batch','mut')]
+deg_expr <- deg_expr[,match(rownames(samples_data), colnames(deg_expr))]
+pheatmap(log(deg_expr+PC), show_rownames=TRUE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F)
+annot_row <- data.frame(row.names=rownames(deg), expr=log(deg$baseMean), log2FoldChange=deg$log2FoldChange)
+
+annot_row <- annot_row[rownames(annot_row) %in% rownames(deg_expr),]
+pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
+
+annot_row <- annot_row[annot_row$expr>4.791111,]
+deg_expr <- deg_expr[rownames(deg_expr) %in% rownames(annot_row),]
+pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
+
+annot_row <- annot_row[order(annot_row$expr, annot_row$log2FoldChange),]
+deg_expr <- deg_expr[match(rownames(annot_row), rownames(deg_expr)),]
+pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, cluster_rows=F, annotation_row=annot_row)
+
+##
+write.table(res, gzfile('big_merge_2.tsv.gz'), sep="\t", quote=F, row.names=T)
+head(res)
+table(res$log2FC_basal_NT)
+head(res)
+dim(res[is.na(res$log2FC_PDO_R),])
+dim(res[is.na(res$pval_PDO_R),])
+dim(res[is.na(res$pval_PDX_R),])
+dim(res[is.na(res$padj_PDX_S),])
+dim(res[is.na(res$padj_basal_NT),])
+dim(res[is.na(res$padj_notpaired),])
+head(res)
+dim(res[!is.na(res$padj_PDX_S) & res$padj_PDX_S < 0.05,])
+dim(deg)
+dim[deg$log2FoldChange < 0,]
+dim(deg[deg$log2FoldChange < 0,])
+dim(res[!is.na(res$padj_PDX_S) & res$padj_PDX_S < 0.05,])
+dim(res[res$padj_PDX_S < 0.05,])
+res2 <- res[!is.na(res$padj_PDX_S) & res$padj_PDX_S < 0.05,]
+res3 <- res2[!is.na(res2$pval_PDX_R) & res2$pval_PDX_R > 0.05,]
+dim(res3)
+head(res3)
+summary(res3$baseMean)
+summary(deg$baseMean)
+summary(deg_up$baseMean)
+summary(res$baseMean)
+head(expr)
+THR <- 0
+PC <- 0.0001
+deg_lf <- deg[deg$log2FoldChange > THR,]
+deg_expr <- expr[rownames(expr) %in% rownames(deg_lf),]
+samples_data <- samples_data[order(samples_data$sample, samples_data$treat),]
+deg_expr <- deg_expr[,match(rownames(samples_data), colnames(deg_expr))]
+annot_row <- annot_row[rownames(annot_row) %in% rownames(deg_expr),]
+annot_row <- data.frame(row.names=rownames(deg), expr=log(deg$baseMean), log2FoldChange=deg$log2FoldChange)
+annot_row <- annot_row[rownames(annot_row) %in% rownames(deg_expr),]
+dim(deg_expr)
+head(res3)
+deg_expr <- deg_expr[rownames(deg_expr) %in% rownames(res3),]
+pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
+head(annot_row)
+annot_row$thr <- ifelse(annot_row$expr > 218.76,'high','low')
+pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
+annot_row$thr <- ifelse(annot_row$expr > log(218.76),'high','low')
+pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
+annot_row <- annot_row[order(annot_row$thr),]
+annot_row <- annot_row[rownames(annot_row) %in% rownames(deg_expr),]
+deg_expr <- deg_expr[match(rownames(annot_row), rownames(deg_expr),[]
+deg_expr <- deg_expr[match(rownames(annot_row), rownames(deg_expr),]
+deg_expr <- deg_expr[match(rownames(annot_row), rownames(deg_expr)),]
+pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F,cluster_rows=F, annotation_row=annot_row)
+dim(deg_expr)
+table(annot_row)
+table(annot_row$thr)
+head(res3)
+buckets <- read.table("../../local/share/data/tractability_upBuck3_Behan.tsv", header=T, sep="\t")
+head(buckets)
+buckets <- read.table("../../local/share/data/tractability_upBuck3_Behan.tsv", header=F, sep="\t")
+head(buckets)
+bu <- buckets[, c('V2', 'V5')]
+head(bu)
+bu <- unique(bu)
+lenght(unique(bu$V2))
+length(unique(bu$V2))
+colnames(bu) <- c('gene', 'bucket')
+rownames(bu) <- bu$gene
+bu$gene <- NULL
+m <- merge(res3, bu, by="row.names", all.x=TRUE)
+dim(m)
+dim(res3)
+head(res3)
+table(m$bucket)
+dim(m)
+m
+m[!is.na(m$bucket),]
+m2 <- merge(res, bu, by="row.names", all.x=TRUE)
+m2[!is.na(m2$bucket),]
+res2[grepl('BCL2Kl1', rownames(res2))]
+res2[grepl('BCL2Kl1', rownames(res2)),]
+mmm <- m2[!is.na(m2$bucket),]
+mmm
+mmm[mmm$padj_PDX_S < 0.05]
+mmm[mmm$padj_PDX_S < 0.05,]
+expr[grepl('FGFR1',rownames(expr)),]
+rowmeans(expr[grepl('FGFR1',rownames(expr)),])
+rowMeans(expr[grepl('FGFR1',rownames(expr)),])
+ee <- expr[grepl('FGFR1',rownames(expr)),]
+pheatmap(log(ee+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
+pheatmap(log(ee+PC), show_rownames=TRUE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
 

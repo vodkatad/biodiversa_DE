@@ -57,12 +57,12 @@ rule wanted:
 		"""
 
 rule samples_data:
-    input: meta=METADATA, wantedt="wanted", wanteds=WANTED
+    input: meta=METADATA, wantedt="wanted", wanteds=WANTED, keep=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
     output: "samples_data"
     shell:
         """
 			echo -e "id\\tsample\\tmut\\tbatch\\ttype" > {output}
-			cat {input.meta} | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/'  \
+			cat {input.meta} | filter_1col 1 <(cut -f1 {input.keep}) | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/'  \
 			| cut -f 1,6,7 | sed 's/\.1//1' | filter_1col 3 {input.wantedt}  \
 			| grep LMX | bawk '{{print $1,substr($1,0,7),$2,$3}}' | translate -a -k -n {input.wanteds} 2 >> {output}
         """
@@ -77,3 +77,6 @@ CORES=6
 PVAL=0.05
 
 DEBUG="yes"
+MARKER=""
+H_MARKER=""
+M_MARKER=""
