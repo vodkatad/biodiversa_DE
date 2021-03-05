@@ -83,7 +83,7 @@ res$Row.names <- NULL
 
 ##
 res <- res[order(-res$log2FoldChange, -res$baseMean,res$padj),]
-write.table(res, gzfile('big_merge.tsv.gz'), sep="\t", quote=F, row.names=T)
+#write.table(res, gzfile('big_merge.tsv.gz'), sep="\t", quote=F, row.names=T)
 
 
 ############## imbuti
@@ -216,6 +216,71 @@ pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_
 annot_row <- annot_row[order(annot_row$expr, annot_row$log2FoldChange),]
 deg_expr <- deg_expr[match(rownames(annot_row), rownames(deg_expr)),]
 pheatmap(log(deg_expr+PC), show_rownames=FALSE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, cluster_rows=F, annotation_row=annot_row)
+
+
+#### tmm
+expr2 <- read.table(gzfile('tmm.tsv.gz'), sep="\t", header=T)
+rownames(expr2) <- substr(rownames(expr2), 3, nchar(rownames(expr2)))
+te <- t(expr2)
+samples_data$n <- make.unique(paste0(samples_data$sample,samples_data$treat))
+
+mmm <- merge(samples_data, te, by='row.names')
+mmm[, colnames(mmm)=="FGFR1" | colnames(mmm) == "n", drop=F]
+mmm[, colnames(mmm)=="FGFR2" | colnames(mmm) == "n", drop=F]
+mmm[, colnames(mmm)=="ATOH1" | colnames(mmm) == "n", drop=F]
+mmm[, colnames(mmm)=="OGT" | colnames(mmm) == "n", drop=F]
+mmm[, colnames(mmm)=="STAT3" | colnames(mmm) == "n", drop=F]
+
+
+deg_expr <- expr2[rownames(expr2) %in% rownames(selection),]
+samples_data <- samples_data[order(samples_data$sample, samples_data$treat),]
+deg_expr <- deg_expr[,match(rownames(samples_data), colnames(deg_expr))]
+annot_row <- data.frame(row.names=rownames(deg), expr=log(deg$baseMean), log2FoldChange=deg$log2FoldChange)
+annot_row <- annot_row[rownames(annot_row) %in% rownames(deg_expr),]
+pheatmap(log(deg_expr+PC), show_rownames=TRUE, show_colnames=FALSE, annotation_col = samples_data, cluster_cols = F, annotation_row=annot_row)
+
+
+gene_fc <- function(sample, expr, samples_data) {
+  meta <- samples_data[samples_data$sample == sample,]
+  expr <- expr[,colnames(expr) %in% rownames(meta)]
+  ctx <- meta[meta$treat =="cetuxi",]
+  nt <- meta[meta$treat =="NT",]
+  ave_ctx <- rowMeans(expr[,colnames(expr) %in% rownames(ctx)])
+  ave_nt <- rowMeans(expr[,colnames(expr) %in% rownames(nt)])
+  return(ave_ctx/ave_nt)
+}
+
+us <- unique(samples_data$sample)
+
+samplefc <- sapply(us, gene_fc, deg_expr, samples_data)
+colnames(samplefc) <- us
+pheatmap(samplefc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F)
+
+lfc <- log2(samplefc)
+minv <- min(lfc)
+maxv <- max(lfc)
+halfv <- 0
+neutral_value <- 0
+bk1 <- c(seq(minv-0.1,neutral_value-0.1,by=0.35),neutral_value-0.0999)
+bk2 <- c(neutral_value+0.001, seq(neutral_value+0.1,maxv+0.1,by=0.35))
+bk <- c(bk1, bk2)
+my_palette <- c(colorRampPalette(colors = c("darkblue", "lightblue"))(n = length(bk1)-1),
+                "snow1", "snow1",
+                c(colorRampPalette(colors = c("tomato1", "darkred"))(n = length(bk2)-1)))
+
+
+pheatmap(lfc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F, color = my_palette, breaks = bk)
+
+ctx <- read.table('/mnt/trcanmed/snaketree/prj/biobanca/dataset/V1/cetuximab/pdo_cetuxi.tsv', sep='\t', header=T, row.names = 1)
+annot_cols <- ctx[, 1, drop=F]
+#pheatmap(lfc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F, color = my_palette, breaks = bk, annotation_col = annot_cols)
+annot_cols <- annot_cols[order(annot_cols$CTG_5000),, drop=F]
+annot_cols <- annot_cols[rownames(annot_cols) %in% colnames(lfc),, drop=F]
+lfc <- lfc[, match(rownames(annot_cols), colnames(lfc))]
+
+pheatmap(lfc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F, color = my_palette, breaks = bk, annotation_col = annot_cols)
+
+#################s
 
 ##
 write.table(res, gzfile('big_merge_2.tsv.gz'), sep="\t", quote=F, row.names=T)
