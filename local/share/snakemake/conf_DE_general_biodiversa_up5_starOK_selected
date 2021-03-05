@@ -44,9 +44,9 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 
 
 # for biodiversa change - in . in metadata
-
+SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
 rule samples_data:
-    input: meta=BIT_DIR+"/selected_metadata", keep=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
+    input: meta=BIT_DIR+"/selected_metadata", keep=SELECTED
     output: "samples_data"
     shell:
         """

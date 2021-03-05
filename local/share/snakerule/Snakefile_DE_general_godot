@@ -31,6 +31,35 @@ rule species_specific_matrices:
             rm {output}.tmp
         """
 
+rule my_beloved:
+    input: "{metric}_"+SPECIES+".tsv.gz"
+    output: "{gene, \w+}_{metric}.tsv"
+    shell:
+        """
+            zcat {input} | head -n1 | tr "." "-" > {output}.tmp || echo 'plh'
+            zcat {input} | bawk '$1=="{wildcards.gene}"' | cut -f 1 --complement >> {output}.tmp
+            transpose < {output}.tmp > {output}
+            rm {output}.tmp
+        """
+
+def find_type(wildcards):
+    if wildcards.type == "LMX_BASALE":
+        return "LMX_BASALE LMX_BASALE.1"
+    elif wildcards.type == "LMO_BASALE":
+        return "LMO_BASALE LMO_BASALE.1 LMO_BASALE.2"
+
+rule my_beloved_type:
+    input: data="{gene}_{metric}.tsv", meta=SELECTED
+    output: "{type}-{gene}_{metric}.tsv"
+    params: find_type
+    shell:
+        """
+            filter_1col 7 <(echo {params} |  tr " "  "\\n")  < {input.meta} | cut -f 1 > {output}.tmp
+            filter_1col 1 {output}.tmp < {input.data} > {output}
+            rm {output}.tmp
+        """
+
+
 ## TODO print all pc instead of only 1-2
 rule pcs:
     input: "dds.Rdata"
@@ -86,16 +115,17 @@ rule cris_sankey:
             rm {output.sankey}.tmp
         """
 
+
 ### regola per calcolo score
 
 def definput(wildcards):
-    if (wildcards.expr == "fpkm"):
+    if (wildcards.spec == "fpkm"):
         return {'expr': "fpkm.tsv.gz"}
     else:
         return {'expr': "tmm.tsv.gz"}
 
 rule score:
-   input: expr="fpkm.tsv.gz", genes=MARKER
+   input: unpack(definput), genes=MARKER
    params: tool=BIN_DIR+"/lymphoma_score"
    output: "{expr}_lymphoma_scores.tsv.gz"
    shell:
@@ -103,6 +133,14 @@ rule score:
            {params.tool} -e {input.expr} -g {input.genes} -o {output}
        """
 
+# rule score_m:
+#    input: expr="../Biodiversa_up5_starOK_M/fpkm_M.tsv.gz", genes=M_MARKER
+#    params: tool=BIN_DIR+"/lymphoma_score"
+#    output: "../Biodiversa_up5_starOK_M/M_lymphoma_scores.tsv.gz"
+#    shell:
+#        """
+#            {params.tool} -e {input.expr} -g {input.genes} -o {output}
+#        """
 
 # GO
 rule go_input:
@@ -129,6 +167,14 @@ rule go:
     params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
     script: SRC_DIR+"/go.R"
 
+
+rule go_sign:
+    input: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+    output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.significant.tsv"
+    shell:
+        """
+                zcat {input} | bawk '$9 !="NA" && $9 < 0.05' | sort  -t $'\\t' -k9,9 -g  > {output}
+        """
 
 #### Dot plots and selection of genes annoted
 rule sign:
