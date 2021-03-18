@@ -405,3 +405,16 @@ m <- merge(n, mutb, by.x="Var1", by.y='V1')
 colnames(m) <- c('sample','n_mut_DNAH5','tot_mut')
 m$n_mut_DNAH5 <- as.factor(m$n_mut_DNAH5)
 ggplot(data=m, aes(x=n_mut_DNAH5, y=tot_mut))+geom_violin()+theme_bw()+theme(text=element_text(size=15))+geom_boxplot(width=0.2)+geom_signif(comparisons=list(c('1','2')))
+
+
+###
+pdata2 <- data.frame(CTCF=as.numeric(d[rownames(d)=="CTCF",]),NLGN1=as.numeric(d[rownames(d)=="NLGN1",]))
+rownames(pdata2) <- colnames(d)
+
+meta <- read.table('/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier', sep="\t", header=TRUE)
+
+meta$sample_id_R <- gsub("-", ".", meta$sample_id_R, fixed=TRUE)
+m <- merge(pdata2, meta, by.x="row.names", by.y="sample_id_R")
+m$type <- gsub(".1", "", m$type, fixed=TRUE)
+m$type <- gsub(".2", "", m$type, fixed=TRUE)
+ggplot(data=m, aes(NLGN1,fill=type))+geom_histogram(position="dodge", bins=10)+theme_bw()

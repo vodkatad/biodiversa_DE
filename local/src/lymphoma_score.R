@@ -15,11 +15,9 @@ opt <- getopt(opts)
 
 expr <- read.table(gzfile(opt$expr_in), sep='\t', quote="", header=TRUE, row.names=1)
 colnames(expr) <- gsub('.', '-', colnames(expr), fixed = TRUE) # solito problema del . nei replicati che in altri file è un -
-rownames(expr) <- str_remove(rownames(expr),"H_") # rimuovo H_ dai geni
+# rownames(expr) <- str_remove(rownames(expr),"H_") # rimuovo H_ dai geni
 
 df <- read.table(gzfile(opt$genes_in), sep='\t', quote="", header=TRUE, row.names=1)
-
-
 
 scores <- data.frame(row.names=names(expr),stringsAsFactors = FALSE,
                      Endothelial=rep("",ncol(expr)),

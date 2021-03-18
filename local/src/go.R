@@ -22,7 +22,8 @@ goenrich <- function(ontology, namedgenes, id) {
     allGO = usedGO(object = GOdata) 
     resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
     allRes <- GenTable(GOdata, classicFisher = resultFisher, topNodes = length(allGO), numChar=1000)
-    allRes$pnom <- as.numeric(allRes$classicFisher)
+    allRes$pnom <- score(resultFisher)
+    #- as.numeric(allRes$classicFisher)
     allRes$classicFisher <- NULL
     allRes
 }
@@ -40,6 +41,7 @@ goenrichall <- function(genes, universe, ontologies, id) {
 all_classes <- unique(classes[,1])
 all <- lapply(all_classes, function(x) { goenrichall(classes[classes[,1]==x,2], universe, ontologies, id)  })
 garbage <- lapply(seq(1,length(all_classes)), function(i) {all[[i]]$class <<- all_classes[[i]]})
+save.image('pippo.Rdata')
 resdf <- do.call(rbind, all)
 resdf$padj <- p.adjust(resdf$pnom, method="BH")
 write.table(resdf, gzfile(outfile), quote=FALSE, row.names =  FALSE, col.names = TRUE, sep="\t")
