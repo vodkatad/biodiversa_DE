@@ -61,7 +61,7 @@ PVAL=0.05
 DEBUG="yes"
 
 ### rule score -
-MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+H_MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
 MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
 ### cris comparisons
 #FDR_THR = 0.2 # cris paper uses this, we mark NC as not classified samples and NS as samples that change across samplings (are they XA/XB?)
@@ -123,3 +123,11 @@ rule array_cris_sankey:
             join -t$'\\t' <(bawk '$2!="NS"' {input.m1}) <(sed 's/CRIS/CRIS-/1' < {input.m2} | bawk '$2!="NS"') | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
             {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched}
         """
+
+### rule to look for orthogonal genes in mouse
+rule ortho:
+    input: H_MARKER
+    output: "Leuco_gene-marker_M"
+    script: SRC_DIR+"/ortho.R"
+
+MARKER='/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_M/Leuco_gene-marker_M'

@@ -33,7 +33,7 @@ rule species_specific_matrices:
 
 rule my_beloved:
     input: "{metric}_"+SPECIES+".tsv.gz"
-    output: "{gene, \w+}_{metric}.tsv"
+    output: temp("{gene, \w+}_{metric}.tsv")
     shell:
         """
             zcat {input} | head -n1 | tr "." "-" > {output}.tmp || echo 'plh'
@@ -47,10 +47,14 @@ def find_type(wildcards):
         return "LMX_BASALE LMX_BASALE.1"
     elif wildcards.type == "LMO_BASALE":
         return "LMO_BASALE LMO_BASALE.1 LMO_BASALE.2"
+    elif wildcards.type == "X_BASALE":
+        return "LMX_BASALE LMX_BASALE.1 PRX_BASALE PRX_BASALE.1"
+    elif wildcards.type == "X":
+        return "LMH PRH"
 
 rule my_beloved_type:
     input: data="{gene}_{metric}.tsv", meta=SELECTED
-    output: "{type}-{gene}_{metric}.tsv"
+    output: temp("{type}-{gene}_{metric}.tsv")
     params: find_type
     shell:
         """
@@ -59,6 +63,27 @@ rule my_beloved_type:
             rm {output}.tmp
         """
 
+rule my_beloved_waterfall:
+    input: "{type}-{gene}_{metric}.tsv"
+    output: "{type}-{gene}_{metric}.png", "{type}-{gene}_{metric}.rep.png"
+    params: tool=BIN_DIR+"/waterfall"
+    shell:
+        """
+            {params.tool} {input} {wildcards.gene} {output}
+        """
+    
+rule list_beloved_waterfall:
+    input: PRJ_ROOT+'/local/share/data/{list}.tsv'
+    output: directory("waterfall_{list}-{type}_{metric}")
+    shell: 
+        """
+           mkdir -p {output}
+           while IFS= read -r line; do
+            snakemake {wildcards.type}-${{line}}_{wildcards.metric}.png
+            mv {wildcards.type}-${{line}}_{wildcards.metric}.png {output}
+            mv {wildcards.type}-${{line}}_{wildcards.metric}.rep.png {output}
+           done < {input} 
+        """
 
 ## TODO print all pc instead of only 1-2
 rule pcs:
