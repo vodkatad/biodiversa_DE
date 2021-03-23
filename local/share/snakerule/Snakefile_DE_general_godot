@@ -63,6 +63,18 @@ rule my_beloved_type:
             rm {output}.tmp
         """
 
+rule all_type:
+    input: data="{metric}_"+SPECIES+".tsv.gz", meta=SELECTED
+    output: "{type}-{metric}.tsv.gz"
+    params: find_type
+    shell:
+        """
+            filter_1col 7 <(echo {params} |  tr " "  "\\n")  < {input.meta} | cut -f 1 > {output}.tmp
+            cat {output}.tmp <(echo "gene") > {output}.tmp2
+            zcat {input.data} | bawk 'NR==1{{print "gene", $0}} NR!=1 {{print $0}}' | transpose | filter_1col 1 {output}.tmp2 | transpose > {output}
+            rm {output}.tmp {output}.tmp2
+        """
+
 rule my_beloved_waterfall:
     input: "{type}-{gene}_{metric}.tsv"
     output: "{type}-{gene}_{metric}.png", "{type}-{gene}_{metric}.rep.png"
@@ -72,17 +84,29 @@ rule my_beloved_waterfall:
             {params.tool} {input} {wildcards.gene} {output}
         """
     
+def readlines_input(wildcards):
+    import os
+    list_genes = os.path.join(PRJ_ROOT, 'local/share/data', wildcards.list+'.tsv')
+    targets = []
+    if os.path.exists(list_genes):
+        with open(list_genes, 'r') as genes_file:
+            for line in genes_file:
+                line = line.rstrip('\n')
+                targets.append(wildcards.type+'-'+line+'_'+wildcards.metric+'.png')
+                targets.append(wildcards.type+'-'+line+'_'+wildcards.metric+'.rep.png')
+    else:
+        print('Cannot find ' + list_genes)
+    return targets
+
 rule list_beloved_waterfall:
-    input: PRJ_ROOT+'/local/share/data/{list}.tsv'
+    input: readlines_input
     output: directory("waterfall_{list}-{type}_{metric}")
     shell: 
         """
            mkdir -p {output}
-           while IFS= read -r line; do
-            snakemake {wildcards.type}-${{line}}_{wildcards.metric}.png
-            mv {wildcards.type}-${{line}}_{wildcards.metric}.png {output}
-            mv {wildcards.type}-${{line}}_{wildcards.metric}.rep.png {output}
-           done < {input} 
+           for line in {input}; do
+            mv ${{line}} {output}
+           done
         """
 
 ## TODO print all pc instead of only 1-2
