@@ -1,0 +1,62 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+                                                    
+NAME="rnaseq_candiolo0519_revedit_pdxpdosc"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+PRECOUNTS=DATA+"/fastq.featurecounts.ribo.ex.count.gz"
+SELECTED="samples_data"
+rule counts:
+    input: PRECOUNTS
+    output: counts='counts.tsv.gz', gene_len='gene_len', meta="samples_data"
+    shell:
+        """
+            zcat {input} | cut -f 1,6 | sed 's/Length/length/1' > {output.gene_len}
+            zcat {input} | cut -f 2,3,4,5,6 --complement | gzip > {output.counts}
+            echo -e "sample\\tmodel\\ttype\\tn" > {output.meta}
+            zcat {input} | cut -f 1,2,3,4,5,6 --complement | bawk 'NR==1' | tr "\\t" "\n" | tr "_" "\\t" |bawk 'length($2)!=1 {{ print $1"_"$2"_"$3,$1,$2, $2"_"$3}} length($2)==1 {{ print $1"_"$2"_"$3, $1,"PDX", $2"_"$3}}' >> {output.meta}
+        """
+
+COUNTS="counts.tsv.gz"
+GENE_LEN='gene_len'
+###
+DESIGN="~type+model"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/bp_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+
+### rule score -
+MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
