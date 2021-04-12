@@ -15,7 +15,7 @@ NAME="Biodiversa_up5starOK_cetuxi_treat_PDO_72h_S"
 DATA=PRJ_ROOT+"/local/share/data/"+NAME
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
-BASE_DATA=PRJ_ROOT+"/local/share/data/"
+BASE_DATA=PRJ_ROOT+"/local/share/data"
 BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
 
 COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
@@ -79,3 +79,16 @@ MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
 MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
 H_MARKER=""
 M_MARKER=""
+SELECTED=""
+
+
+CHOSEN='CRC0327,CRC0399,CRC0069,CRC0322,CRC1272,CRC0743'
+rule striplots_chosen:
+    input: wanted=BASE_DATA+'/{what}', dds="dds.Rdata"
+    output: directory("{what}_lineplots_{class}")
+    params: tool=BIN_DIR+"/striplots_single_sample_mirated", chosen=CHOSEN
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} {wildcards.class} {params.chosen}
+        """
