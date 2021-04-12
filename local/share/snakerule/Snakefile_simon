@@ -1,0 +1,38 @@
+ROOT="/mnt/trcanmed/snaketree/prj"
+VSD="../vsd.tsv.gz"
+METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
+COUNTS=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/merged_hs_mm.tsv.gz"
+WANTEDT=ROOT+"/DE_RNASeq/local/share/data/xeno_basali"
+
+rule select_wanted_vsd:
+    input: metadata=METADATA, counts=VSD, types=WANTEDT
+    output: counts="selected_matrix_vsd.tsv.gz", metadata="selected_metadata.tsv"
+    shell:
+        """
+            head -n 1 {input.metadata} | cut -f 1,6,7 > {output.metadata}
+            sed 1d {input.metadata} | filter_1col 7 {input.types} | cut -f 1,6,7 >> {output.metadata}
+            cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """
+
+rule select_wanted_tmm:
+    input: counts="../tmm.tsv.gz", metadata="selected_metadata.tsv"
+    output: counts="selected_matrix_tmm.tsv.gz"
+    shell:
+        """
+            cat <(echo Geneid) <(cut -f 1 {input.metadata} | sed 1d) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """
+
+rule select_wanted_counts:
+    input: counts=COUNTS, metadata="selected_metadata.tsv"
+    output: counts="selected_matrix_counts.tsv.gz"
+    shell:
+        """
+            cat <(echo Geneid) <(cut -f 1 {input.metadata} | sed 1d) > {output.counts}.tmp
+            zcat {input.counts} | transpose | filter_1col 1 {output.counts}.tmp | transpose  | gzip > {output.counts}            
+            rm {output.counts}.tmp
+            
+        """
