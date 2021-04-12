@@ -72,7 +72,7 @@ basal <- function(model, data) {
   if (nrow(d) == 4) {
     fc <- mean(c(d[2, 'ave'], d[3, 'ave'])) # due to order
   } else {
-    fc <- d[1, 'ave'] / d[2, 'ave']
+    fc <- d[1, 'ave'] / d[2, 'ave'] # bug here
   }
   return(fc)
 }
