@@ -12,7 +12,7 @@ samples <- args[[5]]
 samples <- unlist(strsplit(samples, ','))
 
 load(ddsf)
-
+# FIXME change XENO to something dictated by conf.sk 
 striplots <- function(gene, dds) {
     if (!any(rownames(dds) == gene)) {
         return()
