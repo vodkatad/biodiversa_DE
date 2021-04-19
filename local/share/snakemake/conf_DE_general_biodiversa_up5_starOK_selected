@@ -1,4 +1,5 @@
 import os
+ROOT=os.environ.get('SNAKE_ROOT')
 def find_prj_root(path=os.getcwd()):
 	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
 		return path
@@ -99,7 +100,7 @@ rule cris_basali_NS:
 #	input: array="cris_uarray_{thr}.tsv", meta=
 #	output:
 
-META="../../../RNASeq_biod_metadata/dataset/july2020/selected_metadata_annot_final_nolinfo_nooutlier"
+META="../../../RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
 rule cris_basali:
 	input: me=META, cris="cris_tmm_0.2_classes.tsv"
 	output: "cris_tmm_0.2_classes_lmx_basali.tsv"
@@ -109,8 +110,24 @@ rule cris_basali:
 			filter_1col 1 <(bawk '$7 ~ "LMX_BASALE" {{print $1}}' {input.me}) < {input.cris} | bawk '{{print substr($1,0,12),$2}}' >> {output}
 		"""
 
+rule cris_basali_lmo:
+	input: me=META, cris="cris_tmm_0.2_classes.tsv"
+	output: "cris_tmm_0.2_classes_lmo_basali.tsv"
+	shell:
+		"""
+			head -n1 {input.cris}  > {output}
+			filter_1col 1 <(bawk '$7 ~ "LMO_BASALE" {{print $1}}' {input.me}) < {input.cris} | bawk '{{print substr($1,0,12),$2}}' >> {output}
+        """
 
-## 2 TODO compare CRIS with uarray ones
+rule cris_all_annot:
+	input: me=META, cris="cris_tmm_0.2_classes.tsv"
+	output: "cris_annot.tsv"
+	shell:
+		"""
+			sed 's/sample_id_R/genealogy/1' < {input.me} | translate -a -v -e "NA" {input.cris} 1 | cut -f 1,2,7,8 > {output}
+        """
+
+
 # per nuovi cris tenere solo basali non filtrati attualmente e sottoporli allo stesso trattamento
 HEADER='"LMX_lineage\\tprediction_LMX\\tBH_FDR_LMX\\tLMO_lineage\\tprediction_LMO\\tBH_FDR_LMO\\tswitched\\tswitch_type\\tpval_switch_sign"'
 rule array_cris_sankey:

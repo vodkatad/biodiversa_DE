@@ -295,3 +295,11 @@ rule gsea_rnk:
 # heatmap given a list of genes (e.g. of a given pathway, from pipeline or manual) annotates them in the list of all DEG
 # ../../local/share/data/gsea/h.all.v7.2.symbols.gmt mut_cutoff0.05-MUT.vs.WT.deseq2_sign_genedesc.tsv
 # stricter thr? tmm.tsv.gz
+rule gsva:
+    input: expr='tmm_H.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/CSC_hs_symbol.rds'
+    output: 'CSC-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
