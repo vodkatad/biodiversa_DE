@@ -21,7 +21,7 @@ rds_sign <- opt$signature
 
 geneset <- readRDS(rds_sign)
 expr_data <- read.table(gzfile(expr_file), sep="\t", header=TRUE, row.names=1)
-expr_data <- log(expr_data+1)
+expr_data <- log(expr_data+1, base=2)
 
 #ssgsea.norm
 #Barbie  et  al.   (2009)  normalizing  the  scores  by  the  absolute  difference
