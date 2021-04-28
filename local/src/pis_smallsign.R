@@ -84,3 +84,77 @@ pdo_treat_annot <- pdo_treat_annot[order(pdo_treat_annot$ctx, pdo_treat_annot$mo
 lfpkm_pdo_treat <- lfpkm_pdo_treat[, match(rownames(pdo_treat_annot), colnames(lfpkm_pdo_treat))]
 pheatmap(lfpkm_pdo_treat, show_rownames=TRUE, show_colnames=FALSE, annotation_col = pdo_treat_annot, cluster_cols = F)
 pheatmap(fpkm_pdo_treat, show_rownames=TRUE, show_colnames=FALSE, annotation_col = pdo_treat_annot, cluster_cols = F)
+
+
+###  metagene at the fc level
+single_fc <- function(model, data, info) {
+  d <- t(data[,grepl(model, colnames(data))])
+  m <- merge(info, d, by.y="row.names", by.x="id")
+  m <- m[order(m$type),]
+  expr <- m[, seq(8, ncol(m))]
+  expr[expr==0] <- 0.00001
+  if (nrow(expr) == 4) {
+    fc <- (expr[1,] / expr[2,] +  expr[4,] / expr[3,])/2 # due to order
+  } else {
+    fc <- expr[1,] / expr[2,]
+  }
+  return(fc)
+}
+
+singlegene_indScore <- lapply(unique(paneth_treat_m$model), single_fc, fpkm_pdo_treat, pdo_treat)
+sis <- do.call(rbind,singlegene_indScore)
+rownames(sis) <- unique(paneth_treat_m$model)
+sscores <- rowMeans(log(sis)/log(2))
+
+scores <- data.frame(row.names=names(sscores), PIS=sscores)
+
+scores$model <- rownames(scores)
+scores$ctx <- 'S'
+scores[scores$model %in% r, 'ctx'] <- 'R'
+ggplot(scores, aes(y=lPIS,x=reorder(model, -lPIS),fill=ctx))+geom_col()+ylab("PIS")+xlab("Model")+theme_bw()+theme(axis.text.x = element_text(size=15, angle = 90, hjust = 1, vjust=0.5))+scale_fill_manual(values=c("red","blue"))
+#ggsave('lPIS_tmm.svg')
+ggplot(scores, aes(y=PNS,x=reorder(model, -lPIS),fill=ctx))+geom_col()+ylab("PNS")+xlab("Model")+theme_bw()+theme(axis.text.x = element_text(size=15, angle = 90, hjust = 1, vjust=0.5))+scale_fill_manual(values=c("red","blue"))
+
+
+ggplot(scores, aes(y=PIS,x=reorder(model, -PIS),fill=ctx))+geom_col()+ylab("PIS")+xlab("Model")+theme_bw()+theme(axis.text.x = element_text(size=15, angle = 90, hjust = 1, vjust=0.5))+scale_fill_manual(values=c("red","blue"))
+
+
+##########3 correlations between samples ############
+meta <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/samples_data', sep="\t", header=T)
+pdo_basali <- meta[grepl('LMO_BASALE', meta$type),]
+pdo_treat <- meta[grepl('LMO_cetuxi', meta$type),]
+r <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5starOK_cetuxi_treat_PDO_72h_R/samples_data', header=T)
+pdo_treat$ctx <- 'S'
+pdo_treat[pdo_treat$id %in% r$id, 'ctx'] <- 'R'
+pdo_treat$model <- substr(pdo_treat$id, 0,7)
+basali <- unique(substr(pdo_basali[,'id'],0,7))
+tmm <- read.table(gzfile('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/tmm.tsv.gz'), sep="\t", header=T)
+
+tmm_pdo_treat <- tmm[,colnames(tmm) %in% pdo_treat$id]
+tmm_pdo_basali <- tmm[,colnames(tmm) %in% pdo_basali$id] #no loss of replicates: all . here
+pseudoc <- 1
+ltmm_pdo_basali <- log(tmm_pdo_basali+pseudoc)
+ltmm_pdo_treat <- log(tmm_pdo_treat+pseudoc)
+
+sds <- apply(ltmm_pdo_treat, 1, sd)
+sds <- sds[order(-sds)]
+topvar <- ltmm_pdo_treat[rownames(ltmm_pdo_treat) %in% names(head(sds, n=3000)),]
+
+cors <- cor(topvar)
+annot <- data.frame(row.names=pdo_treat$id, model=pdo_treat$model, type=substr(pdo_treat$type,0,17), ctx=pdo_treat$ctx)
+ann_colors = list(
+  ctx = c(S="blue", R="firebrick")
+  #CellType = c(CT1 = "#1B9E77", CT2 = "#D95F02"),
+  #GeneClass = c(Path1 = "#7570B3", Path2 = "#E7298A", Path3 = "#66A61E")
+)
+pheatmap(cors, annotation_row = annot, show_rownames = FALSE, show_colnames=TRUE, annotation_colors=ann_colors)
+cors[grepl('CRC0322',rownames(cors)),grepl('CRC0322',colnames(cors))]
+upper <- cors[upper.tri(cors)]
+pd <- data.frame(pearson=upper)
+
+v <- 0.9824710  
+ggplot(data=pd, aes(pearson))+geom_histogram(bins=30, fill="white",color="black")+theme_bw()+theme(axis.text=element_text(size=20))+geom_vline(xintercept=v, color="red",size=1)
+coors <- sapply(models, function(x) {y <- cors[grepl(x,rownames(cors)),grepl(x,colnames(cors))]; y[upper.tri(y)]})
+
+pd <- data.frame(pearson=unlist(coors))
+ggplot(data=pd, aes(pearson))+geom_histogram(bins=30, fill="white",color="black")+theme_bw()+theme(axis.text=element_text(size=20))+geom_vline(xintercept=v, color="red",size=1)

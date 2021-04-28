@@ -123,3 +123,5 @@ rule array_cris_sankey:
             join -t$'\\t' <(bawk '$2!="NS"' {input.m1}) <(sed 's/CRIS/CRIS-/1' < {input.m2} | bawk '$2!="NS"') | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
             {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched}
         """
+SELECTED=""
+ROOT=""

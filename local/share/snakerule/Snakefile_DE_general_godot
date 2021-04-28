@@ -168,7 +168,7 @@ rule cris_sankey:
 ### regola per calcolo score
 
 def definput(wildcards):
-    if (wildcards.spec == "fpkm"):
+    if (wildcards.expr == "fpkm"):
         return {'expr': "fpkm.tsv.gz"}
     else:
         return {'expr': "tmm.tsv.gz"}

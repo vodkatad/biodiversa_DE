@@ -354,7 +354,7 @@ gene_fc <- function(sample, expr, samples_data) {
   nt <- meta[meta$treat =="NT",]
   ave_ctx <- rowMeans(expr[,colnames(expr) %in% rownames(ctx)])
   ave_nt <- rowMeans(expr[,colnames(expr) %in% rownames(nt)])
-  return(log(ave_ctx/ave_nt))
+  return(ave_ctx/ave_nt)
 }
 
 us <- unique(samples_data$sample)
@@ -368,13 +368,14 @@ minv <- min(lfc)
 maxv <- max(lfc)
 halfv <- 0
 neutral_value <- 0
-bk1 <- c(seq(minv-0.1,neutral_value-0.1,by=0.35),neutral_value-0.0999)
-bk2 <- c(neutral_value+0.001, seq(neutral_value+0.1,maxv+0.1,by=0.35))
+bk1 <- c(seq(minv-0.1,neutral_value-0.1,by=0.35),neutral_value-0.88)
+bk2 <- c(neutral_value+0.3, seq(neutral_value+0.301,maxv+0.1,by=0.005))
 bk <- c(bk1, bk2)
 my_palette <- c(colorRampPalette(colors = c("darkblue", "lightblue"))(n = length(bk1)-1),
                 "snow1", "snow1",
-                c(colorRampPalette(colors = c("tomato1", "darkred"))(n = length(bk2)-1)))
+                c(colorRampPalette(colors = c("tomato", "darkred"))(n = length(bk2)-1)))
 
 
 pheatmap(lfc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F, color = my_palette, breaks = bk)
+pheatmap(lfc, show_rownames=TRUE, show_colnames=TRUE, cluster_cols=F, cluster_rows = F)
 
