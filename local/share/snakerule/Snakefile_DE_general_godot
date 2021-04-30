@@ -54,7 +54,7 @@ def find_type(wildcards):
 
 rule my_beloved_type:
     input: data="{gene}_{metric}.tsv", meta=SELECTED
-    output: temp("{type}-{gene}_{metric}.tsv")
+    output: "{type}-{gene}_{metric}.tsv"
     params: find_type
     shell:
         """
