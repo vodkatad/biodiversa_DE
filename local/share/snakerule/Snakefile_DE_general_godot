@@ -84,6 +84,11 @@ rule my_beloved_waterfall:
             {params.tool} {input} {wildcards.gene} {output}
         """
     
+rule compare_lmo_lmx:
+    input: lmo="LMO_BASALE-{gene}_tmm.tsv", lmx="LMX_BASALE-{gene}_tmm.tsv"
+    output: scatter="scatter_lmx_lmo_{gene}.png", quartiles="quartiles_lmx_lmo_{gene}.tsv"
+    script: SRC_DIR+"/lmo_lmx_compare.R"
+
 def readlines_input(wildcards):
     import os
     list_genes = os.path.join(PRJ_ROOT, 'local/share/data', wildcards.list+'.tsv')
