@@ -43,4 +43,8 @@ rule select_wanted_counts:
             
         """
 
-## fix header TODO
+## fixing header for ease of use of collaborators
+rule fix_header:
+    input: matrix='selected_matrix_{what}.tsv.gz', meta="selected_metadata.tsv"
+    output: hmat='selected_hmatrix_{what}.tsv.gz'
+    script: '../../../local/src/from_meta_matrix_to_headeredmat.R'
