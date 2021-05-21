@@ -10,6 +10,7 @@ def find_prj_root(path=os.getcwd()):
 
 
 PRJ_ROOT=find_prj_root()
+ROOT= os.getenv('SNAKE_ROOT')
                                                     
 NAME="Biodiversa_up5starOK_cetuxi_treat_PDO_72h_S"
 DATA=PRJ_ROOT+"/local/share/data/"+NAME
@@ -82,7 +83,7 @@ M_MARKER=""
 SELECTED=""
 
 
-CHOSEN='CRC0327,CRC0399,CRC0069,CRC0322'#,CRC1272,CRC0743'
+CHOSEN='CRC0327,CRC0399,CRC0069,CRC0322,CRC1331,CRC1272,CRC0542,CRC0059'
 rule striplots_chosen:
     input: wanted=BASE_DATA+'/{what}', dds="dds.Rdata"
     output: directory("{what}_lineplots_{class}")
