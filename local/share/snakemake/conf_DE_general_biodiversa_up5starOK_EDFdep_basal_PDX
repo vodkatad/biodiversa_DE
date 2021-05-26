@@ -10,9 +10,9 @@ def find_prj_root(path=os.getcwd()):
 
 
 PRJ_ROOT=find_prj_root()
-                                                    
+ROOT=os.getenv('SNAKE_ROOT')                                                    
 NAME="Biodiversa_up5starOK_cetuxi_treat_PDO_72h_R"
-DATA=PRJ_ROOT+"/local/share/data/"+NAME
+DATA=PRJ_ROOT+"/local/share/data/"
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
 
@@ -21,8 +21,7 @@ BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starO
 COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
-#DESIGN="~batch+time+treat"
-DESIGN="~sample+treat"
+DESIGN="~batch+class"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -39,27 +38,27 @@ GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RD
 GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
 #GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
-PDO_CETUXI=PRJ_ROOT+'/local/share/data/pdo_cetuxi'
 
 # for biodiversa change - in . in metadata
 rule wanted:
 	output: "wanted"
 	shell:
 		"""
-		 echo -e "LMO_cetuxi_72h_NT\\nLMO_cetuxi_72h" > {output}
+		 echo -e "LMX_BASALE\\nLMX_BASALE.1" > {output}
 		"""
 
-# work on sensible cases only and work on R ones in another dir to substract their 'spurious' DEG
-# decided to work separately at 72h and 6w
 rule samples_data:
-    input: meta=BIT_DIR+"/selected_metadata_annot", wanted="wanted", cetuxi=PDO_CETUXI
+    input: meta=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier", wanted="wanted", egfdep=DATA+"/EGF_dep", egfundep=DATA+"/EGF_undep"
     output: "samples_data"
     shell:
         """
-			echo -e "id\\tsample\\tbatch\\ttreat" > {output}
-			cat {input.meta} | bawk '$2=="pass" || $2=="NA"' | bawk '$3=="pass"'| perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/'  \
-			| cut -f 1,4,5,6 | sed 's/\.1//1' | filter_1col 3 {input.wanted} | tr "_" "\\t" | bawk '$5=="72h"' \
-			| bawk '$6=="NT" {{print $1, substr($1,0,7), $2,"NT"}} $6!="NT"{{print $1,substr($1,0,7),$2,"cetuxi"}}' | filter_1col 2 <(bawk '$2=="PD"{{print $1}}' {input.cetuxi}) >> {output}
+            bawk '{{print $1,"EGFdep"}}' {input.egfdep} > {output}.tmp
+            bawk '{{print $1,"EGFundep"}}' {input.egfundep} >> {output}.tmp
+			echo -e "id\\tbatch\\tmodel\\tclass" > {output}
+			cat {input.meta} | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/' \
+			| cut -f 1,6,7 | filter_1col 3 {input.wanted} \
+			| bawk '{{print $1,$2,substr($1,0,7)}}' | translate -d -a -j -k {output}.tmp 3 >> {output}
+            rm {output}.tmp
         """
 
 #CRC0166LMX0A05011TUMR05000      CRC0166 1       6w      NT -> this was the first design with everything together
@@ -73,4 +72,5 @@ PVAL=0.05
 
 DEBUG="yes"
 MARKER=""
-MEDA=""
+MEDA_DIR=""
+SELECTED=""
