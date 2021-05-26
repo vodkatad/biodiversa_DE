@@ -308,3 +308,12 @@ rule gsva:
         """
             {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
         """
+
+rule gsva_msigdb:
+    input: expr='tmm.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
+    output: '{class}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """

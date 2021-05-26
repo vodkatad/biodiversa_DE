@@ -3,14 +3,15 @@ meta_f <- snakemake@input[["meta"]]
 hmat_f <- snakemake@output[["hmat"]]
 
 data <- read.table(gzfile(matrix_f), sep="\t", header=TRUE, row.names=1)
-meta <- read.table(meta_f, sep="\t", header=TRUE)
-
-meta <- meta[match(colnames(data),meta$sample_id_R),]
-if (!all(colnames(data) == meta$sample_id_R)) {
+meta <- read.table(meta_f, sep="\t", header=TRUE, stringsAsFactors=FALSE)
+save.image('p.Rdata')
+meta$old_id <- gsub('-','.', meta$old_id)
+meta$new_id <- gsub('-','_', meta$new_id)
+meta <- meta[match(colnames(data),meta$old_id),]
+if (!all(colnames(data) == meta$old_id)) {
     stop('Cosa fai, llama?')
 }
 
-meta$new_id <- paste0(substr(meta$sample_id_R,0,7),'_',meta$type)
 colnames(data) <- meta$new_id
 
 write.table(data, gzfile(hmat_f), sep="\t", row.names=TRUE, col.names=TRUE, quote=FALSE)

@@ -1,0 +1,58 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+NAME="evil_MA"
+DATA=PRJ_ROOT+"/local/share/data/"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR='/mnt/trcanmed/bioinfotree/prj/MA_evil/ngs_standard_processing/dataset/v1'
+
+COUNTS_PRE=BIT_DIR+"/GEP.count.gz"
+COUNTS="counts.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+META=DATA+'ma_Evil_ss.tsv'
+###
+DESIGN="~class"
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+rule rename_cols:
+    input: matrix=COUNTS_PRE, meta=META
+    output: hmat=COUNTS
+    script: SRC_DIR+'/rename_columns.R'
+
+rule samples_data:
+    input: meta=META
+    output: "samples_data"
+    shell:
+        """
+			echo -e "id\\tclass\\tclone\\ttime" > {output}
+			sed 1d {input.meta} | bawk '$3~/09/' | bawk '$2 ~ /09C/ {{print $2,"evil",$3,$4}} $2 !~ /09C/ {{print $2,"good",$3,$4}}' | tr "-" "_"  >> {output}
+        """
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""
