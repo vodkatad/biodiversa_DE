@@ -1,0 +1,93 @@
+ROOT="/mnt/trcanmed/snaketree/prj"
+VSD="../vsd.tsv.gz"
+METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
+COUNTS=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/merged_hs_mm.tsv.gz"
+WANTEDG=ROOT+"/DE_RNASeq/local/share/data/pdx_pdo_origin_true"
+WANTEDT=ROOT+"/DE_RNASeq/local/share/data/xo_basali"
+FRAMUT=ROOT+"/pdxopedia/local/share/data/dtb_mutations_vlookupAndrea_expandedPRLM.tsv"
+
+rule KRAS:
+    input: FRAMUT
+    output: "kras.tsv"
+    shell:
+        """
+            sed 1d {input} |bawk '$4!="wt" && $4!="NA"{{print $1,$4}}' |sort | uniq > {output}
+        """
+
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj$ cut -f 2 /mnt/trcanmed/snaketree/prj/biobanca/local/share/data/list_matched_PDO-PDX_DNA.txt | sed 1d  > ../../../local/share/data/pdx_pdo_origin
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj$ bawk '{print substr($6,0,10)}' /mnt/trcanmed/snaketree/prj/biobanca/local/share/data/list_matched_PDO-PDX_DNA.txt | sed 1d >> ../../../local/share/data/pdx_pdo_origin
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj$ paste <(cut -f 2 /mnt/trcanmed/snaketree/prj/biobanca/local/share/data/list_matched_PDO-PDX_DNA.txt | sed 1d ) <(bawk '{print substr($6,0,12)}' /mnt/trcanmed/snaketree/prj/biobanca/local/share/data/list_matched_PDO-PDX_DNA.txt | sed 1d) > ../../../local/share/data/pdx_pdo_origin_pairs
+rule select_wanted_metadata:
+    input: metadata=METADATA, samplet=WANTEDT, mgeno=WANTEDG, model="kras.tsv"
+    output: metadata="selected_metadata.tsv"
+    shell:
+        """
+            head -n 1 {input.metadata} | cut -f 1,6 > {output.metadata}
+            sed 1d {input.metadata} | filter_1col 7 {input.samplet} | bawk '{{print $1,$6,substr($1,0,7),substr($1,0,12)}}' \
+            | filter_1col 4 {input.mgeno}  | filter_1col 3 <(cut -f 1 {input.model}) | sed 's/H_//1'  | cut -f 1,2 | tr "\-2" ".2" >> {output.metadata}
+        """
+
+rule select_wanted_vsd:
+    input: metadata="selected_metadata.tsv", counts=VSD
+    output: counts="selected_matrix_vsd.tsv.gz"
+    shell:
+        """
+            cat <(echo Geneid) <(cut -f 1 {input.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """
+
+rule select_wanted_tmm:
+    input: counts="../tmm.tsv.gz", metadata="selected_metadata.tsv"
+    output: counts="selected_matrix_tmm.tsv.gz"
+    shell:
+        """
+            cat <(echo Geneid) <(cut -f 1 {input.metadata} | sed 1d) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """
+
+rule select_wanted_counts:
+    input: counts=COUNTS, metadata="selected_metadata.tsv"
+    output: counts="selected_matrix_counts.tsv.gz"
+    shell:
+        """
+            cat <(echo Geneid) <(cut -f 1 {input.metadata} | sed 1d) > {output.counts}.tmp
+            zcat {input.counts} | transpose | tr "\-2" ".2" | filter_1col 1 {output.counts}.tmp | transpose  | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+            
+        """
+
+
+#data <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj/selected_metadata.tsv', sep="\t", header=T)
+# head(data)
+# lmx <- data[grepl('LMX', data$sample_id_R),]
+# lmo <- data[grepl('LMO', data$sample_id_R),]
+# head(lxm)
+# head(lmx)
+# lmx$model <- substr(lmx$sample_id_R, 0,7)
+# lmo$model <- substr(lmo$sample_id_R, 0,7)
+# head(lmox)
+# head(lmox
+# head(lmo)
+# head(lmo)
+# table(lmo$model)
+# table(lmx$model)
+# m <- merge(lmx, lmo, by="model")
+# head(m)
+# dim(m)
+# m$batch.x <- NULL
+# m$batch.y <- NULL
+# write.table(m, file="/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj/pairs.tsv", sep="\t", header=T, quote=F)
+# write.table(m, file="/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj/pairs.tsv", sep="\t", quote=F)
+# write.table(m, file="/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj/pairs.tsv", sep="\t", quote=F, row.names=F)
+# colnames(m) <- c('model','xeno_id', 'pdo_id')
+# write.table(m, file="/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj/pairs.tsv", sep="\t", quote=F, row.names=F)
+# head(m)
+# unique(m$model)
+# length(unique(m$model))
+
+
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj$ sed 1d pairs.tsv | bawk '{print substr($2,0,12)}'  > ../../../local/share/data/pdx_pdo_origin_true
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj$ sed 1d pairs.tsv | bawk '{print substr($3,0,12)}'  >> ../../../local/share/data/pdx_pdo_origin_true
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/anguraj$ 
