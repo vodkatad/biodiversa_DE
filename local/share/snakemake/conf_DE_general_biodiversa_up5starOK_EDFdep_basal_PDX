@@ -74,3 +74,28 @@ DEBUG="yes"
 MARKER=""
 MEDA_DIR=""
 SELECTED=""
+
+### tries with lfcShrink and comparing gsea pvals:
+# pvalues not identical to broad ones...which method? classic?
+#    https://www.biorxiv.org/content/10.1101/060012v1
+rule gsea_test:
+    input: tsv="{what}_cutoff0.05-{nom}.vs.{den}.gseain.tsv", pathways=PRJ_ROOT+"/local/share/data/gsea/adipo.Rdata"
+    output: outdir=directory("test{what}_gsea_{nom}vs{den}.test"), outtable="test{what}_{nom}.vs.{den}.significant_NES_gsea.test", outtableall="test{what}_{nom}.vs.{den}.all_NES_gsea.test"
+    params: save="testgsea_{what}_{nom}.vs.{den}.test.Rdata", cores=CORES, debug="no"
+    script: GSEA
+
+
+rule plots_shrink:
+    input: counts=COUNTS, metadata="samples_data"
+    output: "dds_nobeta.Rdata", "fpkm_nobeta.tsv.gz", "tmm_nobeta.tsv.gz", "vsd_nobeta.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc_nobeta", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
+        """
+
+rule de_shrink:
+    input: "dds_nobeta.Rdata"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff_shrink.R"

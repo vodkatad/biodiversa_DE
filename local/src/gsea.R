@@ -67,7 +67,7 @@ plot_es <- function(row, all_de_data) {
   #cat("uppa\nappa")
   #cat(head(names(rnk)))
   plotEnrichment(pathways[[as.character(row[8])]][[as.character(row[1])]],rnk) +labs(title=row[1])
-  ggsave(paste0(c(row[8], row[1], row[9], "pdf"), collapse="."))
+  ggsave(paste0(c(row[8], row[1], row[9], "png"), collapse="."))
 }
 
 sign <- sign[order(sign$name, sign$pval),]
