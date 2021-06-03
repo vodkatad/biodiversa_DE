@@ -114,6 +114,37 @@ rule list_beloved_waterfall:
            done
         """
 
+def readlines_input_expr(wildcards):
+    import os
+    list_genes = os.path.join(PRJ_ROOT, 'local/share/data', wildcards.list+'.tsv')
+    targets = []
+    if os.path.exists(list_genes):
+        with open(list_genes, 'r') as genes_file:
+            for line in genes_file:
+                line = line.rstrip('\n')
+                targets.append(wildcards.type+'-'+line+'_'+wildcards.metric+'.tsv')
+    else:
+        print('Cannot find ' + list_genes)
+    return targets
+
+rule list_beloved_merged:
+    input: readlines_input_expr
+    output: directory("merge_{list}-{type}_{metric}")
+    run: 
+        import pandas as pd
+        os.mkdir(output[0])
+        # TODO write in single list comprehension
+        n = [x.split('-')[1] for x in input] 
+        names = [x.split('_')[0] for x in n]
+        res = pd.read_csv(input[0], sep="\t", header=None, names=[names[0]], index_col=0)
+        i = 1
+        for gene in input[1:]:
+            gene_df = pd.read_csv(gene, sep="\t", header=None, names=[names[i]], index_col=0)
+            res = gene_df.merge(res, suffixes=(None, None), left_index=True, right_index=True)
+            i += 1
+        res.to_csv(os.path.join(output[0],'matrix_'+wildcards.metric+'.tsv.gz'), sep="\t", compression='gzip', header=True)
+
+
 ## TODO print all pc instead of only 1-2
 rule pcs:
     input: "dds.Rdata"
