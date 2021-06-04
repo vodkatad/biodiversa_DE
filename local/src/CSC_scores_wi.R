@@ -11,6 +11,7 @@ m$type <- sapply(m$type, function(x) {y<-strsplit(x, '.', fixed=T)[[1]][1]; retu
 m$model <- substr(m$Row.names,0,10)
 
 #################33
+th <- function() {
 textSize <- 1.5
 current_theme <-
   theme_bw() +
@@ -40,7 +41,8 @@ current_theme <-
     panel.border = element_blank(),
     plot.caption = element_text(size=rel(1))
   )
-
+}
+th()
 ###
 ggplot(data=m, aes(x=RSC))+geom_histogram()+facet_wrap(~type)+current_theme
 

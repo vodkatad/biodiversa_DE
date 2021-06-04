@@ -1,3 +1,4 @@
+th <- function() {
 textSize <- 1.5
 current_theme <-
   theme_bw() +
@@ -27,7 +28,8 @@ current_theme <-
     panel.border = element_blank(),
     plot.caption = element_text(size=rel(1))
   )
-
+}
+th()
 
 d<- read.table(gzfile('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/merge_SAC-LMO_BASALE_tmm/matrix_tmm.tsv.gz'), sep="\t", header=T)
 head(d)
@@ -101,3 +103,28 @@ compare(miri$avgavg, miri$irino, FALSE, 'avgDecile','irino_vivo_3w','SAC')
 ctxpdo <- read.table('/mnt/trcanmed/snaketree/prj/biobanca/dataset/V1/cetuximab/pdo_cetuxi.tsv', sep="\t", header=T)
 mctxo <- merge(davg, ctxpdo, by.x="model", by.y="case")
 compare(mctxo$avgavg, mctxo$CTG_5000, FALSE, 'avgDecile','cetuxi_vitro_ATP5000','SAC')
+
+###
+setwd('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected')
+w <- c('CRC1629',
+       'CRC1430',
+       'CRC0080',
+       'CRC0124',
+       'CRC0186',
+       'CRC1432')
+
+load('LMO_BASALE-CEACAM5_tmm.png.Rdata')
+wf <- function(data) {
+f$track <- ifelse(f$model %in% w, 'yes','no')
+f <- f[order(-f$l),]
+f$lab <- f$model
+f[f$track=="no",'lab'] <- ''
+p <- ggplot(f, aes(y=l,x=reorder(model, -l), fill=track))+geom_col()+ylab('expr')+xlab("")+current_theme+ggtitle(genen)+geom_hline(aes(yintercept=me, linetype="1"), size=1,color="darkblue")+scale_fill_manual(values=c('gray','darkgoldenrod'))+scale_x_discrete(labels=f$lab)
+p+scale_linetype_manual(name = "median", labels = "", values="solid") +theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+}
+load('LMO_BASALE-ERBB2_tmm.png.Rdata')
+wf(f)
+load('LMX_BASALE-ERBB2_tmm.png.Rdata')
+wf(f)
+load('LMX_BASALE-CEACAM5_tmm.png.Rdata')
+wf(f)
