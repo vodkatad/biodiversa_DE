@@ -1,0 +1,218 @@
+---
+title: "KM and cetuxi/irino"
+output: html_document
+---
+```{css, echo=FALSE}
+table {
+  width: 35%;
+  margin-left: auto;
+  margin-right: auto;  
+ }
+
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(xtable)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+
+```
+
+## Whole dataset - LMX only
+
+```{r load, echo=FALSE}
+
+ctx <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/treats/august2020/Treatments_Eugy_Ele_fix0cetuxi_201005_cetuxi3w.tsv', sep="\t", header=F, row.names = NULL)
+iri <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/treats/may2020/irinotecan_w3.txt', sep="\t", header=T, row.names = NULL)
+colnames(ctx) <- c('model', 'ctx')
+colnames(iri) <- c('model', 'irino')
+km <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/turin_n613_xeno_qn_genefilter_opt2_KMcalls_13052021.txt', sep="\t", header=T, stringsAsFactors = FALSE)
+
+meki <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/treats/meki.txt', sep="\t", header=T, row.names=1)
+nona <- apply(meki, 1, function(x) !all(is.na(x)))
+meki <- meki[nona,]
+meki$model <- rownames(meki)
+
+km <- km[km$KM.Subtypes != "Mixed",]
+km$model <- substr(km$Sample_ID, 0, 7)
+km <- km[grepl("LMX", km$Sample_ID),]
+tab <- xtable(table(km$KM.Subtypes), caption="Subtypes w/o Mixed")
+colnames(tab) <- ('n')
+
+## criis
+cris <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/cris_samples.tsv', sep="\t", header=T, stringsAsFactors = FALSE)
+kmc <- km[km$model %in% cris$model,]
+tabc <- xtable(table(kmc$KM.Subtypes), caption="Subtypes w/o Mixed")
+colnames(tabc) <- ('n')
+```
+
+Subtypes on the whole set of `r nrow(km)` LMX samples:
+```{r xtable, results="asis", echo=FALSE}
+print(tab, type="html")
+ggplot(data=km, aes(x=KM.Subtypes))+geom_bar()+theme_bw(base_size = 14)
+``` 
+
+Subtypes on the set of `r nrow(kmc)` LMX samples with uarray data available from GEO (GSE76402):
+```{r xtablec, results="asis", echo=FALSE}
+print(tabc, type="html", width='20')
+ggplot(data=kmc, aes(x=KM.Subtypes))+geom_bar()+theme_bw(base_size = 14)
+``` 
+
+## TODO add CRIS
+
+## Cetuximab
+```{r ctx, echo=F}
+minestrone <- function(km, treat, name, column) {
+  mi <- merge(km, treat, by="model", all.x=T)
+  
+  multi <- as.data.frame(table(mi$model))
+  multi <- multi[multi$Freq>1,]
+  #mi[mi$model %in% as.character(multi$Var1),]
+  
+  mods <- as.character(unique(multi$Var1))
+  uni <- sapply(mods, function(x) {length(unique(mi[mi$model==x,'KM.Subtypes']))})
+  strange <- mods[!uni==1]
+  notsync <- mi[mi$model %in% strange,]
+  
+  mi <- mi[!mi$model %in% strange,]
+  
+  one <- lapply(mods, function(x) {head(mi[mi$model==x,],n=1)})
+  oned <- do.call(rbind, one)
+  
+  mi <- mi[!mi$model %in% mods,]
+  mi <- rbind(mi, oned)
+  
+  mi$class <- as.factor(ifelse(is.na(mi[, column]), 'Undetermined', ifelse(mi[,column]< 35, 'Responder', "Non-Responder")))
+  
+  #complete(class, nesting(KM.Subtypes), fill = list(count = 0)) %>%
+  pld <- mi %>%
+    group_by(KM.Subtypes,class) %>% 
+    summarise(count = n()) %>% 
+    complete(class, nesting(KM.Subtypes), fill = list(count = 0)) %>%
+    mutate(perc = count/sum(count))
+  
+  print(ggplot(pld, aes(x = factor(KM.Subtypes), y = perc*100, fill = factor(class), label=count)) +
+    geom_bar(stat="identity", width = 0.7) + labs(x = "KM", y = "percent", fill = name) +
+    theme_bw(base_size = 14)+scale_fill_manual(values=c('red','darkblue','grey'))  +
+    geom_text(size = 4, position = position_stack(vjust = 0.5), color="white"))
+  
+  ma <- matrix(pld$count, nrow=3)
+  colnames(ma) <- c('KM1','KM2','KM3')
+  rownames(ma) <- c('NR','R','NA')
+  return(list(ma, notsync, multi))
+#Generally, Fisher’s exact test is preferable to the chi-squared test because it is an exact test. The chi-squared test should be particularly avoided if there are few observations (e.g. less than 10) for individual cell
+}
+mam <- minestrone(km, ctx, 'Cetuximab 3Wd%', 'ctx')
+ma <- mam[[1]]
+notsync <- mam[[2]]
+multi <- mam[[3]]
+```
+Notes: all xeno replicates (`r nrow(multi)`), except for 1, had the same KM, kept only one for them.
+Removed:
+```{r ctx_strange, echo=TRUE}
+notsync
+ma
+chisq.test(ma)
+```
+
+## Cetuximab CRIS
+```{r cctx, echo=F}
+mam <- minestrone(kmc, ctx, 'Cetuximab 3Wd%', 'ctx')
+ma <- mam[[1]]
+notsync <- mam[[2]]
+multi <- mam[[3]]
+```
+
+```{r cctx_strange, echo=TRUE}
+ma
+chisq.test(ma)
+```
+
+
+
+## Irinotecan
+
+```{r iri, echo=F}
+mam <- minestrone(km, iri, 'Irinotecan 3Wd%', 'irino')
+ma <- mam[[1]]
+notsync <- mam[[2]]
+multi <- mam[[3]]
+```
+```{r iri_strange, echo=TRUE}
+notsync
+ma
+chisq.test(ma)
+```
+
+## Irinotecan CRIS
+```{r ciri, echo=F}
+mam <- minestrone(kmc, iri, 'Irinotecan 3Wd%', 'irino')
+ma <- mam[[1]]
+notsync <- mam[[2]]
+multi <- mam[[3]]
+```
+
+```{r ciri_strange, echo=TRUE}
+ma
+chisq.test(ma)
+```
+
+## MEK inhibitors
+
+AZD6244
+
+```{r meki, echo=F}
+mam <- minestrone(km, meki, 'AZD6244 3Wd%', 'AZD6244.3.wks')
+ma <- mam[[1]]
+notsync <- mam[[2]]
+multi <- mam[[3]]
+```
+
+```{r mekis, echo=TRUE}
+ma
+chisq.test(ma)
+```
+
+BEZ235
+
+```{r meki2, echo=F}
+mam <- minestrone(km, meki, 'BEZ235 3Wd%', 'BEZ235.3wks')
+ma <- mam[[1]]
+notsync <- mam[[2]]
+multi <- mam[[3]]
+```
+
+```{r mekis2, echo=TRUE}
+ma
+chisq.test(ma)
+```
+
+Combo
+
+```{r meki3, echo=F}
+mam <- minestrone(km, meki, 'Combo 3Wd%', 'AZD6244.BEZ235.3wks')
+ma <- mam[[1]]
+notsync <- mam[[2]]
+multi <- mam[[3]]
+```
+
+```{r mekis3, echo=TRUE}
+ma
+chisq.test(ma)
+```
+
+Ctx-Combo
+
+```{r meki4, echo=F}
+mam <- minestrone(km, meki, 'Ctx-Combo 3Wd%', 'AZD6244.BEZ235.Cetuximab.3wks')
+ma <- mam[[1]]
+notsync <- mam[[2]]
+multi <- mam[[3]]
+```
+
+```{r mekis4, echo=TRUE}
+ma
+chisq.test(ma)
+```
