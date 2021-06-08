@@ -60,7 +60,6 @@ print(tabc, type="html", width='20')
 ggplot(data=kmc, aes(x=KM.Subtypes))+geom_bar()+theme_bw(base_size = 14)
 ``` 
 
-## TODO add CRIS
 
 ## Cetuximab
 ```{r ctx, echo=F}
@@ -213,6 +212,54 @@ multi <- mam[[3]]
 ```
 
 ```{r mekis4, echo=TRUE}
+ma
+chisq.test(ma)
+```
+
+```{r cris, echo=FALSE}
+crisc<- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/cris_tmm_0.2_classes_lmx_basali_models_ns.tsv', sep="\t", header=TRUE)
+colnames(crisc)[1] <- 'model'
+  column <- 'ctx'
+  name <- 'CTX %v3w'
+  mi <- merge(crisc, ctx, by="model", all.x=T)
+  
+  multi <- as.data.frame(table(mi$model))
+  multi <- multi[multi$Freq>1,]
+  #mi[mi$model %in% as.character(multi$Var1),]
+  
+  mods <- as.character(unique(multi$Var1))
+  uni <- sapply(mods, function(x) {length(unique(mi[mi$model==x,'cris']))})
+  strange <- mods[!uni==1]
+  notsync <- mi[mi$model %in% strange,]
+  
+  mi <- mi[!mi$model %in% strange,]
+  
+  one <- lapply(mods, function(x) {head(mi[mi$model==x,],n=1)})
+  oned <- do.call(rbind, one)
+  
+  mi <- mi[!mi$model %in% mods,]
+  mi <- rbind(mi, oned)
+  
+  mi$class <- as.factor(ifelse(is.na(mi[, column]), 'Undetermined', ifelse(mi[,column]< 35, 'Responder', "Non-Responder")))
+  
+  #complete(class, nesting(KM.Subtypes), fill = list(count = 0)) %>%
+  pld <- mi %>%
+    group_by(cris,class) %>% 
+    summarise(count = n()) %>% 
+    complete(class, nesting(cris), fill = list(count = 0)) %>%
+    mutate(perc = count/sum(count))
+  
+  print(ggplot(pld, aes(x = factor(cris), y = perc*100, fill = factor(class), label=count)) +
+    geom_bar(stat="identity", width = 0.7) + labs(x = "CRIS", y = "percent", fill = name) +
+    theme_bw(base_size = 14)+
+    geom_text(size = 4, position = position_stack(vjust = 0.5), color="white"))
+  
+  ma <- matrix(pld$count, nrow=6, byrow=TRUE)
+  rownames(ma) <- levels(as.factor(mi$cris))
+  colnames(ma) <- c('NR','R','NA')
+```
+
+```{r cris2, echo=TRUE}
 ma
 chisq.test(ma)
 ```

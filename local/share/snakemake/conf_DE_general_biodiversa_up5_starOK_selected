@@ -95,6 +95,18 @@ rule cris_basali_NS:
         res = pd.DataFrame(dp)
         res.to_csv(output[0], sep="\t")
 
+rule cris_merged_models_pdx_basali_NS:
+    input: "cris_tmm_0.2_classes_lmx_basali.tsv"
+    output: "cris_tmm_0.2_classes_lmx_basali_models_ns.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input[0], sep="\t", index_col=False)
+        d['genealogy'] = [x[0:7] for x in d['genealogy'].values]
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output[0], sep="\t")
 
 #rule prepare_sankey:
 #	input: array="cris_uarray_{thr}.tsv", meta=
