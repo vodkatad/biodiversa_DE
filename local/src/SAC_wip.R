@@ -128,3 +128,37 @@ load('LMX_BASALE-ERBB2_tmm.png.Rdata')
 wf(f)
 load('LMX_BASALE-CEACAM5_tmm.png.Rdata')
 wf(f)
+
+########
+
+
+d<- read.table(gzfile('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/merge_SAC-LMX_BASALE_tmm/matrix_tmm.tsv.gz'), sep="\t", header=T)
+head(d)
+dim(d)
+rownames(d) <- d$X
+d$X <- NULL
+dd <- cor(d)
+library(corrplot)
+corrplot.mixed(dd)
+
+decile <- function(x) {
+  res <- cut(x, quantile(x, prob = seq(0, 1, length = 11), type = 5), include.lowest=TRUE )
+  res <- as.factor(res)
+  levels(res) <- seq(0,1, length=11)
+  as.numeric(as.character(res))
+}
+
+deciles <- apply(d, 2, decile)
+colnames(deciles) <- paste0(colnames(deciles),"_", "decile")
+
+data <- cbind(d, deciles)
+
+w <- c('CRC0542',
+'CRC0069',
+'CRC1139',
+'CRC0177',
+'CRC1272',
+'CRC0277',
+'CRC1888',
+'CRC0231'
+)
