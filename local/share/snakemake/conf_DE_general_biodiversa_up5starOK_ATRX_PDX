@@ -44,7 +44,7 @@ rule wanted:
 	output: "wanted"
 	shell:
 		"""
-		 echo -e "LMO_BASALE\\nLMO_BASALE.1\\nLMO_BASALE.2" > {output}
+		 echo -e "LMX_BASALE\\nLMX_BASALE.1" > {output}
 		"""
 
 rule samples_data:
@@ -71,7 +71,7 @@ DEBUG="yes"
 MARKER=""
 MEDA_DIR=""
 SELECTED=""
-BASE='ATRX_cutoff0.05-MUT.vs.WT.deseq2_sign_genedesc.tsv'
+
 
 rule plots_shrink:
     input: counts=COUNTS, metadata="samples_data"
