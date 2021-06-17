@@ -28,8 +28,9 @@ current_theme <-
     panel.border = element_blank(),
     plot.caption = element_text(size=rel(1))
   )
+ current_theme
 }
-th()
+current_theme <- th()
 
 d<- read.table(gzfile('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/merge_SAC-LMO_BASALE_tmm/matrix_tmm.tsv.gz'), sep="\t", header=T)
 head(d)
