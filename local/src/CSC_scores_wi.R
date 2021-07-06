@@ -41,8 +41,9 @@ current_theme <-
     panel.border = element_blank(),
     plot.caption = element_text(size=rel(1))
   )
+current_theme
 }
-th()
+current_theme <- th()
 ###
 ggplot(data=m, aes(x=RSC))+geom_histogram()+facet_wrap(~type)+current_theme
 
@@ -158,7 +159,7 @@ call_compare <- function(x, data) {
 }
 
 call_compare('LMX_BASALE', m)
-call_compare('LMH_BASALE', m)
+call_compare('LMH', m)
 ###
 # LMX vs LMH
 

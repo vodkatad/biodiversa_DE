@@ -55,7 +55,7 @@ data <- cbind(d, deciles)
 data$all_geq08 <- apply(deciles, 1, function(x) {all(x >= 0.8)} )
 data$all_leq01 <- apply(deciles, 1, function(x) {all(x <= 0.1)} )
 data <- data[order(-data$AURKA_decile),]
-write.table(data,'SAC.tsv', sep="\t", quote=F)
+write.table(data,'SAC2.tsv', sep="\t", quote=F)
 data[data$all_geq08,]
 data[data$all_leq01,]
 

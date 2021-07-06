@@ -251,7 +251,7 @@ colnames(crisc)[1] <- 'model'
   
   print(ggplot(pld, aes(x = factor(cris), y = perc*100, fill = factor(class), label=count)) +
     geom_bar(stat="identity", width = 0.7) + labs(x = "CRIS", y = "percent", fill = name) +
-    theme_bw(base_size = 14)+
+    theme_bw(base_size = 14)+scale_fill_manual(values=c('red','darkblue','grey'))+ 
     geom_text(size = 4, position = position_stack(vjust = 0.5), color="white"))
   
   ma <- matrix(pld$count, nrow=6, byrow=TRUE)
@@ -263,43 +263,88 @@ colnames(crisc)[1] <- 'model'
 ma
 chisq.test(ma)
 ```
-
-```{kmr, echo=FALSE}
+## Restricting to 4WT
+```{r kmr, echo=FALSE}
 km <- km
 treat <- ctx
 column <- 'ctx'
-mi <- merge(km, treat, by="model", all.x=T)
-multi <- as.data.frame(table(mi$model))
+mik <- merge(km, treat, by="model", all.x=T)
+multi <- as.data.frame(table(mik$model))
 multi <- multi[multi$Freq>1,]
 #mi[mi$model %in% as.character(multi$Var1),]
 mods <- as.character(unique(multi$Var1))
-uni <- sapply(mods, function(x) {length(unique(mi[mi$model==x,'KM.Subtypes']))})
+uni <- sapply(mods, function(x) {length(unique(mik[mik$model==x,'KM.Subtypes']))})
 strange <- mods[!uni==1]
-notsync <- mi[mi$model %in% strange,]
-mi <- mi[!mi$model %in% strange,]
-one <- lapply(mods, function(x) {head(mi[mi$model==x,],n=1)})
+notsync <- mik[mik$model %in% strange,]
+mik <- mik[!mik$model %in% strange,]
+one <- lapply(mods, function(x) {head(mik[mik$model==x,],n=1)})
 oned <- do.call(rbind, one)
-mi <- mi[!mi$model %in% mods,]
-mi <- rbind(mi, oned)
-mi$class <- as.factor(ifelse(is.na(mi[, column]), 'Undetermined', ifelse(mi[,column]< 35, 'Responder', "Non-Responder")))
-mi <- merge(km, treat, by="model", all.x=T)
-multi <- as.data.frame(table(mi$model))
-multi <- multi[multi$Freq>1,]
-#mi[mi$model %in% as.character(multi$Var1),]
-mods <- as.character(unique(multi$Var1))
-uni <- sapply(mods, function(x) {length(unique(mi[mi$model==x,'KM.Subtypes']))})
-strange <- mods[!uni==1]
-notsync <- mi[mi$model %in% strange,]
-mi <- mi[!mi$model %in% strange,]
-one <- lapply(mods, function(x) {head(mi[mi$model==x,],n=1)})
-oned <- do.call(rbind, one)
-mi <- mi[!mi$model %in% mods,]
-mi <- rbind(mi, oned)
-mi$class <- as.factor(ifelse(is.na(mi[, column]), 'Undetermined', ifelse(mi[,column]< 35, 'Responder', "Non-Responder")))
-head(mi)
-mi[mi$KM.Subtypes == "KM1" && mi$class=="Responder",]
-mi[mi$KM.Subtypes == "KM1" & mi$class=="Responder",]
-KM1_respo <- mi[mi$KM.Subtypes == "KM1" & mi$class=="Responder","model"]
+mik <- mik[!mik$model %in% mods,]
+mik <- rbind(mik, oned)
+mik$class <- as.factor(ifelse(is.na(mik[, column]), 'Undetermined', ifelse(mik[,column]< 35, 'Responder', "Non-Responder")))
 
-fra <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/dtb_mutations_vlookupAndrea_expandedPRLM.tsv', sep="\t", header=TRUE)
+#mi[mi$KM.Subtypes == "KM1" && mi$class=="Responder",]
+#mi[mi$KM.Subtypes == "KM1" & mi$class=="Responder",]
+#KM1_respo <- mi[mi$KM.Subtypes == "KM1" & mi$class=="Responder","model"]
+
+fra <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/dtb_mutations_vlookupAndrea_expandedPRLM.tsv', sep="\t", header=TRUE, stringsAsFactors = FALSE)
+fra <- fra[complete.cases(fra),]
+
+# limit to 4WT
+fwt <- fra$KRAS == "wt" & fra$BRAF == "wt" & fra$PIK3CA == "wt" & fra$NRAS == "wt"
+fwtdf <- fra[fwt,]
+
+mik4wt <- mik[mik$model %in% fwtdf$CASE,]
+
+pld <- mik4wt %>%
+  group_by(KM.Subtypes,class) %>% 
+  summarise(count = n()) %>% 
+  complete(class, nesting(KM.Subtypes), fill = list(count = 0)) %>%
+  mutate(perc = count/sum(count))
+  
+ggplot(pld, aes(x = factor(KM.Subtypes), y = perc*100, fill = factor(class), label=count)) +
+  geom_bar(stat="identity", width = 0.7) + labs(x = "KM", y = "percent", fill = name) +
+  theme_bw(base_size = 14)+scale_fill_manual(values=c('red','darkblue','grey'))+ 
+  geom_text(size = 4, position = position_stack(vjust = 0.5), color="white")
+  
+ma <- matrix(pld$count, nrow=3)
+colnames(ma) <- c('KM1','KM2','KM3')
+rownames(ma) <- c('NR','R','NA')
+
+```
+
+```{r km4wt, echo=TRUE}
+ma
+chisq.test(ma)
+```
+
+```{r cris4wt, echo=FALSE}
+
+mi4wt <- mi[mi$model %in% fwtdf$CASE,]
+
+  pld <- mi4wt %>%
+    group_by(cris,class) %>% 
+    summarise(count = n()) %>% 
+    complete(class, nesting(cris), fill = list(count = 0)) %>%
+    mutate(perc = count/sum(count))
+  
+  ggplot(pld, aes(x = factor(cris), y = perc*100, fill = factor(class), label=count)) +
+    geom_bar(stat="identity", width = 0.7) + labs(x = "CRIS", y = "percent", fill = name) +
+    theme_bw(base_size = 14)+scale_fill_manual(values=c('red','darkblue','grey'))+ 
+    geom_text(size = 4, position = position_stack(vjust = 0.5), color="white")
+  
+  ma <- matrix(pld$count, nrow=6, byrow=TRUE)
+  rownames(ma) <- levels(as.factor(mi$cris))
+  colnames(ma) <- c('NR','R','NA')
+```
+
+```{r cris4wtmat, echo=TRUE}
+ma
+chisq.test(ma)
+
+mmm <- merge(mi, mik, by="model")
+dim(mmm[mmm$cris == "CRIS-C" & mmm$KM.Subtypes == "KM1",])
+dim(mmm[mmm$KM.Subtypes == "KM1",])
+dim(mmm[mmm$cris == "CRIS-C",])
+
 ```
