@@ -254,4 +254,69 @@ t <- ff[ff$treat=="CTX",]
 all(t$smodel==n$smodel)
 wilcox.test(t$index, n$index, paired=TRUE)
 
+### LMO-LMX
+
+data <- m[m$type %in% c('LMO_BASALE','LMX_BASALE'),]
+data$smodel <- substr(data$model,0,7)
+data$class <- substr(data$model,8,10)
+
+xe <- data[data$class=="LMX",]
+pdo <- data[data$class=="LMO",]
+
+plotreplicates_avg <- function(data, title) {
+  tt <- table(data$smodel)
+  dup <- names(tt[tt>1])
+  fdup <- data[data$smodel %in% dup,]
+  fdup <- fdup[order(fdup[,'index']),]
+  print(ggplot(fdup, aes(x=reorder(smodel, index), y=index)) +  geom_point() +theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ggtitle(title))
+  f <- as.data.frame(sapply(unique(data$smodel), function(x) { mean(data[data$smodel==x,'index']) }))
+  colnames(f) <- 'index'
+  f$smodel <- rownames(f)
+  f
+}
+
+xe_avg <- plotreplicates_avg(xe, 'xeno replicates')
+pdo_avg <- plotreplicates_avg(pdo, 'organoids replicates')
+
+xeh <- merge(xe_avg, pdo_avg, by="smodel")
+colnames(xeh)[2] <- "xeno"
+colnames(xeh)[3] <- "pdo"
+mxeh <- melt(xeh)
+wilcox.test(xeh$xeno, xeh$pdo, paired=TRUE)
+ggplot(data=mxeh, aes(x=variable,y=value, fill=variable))+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2))+current_theme+theme(axis.text.x = element_text(angle=90))+ggtitle("PDX vs PDO")+theme( legend.position = "None")+ylab('index')+xlab("sample")
+
+compare2 <- function(x, y, log, nx, ny, title) {
+  if (log) {
+    x <- log10(x)
+    y <- log10(y)
+  }
+  pe <- cor.test(x, y)
+  d <- data.frame(x=x, y=y)
+  ggplot(d, aes(x=x, y=y)) +geom_point(size=2)+current_theme+xlab(nx)+ylab(ny)+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle(title)+geom_smooth(method = lm)
+  #ggsave(paste0(title, "_",nx,"_",ny,'.svg'), width=10, height=10, units="in")
+}
+
+compare2(x=xeh$xeno, y=xeh$pdo, log=FALSE, nx="xeno", ny="pdo",title="Xeno - PDO pairs")
+
+cris2 <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/cris_tmm_0.2_classes_lmx_basali_models_ns.tsv', sep="\t", header=T)
+mecri2 <- merge(xeh, cris2, by.x="smodel", by.y="genealogy")
+ggplot(mecri2, aes(x=xeno, y=pdo)) +geom_point(size=2, aes(color=cris))+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+geom_smooth(method = lm)
+
+
+wilcox.test(xeh$xeno, xeh$pdo, paired=TRUE)
+
+sdreplicates <- function(data) {
+  tt <- table(data$smodel)
+  dup <- names(tt[tt>1])
+  fdup <- data[data$smodel %in% dup,]
+  print(summary(as.numeric(as.character(tt[tt>1]))))
+  f <- as.data.frame(sapply(unique(fdup$smodel), function(x) { sd(fdup[fdup$smodel==x,'index']) }))
+  colnames(f) <- 'sd'
+  f$smodel <- rownames(f)
+  f
+}
+
+xe_sd <- sdreplicates(xe)
+pdo_sd <- sdreplicates(pdo)
+plot(density(xe_sd$sd), col="red"); lines(density(pdo_sd$sd), col="blue")
 
