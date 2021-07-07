@@ -86,13 +86,17 @@ pe <- cor.test(mm$index, mm$cetuxi); ggplot(mm, aes(x=index, y=cetuxi)) +geom_po
 
 
 
+ggplot(mm, aes(x=index, y=cetuxi)) +geom_point()+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle("SC Scores")
+
+ggplot(mm, aes(x=index, y=cetuxi*100)) +geom_point()+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle("SC Scores")+ylab("%volvar3W")
+
 mm <- m[m$type=="LMX_BASALE" & !is.na(m$irino),]
 
 pe <- cor.test(mm$RSC, mm$irino); ggplot(mm, aes(x=RSC, y=irino)) +geom_point()+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle("SC Scores")
 pe <- cor.test(mm$Lgr5, mm$irino); ggplot(mm, aes(x=Lgr5, y=irino)) +geom_point()+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle("SC Scores")
 pe <- cor.test(mm$index, mm$irino); ggplot(mm, aes(x=index, y=irino)) +geom_point()+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle("SC Scores")
 
-
+ggplot(mm, aes(x=index, y=irino*100)) +geom_point()+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle("SC Scores")+ylab("%volvar3W")
 #
 muts <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/dtb_mutations_vlookupAndrea_expandedPRLM.tsv', header=T, sep="\t")
 muts <- unique(muts[,c('CASE','KRAS',"NRAS",'BRAF','PIK3CA')])
@@ -254,6 +258,21 @@ t <- ff[ff$treat=="CTX",]
 all(t$smodel==n$smodel)
 wilcox.test(t$index, n$index, paired=TRUE)
 
+
+deltas <- data.frame(delta = t$index - n$index, smodel=t$smodel, placebo_index = n$index, cetuxi_index = t$index)
+hist(deltas$delta, breaks=30)
+deltas$plastic <- ifelse(deltas$delta > 0.2, 'plasticToRSC', ifelse(deltas$delta < -0.2, 'plasticToCSC', ifelse(deltas$placebo_index < 0, 'staticCBC','staticRSC')))
+
+mdf <- melt(deltas[,c('smodel','placebo_index', 'cetuxi_index')])
+meme <- merge(mdf, deltas, by="smodel")
+meme <- meme[match(mdf$smodel, meme$smodel),]
+mdf$plastic <- meme$plastic
+#b <- runif(nrow(df), -0.1, 0.1)
+ggplot(mdf) +
+  geom_boxplot(aes(x = variable, y = value, group = variable))+
+  geom_point(aes(x = variable, y = value)) +
+  geom_line(aes(x  = variable, y = value, group = smodel)) +current_theme+facet_wrap(~plastic)
+  
 ### LMO-LMX
 
 data <- m[m$type %in% c('LMO_BASALE','LMX_BASALE'),]
@@ -320,3 +339,43 @@ xe_sd <- sdreplicates(xe)
 pdo_sd <- sdreplicates(pdo)
 plot(density(xe_sd$sd), col="red"); lines(density(pdo_sd$sd), col="blue")
 
+#### new cetuxi
+ctx <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/treats/august2020/Treatments_Eugy_Ele_fix0cetuxi_201005_cetuxi3w.tsv', sep="\t", header=FALSE)
+colnames(ctx) <- c('smodel', 'perc_cetuxi')
+lmx <- m[m$type=="LMX_BASALE",]
+lmx$smodel <- substr(lmx$model, 0, 7)
+mc <- merge(ctx, lmx, by="smodel")
+
+f <- as.data.frame(sapply(unique(mc$smodel), function(x) { mean(mc[mc$smodel==x,'index']) }))
+colnames(f) <- 'index'
+f$smodel <- unique(mc$smodel)
+
+mc_avg <- merge(ctx, f, by="smodel")
+
+
+### cris
+cris <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/cris_tmm_0.2_classes_lmx_basali_models_ns.tsv', header=T, sep="\t")
+mc_avg_cri <- merge(mc_avg, cris, by.x="smodel", by.y="genealogy", all.x=TRUE)
+
+## methy
+
+methy <- read.table('/mnt/trcanmed/snaketree/prj/pdx_methylation/dataset/v2/heatmap/cluval/k5_samples-clusters_division_switched.tsv', sep="\t", header=TRUE)
+methy <- methy[grepl('LMX',rownames(methy), fixed=TRUE),, drop=F]
+methy$smodel <- substr(rownames(methy),0,7)
+mc_avg_cri_methy <- merge(mc_avg_cri, methy, by="smodel", all.x=TRUE)
+
+ggplot(mc_avg_cri_methy, aes(x=index, y=perc_cetuxi)) +geom_point(aes(color=cris))+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle("SC Scores - Cetuxi - CRIS")+ylab("%volvar3W")+facet_zoom(ylim = c(-100, 200))
+
+ggplot(mc_avg_cri_methy, aes(x=index, y=perc_cetuxi)) +geom_point(aes(color=as.factor(cluster)))+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle("SC Scores - Cetuxi - methy")+ylab("%volvar3W")
+
+
+ggplot(mc_avg_cri_methy, aes(x=index, y=perc_cetuxi)) +geom_point(aes(color=as.factor(cluster)))+current_theme+labs(caption=paste0(round(pe$estimate, digits=3), ', pval=', formatC(pe$p.value, format = "e", digits = 3)))+ggtitle("SC Scores - Cetuxi - methy")+ylab("%volvar3W")+facet_zoom(ylim = c(-100, 200))
+
+
+ggplot(data=mc_avg_cri_methy, aes(x=as.factor(cluster),y=index, fill=as.factor(cluster)))+current_theme+theme(axis.text.x = element_text(angle=90))+ggtitle("Index vs Methylation clusters")+geom_signif(comparisons = list(c("4", "5")))+theme( legend.position = "None")+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2))
+
+## TODO remove KRAS
+
+
+plactx <- merge(deltas, ctx, by="smodel")
+ggplot(data=plactx, aes(x=as.factor(plastic),y=perc_cetuxi))+current_theme+theme(axis.text.x = element_text(angle=90))+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2))
