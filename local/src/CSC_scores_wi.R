@@ -379,3 +379,247 @@ ggplot(data=mc_avg_cri_methy, aes(x=as.factor(cluster),y=index, fill=as.factor(c
 
 plactx <- merge(deltas, ctx, by="smodel")
 ggplot(data=plactx, aes(x=as.factor(plastic),y=perc_cetuxi))+current_theme+theme(axis.text.x = element_text(angle=90))+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2))
+
+
+#### remove KRAS mut all together CTX72h/cronici xeno
+
+library(ggplot2)
+data <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/CSC-scores.tsv', header=T, sep="\t")
+metadata <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/samples_data', header=T, sep="\t", stringsAsFactors = FALSE)
+data <- t(data)
+m <- merge(data, metadata, by.x="row.names", by.y='id')
+m$index <- m$RSC - m$Lgr5
+m$type <- sapply(m$type, function(x) {y<-strsplit(x, '.', fixed=T)[[1]][1]; return(y[1])})
+m$model <- substr(m$Row.names,0,10)
+
+muts <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/dtb_mutations_vlookupAndrea_expandedPRLM.tsv', header=T, sep="\t")
+muts <- unique(muts[,c('CASE','KRAS',"NRAS",'BRAF','PIK3CA')])
+
+xeno <- m[grepl('LMX_cetux', m$type, fixed=TRUE),]
+xeno$smodel <- substr(xeno$Row.names, 0, 7)
+xeno <- xeno[xeno$smodel %in% muts$CASE,]
+mutscores <- merge(xeno, muts, by.x="smodel", by.y="CASE")
+
+ctx <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/treats/august2020/Treatments_Eugy_Ele_fix0cetuxi_201005_cetuxi3w.tsv', sep="\t", header=FALSE)
+colnames(ctx) <- c('smodel', 'perc_cetuxi')
+
+data2 <- merge(mutscores, ctx, by="smodel")
+
+data2$time <- sapply( strsplit(data2$type, "_"), function(x) {x[3]})
+print(ggplot(data=data2, aes(x=as.factor(time),y=index))+current_theme+theme(axis.text.x = element_text(angle=90))+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2)))
+
+#mmm <- merge(deltas, unique(data[,c('smodel','time')]), by="smodel")
+#print(ggplot(data=mmm, aes(x=as.factor(time),y=delta))+current_theme+theme(axis.text.x = element_text(angle=90))+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2)))
+
+
+plastics <- function(data) {
+  
+  data$me <- paste0(data$type,"_", data$smodel)
+  f <- as.data.frame(t(sapply(unique(data$me), function(x) { y<-data[data$me==x,]; c(mean(y[,'index']), unique(y[,'smodel'])) })))
+  colnames(f) <- c('index','smodel')
+  f$treat <- ifelse(grepl('_NT', rownames(f)),'NT','CTX')
+  f$index <- as.numeric(as.character(f$index))
+  #wilcox.test(formula=as.formula("index~treat"), data=f)
+  
+  du <- as.data.frame(table(f$smodel))
+  du <- du[du$Freq ==2, "Var1"]
+  ff <- f[f$smodel %in% du,]
+  n <- ff[ff$treat=="NT",]
+  t <- ff[ff$treat=="CTX",]
+  all(t$smodel==n$smodel)
+  print(ggplot(data=ff, aes(x=as.factor(treat),y=index))+current_theme+theme(axis.text.x = element_text(angle=90))+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2)))
+  print(wilcox.test(t$index, n$index, paired=TRUE))
+  
+  print(ggplot(ff) +
+          geom_boxplot(aes(x = treat, y = index, group = treat))+
+          geom_point(aes(x = treat, y = index)) +
+          geom_line(aes(x = treat, y = index, group = smodel))) +current_theme
+  
+  
+  deltas <- data.frame(delta = t$index - n$index, smodel=t$smodel, placebo_index = n$index, cetuxi_index = t$index)
+  hist(deltas$delta, breaks=30)
+  qs <- quantile(deltas$delta, probs=c(0.25, 0.75))
+  deltas$plastic <- ifelse(deltas$delta > qs[2], 'plasticToRSC', ifelse(deltas$delta < qs[1], 'plasticToCSC', ifelse(deltas$placebo_index < 0, 'staticCBC','staticRSC')))
+  
+  mdf <- melt(deltas[,c('smodel','placebo_index', 'cetuxi_index')])
+  meme <- merge(mdf, deltas, by="smodel")
+  meme <- meme[match(mdf$smodel, meme$smodel),]
+  mdf$plastic <- meme$plastic
+  
+  print(ggplot(mdf) +
+    geom_boxplot(aes(x = variable, y = value, group = variable))+
+    geom_point(aes(x = variable, y = value)) +
+    geom_line(aes(x  = variable, y = value, group = smodel)) +current_theme+facet_wrap(~plastic))
+
+  m2 <- merge(mdf, unique(data[,c('smodel','cetuxi')]), by="smodel")
+  m2$cetuxi <- m2$cetuxi * 100
+  print(ggplot(data=m2, aes(x=as.factor(plastic),y=cetuxi))+current_theme+theme(axis.text.x = element_text(angle=90))+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2)))
+  print(wilcox.test(m2[m2$plastic == "plasticToRSC",'cetuxi'],m2[m2$plastic != "plasticToRSC",'cetuxi']))
+  print(wilcox.test(m2[m2$plastic == "plasticToCSC",'cetuxi'],m2[m2$plastic != "plasticToCSC",'cetuxi']))
+  # delta in response q[1] q[0]
+}
+
+plastics(data2)
+
+data2 <- data2[data2$KRAS=="wt" & data2$NRAS=="wt" & data2$BRAF=="wt" & data2$PIK3CA=="wt",]
+dim(data2)
+length(unique(data2$smodel))
+plastics(data2)
+
+
+### PDO
+data <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/CSC-scores.tsv', header=T, sep="\t")
+metadata <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/samples_data', header=T, sep="\t", stringsAsFactors = FALSE)
+data <- t(data)
+m <- merge(data, metadata, by.x="row.names", by.y='id')
+m$index <- m$RSC - m$Lgr5
+m$type <- sapply(m$type, function(x) {y<-strsplit(x, '.', fixed=T)[[1]][1]; return(y[1])})
+m$model <- substr(m$Row.names,0,10)
+
+muts <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/dtb_mutations_vlookupAndrea_expandedPRLM.tsv', header=T, sep="\t")
+muts <- unique(muts[,c('CASE','KRAS',"NRAS",'BRAF','PIK3CA')])
+
+xeno <- m[grepl('LMO_cetuxi', m$type, fixed=TRUE),]
+xeno$smodel <- substr(xeno$Row.names, 0, 7)
+xeno <- xeno[xeno$smodel %in% muts$CASE,]
+mutscores <- merge(xeno, muts, by.x="smodel", by.y="CASE")
+
+ctx <- read.table('/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/treats/august2020/Treatments_Eugy_Ele_fix0cetuxi_201005_cetuxi3w.tsv', sep="\t", header=FALSE)
+colnames(ctx) <- c('smodel', 'perc_cetuxi')
+
+data2 <- merge(mutscores, ctx, by="smodel")
+
+
+plastics(data2)
+
+data2 <- data2[data2$KRAS=="wt" & data2$NRAS=="wt" & data2$BRAF=="wt" & data2$PIK3CA=="wt",]
+dim(data2)
+length(unique(data2$smodel))
+plastics(data2)
+
+
+#####
+plastics2 <- function(data) {
+  
+  data$me <- paste0(data$type,"_", data$smodel)
+  f <- as.data.frame(t(sapply(unique(data$me), function(x) { y<-data[data$me==x,]; c(mean(y[,'index']), unique(y[,'smodel'])) })))
+  colnames(f) <- c('index','smodel')
+  f$treat <- ifelse(grepl('_NT', rownames(f)),'NT','CTX')
+  f$index <- as.numeric(as.character(f$index))
+  #wilcox.test(formula=as.formula("index~treat"), data=f)
+  
+  du <- as.data.frame(table(f$smodel))
+  du <- du[du$Freq ==2, "Var1"]
+  ff <- f[f$smodel %in% du,]
+  n <- ff[ff$treat=="NT",]
+  t <- ff[ff$treat=="CTX",]
+  all(t$smodel==n$smodel)
+  print(ggplot(data=ff, aes(x=as.factor(treat),y=index))+current_theme+theme(axis.text.x = element_text(angle=90))+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2)))
+  print(wilcox.test(t$index, n$index, paired=TRUE))
+  
+  print(ggplot(ff) +
+          geom_boxplot(aes(x = treat, y = index, group = treat))+
+          geom_point(aes(x = treat, y = index)) +
+          geom_line(aes(x = treat, y = index, group = smodel))) +current_theme
+  
+  
+  deltas <- data.frame(delta = t$index - n$index, smodel=t$smodel, placebo_index = n$index, cetuxi_index = t$index)
+  hist(deltas$delta, breaks=30)
+  qs <- quantile(deltas$delta, probs=c(0.25, 0.75))
+  deltas$sign <- sign(deltas$placebo_index) * sign(deltas$cetuxi_index)
+
+  deltas$plastic <- ifelse(deltas$sign == -1 & deltas$cetuxi_index > 0, 'plasticToRSC', ifelse(deltas$sign == -1 & deltas$cetuxi_index < 0, 'plasticToCSC', ifelse(deltas$placebo_index < 0, 'staticCBC','staticRSC')))
+  
+  mdf <- melt(deltas[,c('smodel','placebo_index', 'cetuxi_index')])
+  meme <- merge(mdf, deltas, by="smodel")
+  meme <- meme[match(mdf$smodel, meme$smodel),]
+  mdf$plastic <- meme$plastic
+  
+  print(ggplot(mdf) +
+          geom_boxplot(aes(x = variable, y = value, group = variable))+
+          geom_point(aes(x = variable, y = value)) +
+          geom_line(aes(x  = variable, y = value, group = smodel)) +current_theme+facet_wrap(~plastic))
+  
+  m2 <- merge(mdf, unique(data[,c('smodel','cetuxi')]), by="smodel")
+  m2$cetuxi <- m2$cetuxi * 100
+  print(ggplot(data=m2, aes(x=as.factor(plastic),y=cetuxi))+current_theme+theme(axis.text.x = element_text(angle=90))+geom_boxplot(outlier.shape = NA)+ geom_jitter(shape=16, position=position_jitter(0.2)))
+  print(wilcox.test(m2[m2$plastic == "plasticToRSC",'cetuxi'],m2[m2$plastic != "plasticToRSC",'cetuxi']))
+  print(wilcox.test(m2[m2$plastic == "plasticToCSC",'cetuxi'],m2[m2$plastic != "plasticToCSC",'cetuxi']))
+  # delta in response q[1] q[0]
+}
+
+plastics2(data2)
+
+
+###
+m2$class <- ifelse(m2$cetuxi < -50, 'OR', ifelse(m2$cetuxi > 35, "PD", "SD")) #Recist 3w: OR -50% /  SD / +35% PD
+table(m2$plastic, m2$class)
+pd <- as.data.frame(table(m2$plastic, m2$class))
+ggplot(pd, aes(x="", y=Freq, fill=Var2))+ geom_bar(width = 1, stat = "identity")+facet_wrap(~Var1)+current_theme+coord_polar("y", start=0)
+  
+#https://github.com/tidyverse/ggplot2/issues/2815
+cp <- coord_polar(theta = "y")
+cp$is_free <- function() TRUE
+
+ggplot(pd, aes(x="", y=Freq, fill=Var2))+ geom_bar(width = 1, stat = "identity")+facet_wrap(~Var1, scales = "free")+current_theme+cp
+
+
+#ggplot(pd, aes(x="", y=Freq, fill=Var2))+ geom_bar(width = 1, stat = "identity")+facet_wrap(~Var1)+current_theme+  theme(aspect.ratio = 1)+coord_polar("y", start=0)#
+
+m <- as.matrix(table(m2$plastic, m2$class))
+chisq.test(m)
+mm <- m[c(1,2),]
+chisq.test(mm)
+
+####### ssGSEA
+data <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/CSC-scores.tsv', header=T, sep="\t")
+metadata <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/samples_data', header=T, sep="\t", stringsAsFactors = FALSE)
+
+data <- t(data)
+m <- merge(data, metadata, by.x="row.names", by.y='id')
+m$index <- m$RSC - m$Lgr5
+
+m$type <- sapply(m$type, function(x) {y<-strsplit(x, '.', fixed=T)[[1]][1]; return(y[1])})
+m$model <- substr(m$Row.names,0,10)
+
+mm <- m[m$type=="LMX_BASALE",]
+h_ssg <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/h-scores.tsv', sep="\t", header=T)
+th_ssg <- as.data.frame(t(h_ssg))
+
+mm$CSC <- mm$Lgr5
+
+plotp <- function(pathway, score) {
+  tgf <- data.frame(sscore=th_ssg[,pathway], row.names=rownames(th_ssg))
+  pd <- merge(tgf, mm, by.x="row.names", by.y="Row.names")
+  print(ggplot(data=pd, aes_string(x="sscore", y=score))+geom_point()+geom_smooth(method="lm")+xlab(pathway)+current_theme)
+  cor.test(pd$sscore, pd[, score])
+}
+
+plotp('HALLMARK_TGF_BETA_SIGNALING', "RSC")
+plotp('HALLMARK_TGF_BETA_SIGNALING', "CSC")
+
+plotp('HALLMARK_WNT_BETA_CATENIN_SIGNALING', "CSC")
+plotp('HALLMARK_WNT_BETA_CATENIN_SIGNALING', "RSC")
+
+plotp('HALLMARK_KRAS_SIGNALING_UP', "CSC")
+plotp('HALLMARK_KRAS_SIGNALING_UP', "RSC")
+
+plotp('HALLMARK_KRAS_SIGNALING_DN', "CSC")
+plotp('HALLMARK_KRAS_SIGNALING_DN', "RSC")
+
+
+####
+h_ssg <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/YAP-scores.tsv', sep="\t", header=T)
+th_ssg <- as.data.frame(t(h_ssg))
+
+plotp('yapgregorieff', "RSC")
+plotp('yapgregorieff', "CSC")
+
+### write.table(as.data.frame(meta), '/home/egrassi/panethmeta_biod5starok_selected.tsv', sep="\t",  quote=F)
+meta <- read.table('/home/egrassi/panethmeta_biod5starok_selected.tsv', sep="\t",header=T) # paneth_meta
+
+m2 <- merge(mm, meta, by.x="Row.names", by.y="row.names")
+ggplot(data=m2, aes(x=meta, y=CSC))+geom_point()+geom_smooth(method="lm")+xlab('Paneth Pseudogene')+current_theme
+
+m3 <- m2[!is.na(m2$cetuxi),]
+ggplot(data=m3, aes(x=meta, y=cetuxi*100))+geom_point()+geom_smooth(method="lm")+xlab('Paneth Pseudogene')+current_theme
