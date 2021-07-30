@@ -2,6 +2,7 @@ ROOT="/mnt/trcanmed/snaketree/prj"
 MATRIX="../vsd.tsv.gz"
 METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
 WANTEDT=ROOT+"/RNASeq_biod_metadata/local/share/data/basali_human_xeno"
+BIN_DIR=ROOT+"/DE_RNASeq/local/bin"
 
 rule select_wanted:
     input: metadata=METADATA, counts=MATRIX, types=WANTEDT
@@ -14,3 +15,49 @@ rule select_wanted:
             zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
             rm {output.counts}.tmp
         """ 
+
+rule train_test_tmm:
+    input: tmm="../tmm_H.tsv.gz", test="test_genealogy", train="train_genealogy"
+    output: test="test_tmm.tsv.gz", train="train_tmm.tsv.gz"
+    shell:
+        """
+            zcat {input.tmm} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose > {output.test}.tmp            
+	        cat <(echo 'Geneid') <(cut -f 1 {input.test}) > {output.test}.tmp2
+	        cat <(echo 'Geneid') <(cut -f 1 {input.train}) > {output.train}.tmp2
+	        filter_1col 1 {output.test}.tmp2 {output.test}.tmp | transpose | gzip > {output.test}
+            filter_1col 1 {output.train}.tmp2 {output.test}.tmp | transpose | gzip > {output.train}
+        """
+
+rule gsva_msigdb:
+    input: expr='{group}_tmm.tsv.gz', sign=ROOT+'/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
+    output: '{group}_{class}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+
+rule train_test_smodel:
+    input: tt=ROOT+'/DE_RNASeq/local/share/data/magnum/DrugResponse_LMXfirslevel_trainTest.csv'
+    output: test="test_smodel", train="train_smodel"
+    shell:
+        """
+	        bawk '$10=="True"{{print substr($2,0,7)}}' {input.tt} > {output.test}
+	        bawk '$10!="True"{{print substr($2,0,7)}}' {input.tt} > {output.train}
+        """
+
+rule train_test_genealogy:
+    input: test="test_smodel", train="train_smodel", metadata="selected_metadata.tsv"
+    output: test="test_genealogy", train="train_genealogy"
+    shell:
+        """
+		    grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.train} > {output.train}
+	        grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.test} > {output.test}
+        """
+
+
+## TODO check that selected_matrix.tsv.gz is == to the one on drive (recalculated on godot the 30th of july)
+
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/magnum$ bawk '{print substr($1,0,7)}' train_genealogy | filter_1col 1 <(bawk '{print substr($1,0,7)}' test_genealogy ) | wc -l
+#0
