@@ -61,3 +61,43 @@ rule train_test_genealogy:
 
 #egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/magnum$ bawk '{print substr($1,0,7)}' train_genealogy | filter_1col 1 <(bawk '{print substr($1,0,7)}' test_genealogy ) | wc -l
 #0
+
+
+## rule CMP
+#double septin4 we drop all of them right now
+CMP=ROOT+"/DE_RNASeq/local/share/data/cmp/CMP+GDSC_expr_CRCcetuximab_all.tsv"
+CMP_TT=ROOT+"/DE_RNASeq/local/share/data/cmp/DrugResponse_CMP+GDSC_CRCcetuximab_trainTest.csv"
+
+rule t_whole:
+    input: CMP
+    output: "cmp_whole.tsv.gz"
+    shell:
+        """
+            bawk 'NR==1 {{print "GeneID", $0}} NR!=1 {{print $0}}' {input} | sed 's/GeneID\\t\\t/GeneID\\t/1' | transpose | grep -v -w SEPTIN4 | gzip > {output}
+        """
+
+rule cmp_tt:
+    input: cmp=CMP, tt=CMP_TT
+    output: test="cmp_test.tsv.gz", train="cmp_train.tsv.gz"
+    shell:
+        """
+            bawk '$9=="False" {{ print $1 }}' {input.tt} > {output.test}.tmp
+            echo "GeneID" >> {output.test}.tmp
+            bawk '$9=="True" {{ print $1 }}' {input.tt} > {output.test}.tmp2
+            echo "GeneID" >> {output.test}.tmp2
+            cat {input.cmp} | bawk 'NR==1 {{print "GeneID", $0}} NR!=1 {{print $0}}' | filter_1col 1 {output.test}.tmp | sed 's/GeneID\\t\\t/GeneID\\t/1' | transpose | grep -v -w SEPTIN4 | gzip > {output.train}
+            cat {input.cmp} | bawk 'NR==1 {{print "GeneID", $0}} NR!=1 {{print $0}}' | filter_1col 1 {output.test}.tmp2 | sed 's/GeneID\\t\\t/GeneID\\t/1' | transpose | grep -v -w SEPTIN4 | gzip > {output.test}
+            rm {output.test}.tmp*
+        """
+    
+rule cmp_gsva_msigdb:
+    input: expr='cmp_{type}.tsv.gz', sign=ROOT+'/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
+    output: 'CMP_{type}_{class}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+rule all_CMP:
+    input: expand("CMP_{ttype}_{gclass}-scores.tsv", ttype=['test','train','whole'], gclass=['c2','h'])
