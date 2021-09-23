@@ -77,10 +77,19 @@ plastics2 <- function(data) {
   return(m2)
 }
 
+#### indagine risposte nei not 4wt
+no4wt <- data2[data2$KRAS!="wt" | data2$NRAS!="wt" | data2$BRAF!="wt" | data2$PIK3CA!="wt",]
+no4wt$class <- ifelse(no4wt$perc_cetuxi < -50, 'OR', ifelse(no4wt$perc_cetuxi > 35, "PD", "SD"))
+table(no4wt$class)
+############
+
 
 
 data2 <- data2[data2$KRAS=="wt" & data2$NRAS=="wt" & data2$BRAF=="wt" & data2$PIK3CA=="wt",]
 dim(data2)
+data2$class <- ifelse(data2$perc_cetuxi < -50, 'OR', ifelse(data2$perc_cetuxi > 35, 'PD' ,'SD') )
+table(data2$class)
+
 length(unique(data2$smodel))
 
 m2 <- plastics2(data2)
@@ -162,19 +171,13 @@ fc <- function(model, data) {
   return(fc)
 }
 
+# THIS GETS a WRONG PIS for CRC0096 which has two cetuxi treated samples - we only
+# have the chronic treatment! it's corretly removed by the merge so we are ok
 panethIndScore <- sapply(unique(paneth_treat_m$model), fc, paneth_treat_m)
 
 pis <- data.frame(smodel=names(panethIndScore), pis=panethIndScore)
 
 mpis <- merge(pis, delta_index, by='smodel')
-
-# TODO indagare
-#> dim(mpis)
-#[1] 51  5
-#> length(unique(pis$smodel))
-#[1] 52
-#> length(unique(delta_index$smodel))
-#[1] 51
 
 # correlate
 
@@ -192,4 +195,100 @@ ggplot(data=mpisc, aes(x=pis,y=delta, color=class))+geom_point()+current_theme
 mpisc$lcet <- log(mpisc$perc_cetuxi+100)
 ggplot(data=mpisc, aes(x=pis,y=delta, color=lcet))+geom_point()+current_theme+scale_color_gradient(low = "yellow", high = "red", na.value = NA)
 
+# keep only responders
 
+mpisc_r <- mpisc[mpisc$class %in% c('OR','SD'),]
+ggplot(data=mpisc_r, aes(x=pis,y=delta, color=class))+geom_point()+current_theme+scale_color_manual(values=c('blue','red'))
+
+cor.test(mpisc_r$pis, mpisc_r$delta)
+
+mpisc_r$lcet <- log(mpisc_r$perc_cetuxi+100)
+ggplot(data=mpisc_r, aes(x=pis,y=delta, color=lcet))+geom_point()+current_theme+scale_color_gradient(low = "yellow", high = "red", na.value = NA)
+
+###Non responders only (SD), entire cohort, ssGSEA/progeny scores vs delta Index
+
+# get back the entire cohort 
+data3 <- merge(mutscores, ctx, by="smodel")
+data3$time <- sapply( strsplit(data3$type, "_"), function(x) {x[3]})
+data3$class <- ifelse(data3$perc_cetuxi < -50, 'OR', ifelse(data3$perc_cetuxi > 35, 'PD' ,'SD') )
+data4 <- data3[data3$class =="PD",]
+
+data5 <- data4[data4$KRAS=="wt" & data4$NRAS=="wt" & data4$BRAF=="wt" & data4$PIK3CA=="wt",]
+
+### n of WT?
+delta_index_2 <- delta(data5)
+
+# TODO should we calculate them on subgroups separately?
+h_scores <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/h-scores.tsv', sep="\t", header=T)
+
+h_scores <- t(h_scores[, colnames(h_scores) %in% data5$Row.names])
+m2 <- merge(h_scores, metadata, by.x="row.names", by.y='id')
+
+sign <- colnames(h_scores)
+m2$smodel <- substr(m2$Row.names, 0, 7)
+call_delta <- function(sign, data) {
+  todelta <- data[,c(sign, 'type','smodel')]
+  colnames(todelta)[1] <- 'index'
+  res <- delta(todelta)
+  smodel <- res$smodel
+  res <- res[,'delta']
+  names(res) <- smodel
+  return(res)
+}
+
+alldeltas <- sapply(sign, call_delta, m2)
+mdata <- merge(alldeltas, delta_index_2, by.x="row.names", by.y="smodel")
+
+cor_sign <- function(sign, data) {
+  ci <- cor.test(data[,sign], data[,'delta'])
+  return(c(ci$estimate, -log10(ci$p.value), ci$p.value))
+}
+
+correlations <- as.data.frame(t(sapply(sign, cor_sign, mdata)))
+colnames(correlations)[2] <- '-logp'
+colnames(correlations)[3] <- 'pval'
+correlations[order(correlations$pval),]
+correlation$pval <- NULL
+pheatmap(correlations, cluster_cols=F)
+
+############
+
+h_scores <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/YAP-scores.tsv', sep="\t", header=T)
+
+h_scores <- t(h_scores[, colnames(h_scores) %in% data5$Row.names])
+m2 <- merge(h_scores, metadata, by.x="row.names", by.y='id')
+
+sign <- colnames(h_scores)
+m2$smodel <- substr(m2$Row.names, 0, 7)
+call_delta <- function(sign, data) {
+  todelta <- data[,c(sign, 'type','smodel')]
+  colnames(todelta)[1] <- 'index'
+  res <- delta(todelta)
+  smodel <- res$smodel
+  res <- res[,'delta']
+  names(res) <- smodel
+  return(res)
+}
+
+alldeltas <- sapply(sign, call_delta, m2)
+mdata <- merge(alldeltas, delta_index_2, by.x="row.names", by.y="smodel")
+
+cor_sign <- function(sign, data) {
+  ci <- cor.test(data[,sign], data[,'delta'])
+  return(c(ci$estimate, -log10(ci$p.value), ci$p.value))
+}
+
+correlations <- as.data.frame(t(sapply(sign, cor_sign, mdata)))
+colnames(correlations)[2] <- '-logp'
+colnames(correlations)[3] <- 'pval'
+correlations[order(correlations$pval),]
+correlation$pval <- NULL
+pheatmap(correlations, cluster_cols=F)
+
+## > correlations[order(correlations$pval),]
+#cor     -logp       pval
+#Lgr5          -0.9575135 1.3717492 0.04248648
+#yapgregorieff -0.7636721 0.6264850 0.23632790
+#RSC           -0.2474446 0.1234615 0.75255535
+
+## TODO investigate
