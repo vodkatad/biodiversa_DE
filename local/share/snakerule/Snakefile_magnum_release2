@@ -2,7 +2,7 @@ ROOT="/mnt/trcanmed/snaketree/prj"
 MATRIX="../vsd.tsv.gz"
 METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
 WANTEDT=ROOT+"/RNASeq_biod_metadata/local/share/data/basali_human_xeno"
-BIN_DIR=ROOT+"/DE_RNASeq/local/bin"
+BIN_DIR="../../../local/bin"
 
 rule select_wanted:
     input: metadata=METADATA, counts=MATRIX, types=WANTEDT
@@ -101,3 +101,55 @@ rule cmp_gsva_msigdb:
 
 rule all_CMP:
     input: expand("CMP_{ttype}_{gclass}-scores.tsv", ttype=['test','train','whole'], gclass=['c2','h'])
+
+
+## 10x train/test
+#https://drive.google.com/drive/u/1/folders/1F6s5HBdLHIQWRc-38qkNaQTL-_x3aZax
+# run on scratch with new paths
+MDATA='../../../local/share/data/magnum'
+
+rule xeno_10x:
+    input: test="test_genealogy_{fold}", train="train_genealogy_{fold}", tmm="../tmm_H.tsv.gz"
+    output: test="{fold}_LMXfirstlevel_test.tsv.gz", train="{fold}_LMXfirstlevel_train.tsv.gz"
+    shell:
+        """
+            zcat {input.tmm} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose > {output.test}.tmp           
+	        cat <(echo 'Geneid') <(cut -f 1 {input.test}) > {output.test}.tmp2
+	        cat <(echo 'Geneid') <(cut -f 1 {input.train}) > {output.train}.tmp2
+	        filter_1col 1 {output.test}.tmp2 < {output.test}.tmp | transpose | gzip > {output.test}
+            filter_1col 1 {output.train}.tmp2 < {output.test}.tmp | transpose | gzip > {output.train}
+            rm {output.test}.tmp* {output.train}.tmp*
+        """
+    
+rule folds_gsva_msigdb:
+    input: expr='{fold}_LMXfirstlevel_{type}.tsv.gz', sign=MDATA+'/{class}.symbol.rds'
+    output: '{fold}_LMXfirstlevel_{type}_{class}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+rule all_10x:
+    input: expand("{fold}_LMXfirstlevel_{ttype}_{gclass}-scores.tsv", ttype=['test','train'], gclass=['c2','h'], fold=range(0,10))
+
+
+# he split DNA aliquots, so I need to go back to genalogy:
+# TODO fixme
+rule train_test_smodel_10x:
+    input: tt=MDATA+'/DrugResponse_LMXfirslevel_trainTest{fold}.tsv'
+    output: test="test_smodel_{fold}", train="train_smodel_{fold}"
+    shell:
+        """
+	        bawk '$10=="True"{{print substr($2,0,7)}}' {input.tt} > {output.test}
+	        bawk '$10!="True"{{print substr($2,0,7)}}' {input.tt} > {output.train}
+        """
+
+rule train_test_genealogy_10x:
+    input: test="test_smodel_{fold}", train="train_smodel_{fold}", metadata="selected_metadata.tsv"
+    output: test="test_genealogy_{fold}", train="train_genealogy_{fold}"
+    shell:
+        """
+		    grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.train} > {output.train}
+	        grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.test} > {output.test}
+        """
