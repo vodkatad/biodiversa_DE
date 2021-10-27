@@ -3,9 +3,8 @@ library(DESeq2)
 library(ggplot2)
 library(ggrepel)
 
-library("BiocParallel")
 register(MulticoreParam(as.numeric(snakemake@params[["threads"]])))
-threads <- snakemake@params[["threads"]]
+threads <- as.numeric(snakemake@params[["threads"]])
 parallel <- FALSE
 if (threads > 1) {
     library("BiocParallel")

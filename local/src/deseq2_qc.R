@@ -28,6 +28,7 @@ library(pheatmap)
 library(ggplot2)
 library(edgeR)
 
+
 data <- read.table(gzfile(counts), header=T, sep="\t", row=1)
 if (prefix != "all") {
   data <- data[grep(paste0("^", prefix, "_"), rownames(data)),]
@@ -52,7 +53,7 @@ new_data <- data[,match(rownames(metadata), colnames(data))]
 if (!all(rownames(metadata)==colnames(new_data))) {
     stop('match issues...')
 }
-
+save.image('paperoga.Rdata')
 ## TMM from edgeR without filtering expression ###
 #group <- as.factor(metadataf$terms(fdesign)[[2]])
 #manca filtro idiota!
