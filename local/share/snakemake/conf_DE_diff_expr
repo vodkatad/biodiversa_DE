@@ -11,6 +11,9 @@ def find_prj_root(path=os.getcwd()):
 
 PRJ_ROOT=find_prj_root()
 ROOT= os.getenv('SNAKE_ROOT')
+PROOT=ROOT
+if ROOT != '/scratch/trcanmed':
+    PROOT=ROOT+'/prj'
                                                     
 NAME="Class comparison LMO-LMX"
 DATA=PRJ_ROOT+"/local/share/data/"+NAME
@@ -120,4 +123,26 @@ rule all_go_gsea_heatmap:
             expand("GSEA_results_H_type_cutoff0.05-{nom}.vs.{den}.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"])
     output: hm = "heatmap_go_gsea.pdf"
     script: SRC_DIR+"/pheatmap_diffexpr_list.R"
-            
+
+## pheatmap_diffexpr_list is hardcoded for pvalue 0.05, changed momentarly in 0.001, maybe threshold?
+rule all_go_gsea_heatmap_cutoff:
+    input: expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_up.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]), 
+            expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_down.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]),
+            expand("GSEA_results_H_type_cutoff0.05-{nom}.vs.{den}.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"])
+    output: hm = "heatmap_go_gsea_0.05.pdf", sign_go_gsea = "significant_go_gsea.tsv", hm_20 = "heatmap_go_gsea_0.05_subset.pdf", sign_go = "significant_go.tsv"
+    script: SRC_DIR+"/pheatmap_diffexpr_list.R"            
+
+
+
+## subsetting of vsd for clustering analyses
+# we want to keep all the good LMO (validated considering Simo's list) who have expression data for them and also either LMH or LMX_BASALE
+rule clustering_selection:
+    input: expr='vsd.tsv.gz', goodOrBad=PROOT+'/biobanca/local/share/data/biobanca_pdo_buoni.tsv', metadata="samples_datas"
+    output: expr='vsd_clustering.tsv.gz', metadata_clu="metadata_clustering.tsv"
+    script:  SRC_DIR+'/selection_clustering.R'
+
+
+# CRC0177
+#Per quanto riguarda il CRC0177, stando a quello che ci siamo detti al labmeeting, dovremmo mettere il dato di cetux solo per il CRC0177LMO0A (EGFR wt), che contrariamente al PDX ha risposto, per poi eventualmente discutere a valle nel dettaglio la derivazione della linea CRC0177LMO0D mutata. 
+# per il clustering abbiamo lo xeno mutato LMX0A e i due organoid (LMO0D mutato e LMO0A wt) - chi teniamo? A logica io terrei quello con lo stesso genotipo
+# ma non e` scelta == per il dato di cetuxi, quindi per ora tentiamo entrambi e poi vediamo.
