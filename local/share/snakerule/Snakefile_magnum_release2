@@ -153,3 +153,28 @@ rule train_test_genealogy_10x:
 		    grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.train} > {output.train}
 	        grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.test} > {output.test}
         """
+
+### 30 fold
+rule all_30x:
+    input: expand("30-{fold}_LMXfirstlevel_{ttype}_{gclass}-scores.tsv", ttype=['test','train'], gclass=['c2','h'], fold=range(0,30))
+
+
+# he split DNA aliquots, so I need to go back to genalogy:
+# TODO fixme
+rule train_test_smodel_30x:
+    input: tt=MDATA+'/30fold/30fold/DrugResponse_LMXfirslevel_trainTest{fold}.tsv'
+    output: test="30_test_smodel_{fold}", train="30_train_smodel_{fold}"
+    shell:
+        """
+	        bawk '$10=="True"{{print substr($2,0,7)}}' {input.tt} > {output.test}
+	        bawk '$10!="True"{{print substr($2,0,7)}}' {input.tt} > {output.train}
+        """
+
+rule train_test_genealogy_30x:
+    input: test="30_test_smodel_{fold}", train="30_train_smodel_{fold}", metadata="selected_metadata.tsv"
+    output: test="test_genealogy_30-{fold}", train="train_genealogy_30-{fold}"
+    shell:
+        """
+		    grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.train} > {output.train}
+	        grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.test} > {output.test}
+        """

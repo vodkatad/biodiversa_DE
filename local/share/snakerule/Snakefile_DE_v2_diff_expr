@@ -2,7 +2,7 @@ include: "conf.sk"
 import os
 
 rule plots:
-    input: counts=COUNTS, metadata= "samples_datas"
+    input: counts=COUNTS, metadata= "samples_data"
     output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
     params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
     shell:
@@ -44,11 +44,11 @@ rule go_input:
 rule go_input_up_down:
     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
     output: up = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_up.tsv", down = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_down.tsv"
-    params: thr=PVAL, specie=SPECIES
+    params: thr=PVAL, specie=SPECIES, lfc=LFC
     shell:
         """
-            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 > 0 {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.up}
-            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 < 0 {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
+            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 > {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.up}
+            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 < {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
         """
 
 rule go_universe:
@@ -75,44 +75,56 @@ rule go_universe:
     #             zcat {input} | bawk '$9 !="NA" && $9 < 0.05' | sort  -t $'\\t' -k9,9 -g  > {output}
     #     """
 
-# #### Dot plots and selection of genes annoted
-# rule sign:
-#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
-#     shell:
-#         """
-#             bawk '$7<0.05' {input} | bawk 'NR==1{{print "gene",$0}}NR!=1{{print $0}}'  | cut -f 1,2,3,4,7  | sed s'/H_//1'  > {output}
-#         """
-
-# rule select_annote:
-#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
-#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign_genedesc.tsv"
-#     params: tool=BIN_DIR+"/add_description"
-#     shell:
-#         """
-#             {params.tool} -d -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
-#         """
 
 rule go_analysis_plot:
     input: gene_list= "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_{direction}.tsv", gene_univ = "{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
-    output: GO_r = "GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}.tsv", GO_barplot = "go_barplot_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}.pdf"
+    output: GO_r = "GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}.tsv", out_dir=directory('barplot_go_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}')
     script: SRC_DIR+'/GO_analysis.R'
 
-# def defwhat(wildcards):
-#     if (wildcards.what == "de"):
-#         return {'wanted': BASE}
-#     else:
-#         return {'wanted': BASE_DATA+'/'+wildcards.what}
+rule go_n_sign:
+    input: up="GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_up.tsv", down="GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_down.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.go_n.txt"
+    shell:
+        """
+            sed 1d {input.up} | bawk '$6 < 0.05' | wc -l | bawk '{{print $1, "up"}}' > {output}
+            sed 1d {input.down} | bawk '$6 < 0.05' | wc -l | bawk '{{print $1, "down"}}' >> {output}
+        """
 
-# rule striplots:
-#     input: unpack(defwhat), dds="dds.Rdata"
-#     output: directory("{what}_plots_{class}")
-#     params: tool=BIN_DIR+"/striplots"
-#     shell:
-#         """
-#             mkdir -p {output}
-#             {params.tool} {input.wanted} {input.dds} {output} {wildcards.class}
-#         """
+#### Dot plots and selection of genes annoted
+rule sign:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+    shell:
+        """
+            bawk '$7<0.05' {input} | bawk 'NR==1{{print "gene",$0}}NR!=1{{print $0}}'  | cut -f 1,2,3,4,7  | sed s'/H_//1'  > {output}
+        """
+
+rule select_annote:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign_genedesc.tsv"
+    params: tool=BIN_DIR+"/add_description"
+    shell:
+        """
+            {params.tool} -d -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
+        """
+
+## prendi questo output e da qui fai i geni di livio
+
+def defwhat(wildcards):
+    if (wildcards.target == "de"):
+        return {'wanted': BASE}
+    else:
+        return {'wanted': BASE_DATA+'/'+wildcards.target}
+
+rule striplots:
+    input: unpack(defwhat), dds="dds.Rdata"
+    output: directory("{what}_plots_{target}")
+    params: tool=BIN_DIR+"/striplots"
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} {wildcards.what}
+        """
 
 ### GSEA
 rule gsea_input:
