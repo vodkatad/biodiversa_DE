@@ -4,7 +4,6 @@ hmat_f <- snakemake@output[["hmat"]]
 
 data <- read.table(gzfile(matrix_f), sep="\t", header=TRUE, row.names=1)
 meta <- read.table(meta_f, sep="\t", header=TRUE, stringsAsFactors=FALSE)
-save.image('p.Rdata')
 meta$old_id <- gsub('-','.', meta$old_id)
 meta$new_id <- gsub('-','_', meta$new_id)
 meta <- meta[match(colnames(data),meta$old_id),]
