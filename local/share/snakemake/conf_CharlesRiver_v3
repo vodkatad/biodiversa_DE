@@ -9,21 +9,23 @@ def find_prj_root(path=os.getcwd()):
 			raise Exception("Can not find the PRJ_ROOT directory")
 
 
+CORES=6
 PRJ_ROOT=find_prj_root()
 ROOT=os.getenv('SNAKE_ROOT')                                                    
 BROOT=os.getenv('BIOINFO_ROOT')                                                    
 NAME="evil_MA"
-DATA=PRJ_ROOT+"/local/share/data/TCF7L2"
+DATA=PRJ_ROOT+"/local/share/data/"
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
 
-BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/CharlesRiver/'
+BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/CharlesRiver'
 
-COUNTS_PRE=BIT_DIR+"/GEP.count.gz"
+COUNTS_PRE_UNSTRANDED=BIT_DIR+"/unstranded/GEP.count.gz"
+COUNTS_PRE_STRANDED=BIT_DIR+"/GEP.count.gz"
 COUNTS="counts.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 PREMETA=BIT_DIR+'/ALL_infer_experiment'
-META="meta.txt"
+META=DATA+"/metadata_charlesriver.tsv"
 ###
 DESIGN="~geno"
 SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
@@ -38,7 +40,7 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 
 rule ss:
     input: PREMETA
-    output: META
+    output: 'meta.txt'
     shell:
         """
             echo -e "id\\tstranded" > {output}
@@ -46,21 +48,30 @@ rule ss:
             echo 'CHECK A MANO CHE THRESHOLD 0.5 sia SENSATO e VS LORO INFO'
         """
 
+# fatto check a mano vs rnaseq_quality_control_information.tsv and the inference on strandness is correct.
+# ho poi fatto girare a mano featureCounts stranded e unstranded in cartella di bit in maniera bieca, qui selezioniamo l'uno o l'altro dato.
+
+# manual Rstudio session with different xls as sources (charles_river_metadata.R) results in samples_data.tsv in local/share/data
+
 rule samples_data:
     input: meta=META
     output: "samples_data"
     shell:
         """
-			echo -e "id\\tmodel\\tgeno\\tclone" > {output}
-			sed 1d {input.meta} | tr "-" "_" | bawk '{{f=$1; gsub("_","\t",$1); print f, $1}}' \\
-            | bawk '$4==""{{print $1,$2,$3,"NA"}}$4!=""{{print $0}}'  >> {output}
+			cut -f 1,2,9,14 {input} > {output}
         """
 
-LFC=0.5849625 # 1.5 FC
-CORES=6
-PVAL=0.05
+# we need to get different counts for different samples cause life is bad and charles river dataset is an hybrid
+rule counts:
+    input: expr_matrix_ustr=COUNTS_PRE_UNSTRANDED, expr_matrix_str=COUNTS_PRE_STRANDED, meta="samples_data"
+    output: expr_picked=COUNTS
+    script: SRC_DIR+'/charlesriver_strandunstrand.R'
 
-DEBUG="yes"
-MARKER=""
-MEDA_DIR=""
-SELECTED=""
+
+#LFC=0.5849625 # 1.5 FC
+#PVAL=0.05
+
+#DEBUG="yes"
+#MARKER=""
+#MEDA_DIR=""
+#SELECTED=""

@@ -10,14 +10,6 @@ rule plots:
             {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
         """
 
-rule de:
-    input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
-    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
-    script: SRC_DIR+"/deseq2_diff.R"
-
-## correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
-
 ## rule that removes H_ / M_ and filters only one kind of genes from metric.tsv.gz files
 rule species_specific_matrices:
     input: "{metric}.tsv.gz"
@@ -31,150 +23,6 @@ rule species_specific_matrices:
             rm {output}.tmp
         """
 
-# GO
-rule go_input:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv"
-    params: lfc=LFC, thr=PVAL, specie=SPECIES
-    shell:
-        """
-            sed 1d {input} | bawk '$7 < {params.thr} && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\t{params.specie}_(.+)/\\t$1/g' > {output}
-        """
-
-rule go_input_up_down:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: up = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_up.tsv", down = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_down.tsv"
-    params: thr=PVAL, specie=SPECIES, lfc=LFC
-    shell:
-        """
-            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 > {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.up}
-            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 < {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
-        """
-
-rule go_universe:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
-    params: specie=SPECIES
-    shell:
-        """
-            sed 1d {input} | cut -f 1 | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output}
-        """
-
-#rule go:
-    # input: classes="{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv", universe="{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
-    # output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
-    # params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
-    # script: SRC_DIR+"/go.R"
-
-
-#rule go_sign:
-    # input: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
-    # output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.significant.tsv"
-    # shell:
-    #     """
-    #             zcat {input} | bawk '$9 !="NA" && $9 < 0.05' | sort  -t $'\\t' -k9,9 -g  > {output}
-    #     """
-
-
-rule go_analysis_plot:
-    input: gene_list= "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_{direction}.tsv", gene_univ = "{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
-    output: GO_r = "GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}.tsv", out_dir=directory('barplot_go_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}')
-    script: SRC_DIR+'/GO_analysis.R'
-
-rule go_n_sign:
-    input: up="GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_up.tsv", down="GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_down.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.go_n.txt"
-    shell:
-        """
-            sed 1d {input.up} | bawk '$6 < 0.05' | wc -l | bawk '{{print $1, "up"}}' > {output}
-            sed 1d {input.down} | bawk '$6 < 0.05' | wc -l | bawk '{{print $1, "down"}}' >> {output}
-        """
-
-#### Dot plots and selection of genes annoted
-rule sign:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
-    shell:
-        """
-            bawk '$7<0.05' {input} | bawk 'NR==1{{print "gene",$0}}NR!=1{{print $0}}'  | cut -f 1,2,3,4,7  | sed s'/H_//1'  > {output}
-        """
-
-rule select_annote:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign_genedesc.tsv"
-    params: tool=BIN_DIR+"/add_description"
-    shell:
-        """
-            {params.tool} -d -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
-        """
-
-## prendi questo output e da qui fai i geni di livio
-
-def defwhat(wildcards):
-    if (wildcards.target == "de"):
-        return {'wanted': BASE}
-    else:
-        return {'wanted': BASE_DATA+'/'+wildcards.target}
-
-rule striplots:
-    input: unpack(defwhat), dds="dds.Rdata"
-    output: directory("{what}_plots_{target}")
-    params: tool=BIN_DIR+"/striplots"
-    shell:
-        """
-            mkdir -p {output}
-            {params.tool} {input.wanted} {input.dds} {output} {wildcards.what}
-        """
-
-### GSEA
-rule gsea_input:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.tsv"
-    params: lfc=LFC, thr=PVAL, specie=SPECIES, name=NAME
-    shell:
-        """
-            echo -e "geneid\\tname\\tsort" > {output}
-            sed 1d {input} | bawk '{{print $1,"{params.name}",$3}}' | perl -pane 's/{params.specie}_(.+)/$1/g' >> {output}
-        """
-
-rule gsea_input_2:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
-    params: lfc=LFC, thr=PVAL, specie=SPECIES
-    shell:
-        """
-            echo -e "gene\\tFreq" > {output}
-            sed 1d {input} | bawk '{{print $1, $3}}' | perl -pane 's/^{params.specie}_(.+)/$1/g' >> {output}
-        """
-
-rule gsea_analysis_plot:
-    input: gene_res_freq = "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
-    output: GSEA_r = "GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
-    script: SRC_DIR+'/GSEA_analysis.R'
-
-# rule gsea:
-#     input: tsv="{what}_cutoff0.05-{nom}.vs.{den}.gseain.tsv", pathways=GSEA_PATHWAYS
-#     output: outdir=directory("{what}_gsea_{nom}vs{den}"), outtable="{what}_{nom}.vs.{den}.significant_NES_gsea", outtableall="{what}_{nom}.vs.{den}.all_NES_gsea"
-#     params: save="gsea_{what}_{nom}.vs.{den}.Rdata", cores=CORES, debug="no"
-#     script: GSEA
-
-
-# rule gsea_not_hallmark:
-#     input: tsv="{what}_cutoff0.05-{nom}.vs.{den}.gseain.tsv", pathways=GSEA_PATHWAYS_NOTHALL
-#     output: outdir=directory("{what}_gseanh_{nom}vs{den}"), outtable="{what}_{nom}.vs.{den}.significant_NES_gseanh", outtableall="{what}_{nom}.vs.{den}.all_NES_gseanh"
-#     params: save="gseanh_{what}_{nom}.vs.{den}.Rdata", cores=CORES, debug="no"
-#     script: GSEA
-
-# rule gsea_rnk:
-#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.tsv"
-#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.rnk"
-#     shell:
-#         """
-#             cut -f 1,3 {input} | sed 1d | sort | uniq > {output}
-#         """
-
-        
-#### begin remove in V2 ####
 rule my_beloved:
     input: "{metric}_"+SPECIES+".tsv.gz"
     output: "{gene, \w+}_{metric}.tsv"
@@ -194,3 +42,8 @@ rule my_beloved_waterfall:
         """
             {params.tool} {input} {wildcards.gene} {output}
         """
+
+
+# TODO regola CRIS
+
+# TODO regola CMS
