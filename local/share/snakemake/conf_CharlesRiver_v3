@@ -29,7 +29,7 @@ GENE_LEN=BIT_DIR+"/gene_len"
 PREMETA=BIT_DIR+'/ALL_infer_experiment'
 META=DATA+"/metadata_charlesriver.tsv"
 ###
-DESIGN="~geno"
+DESIGN="~stranded+Site.of.origin"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2

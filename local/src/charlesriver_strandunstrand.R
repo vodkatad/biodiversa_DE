@@ -13,7 +13,6 @@ keep_str <-  meta[meta$stranded == 'firststrand','id']
 keep_unstr <-  meta[meta$stranded == 'unstranded','id']
 str_expr <- str[, colnames(str) %in% c(keep_str, 'Geneid')]
 uns_expr <- uns[, colnames(uns) %in% c(keep_unstr, 'Geneid')]
-save.image('pippo.Rdata')
 stopifnot(length(intersect(colnames(str_expr),colnames(uns_expr)))==1)
 
 res <- merge(str_expr, uns_expr, by="Geneid")
