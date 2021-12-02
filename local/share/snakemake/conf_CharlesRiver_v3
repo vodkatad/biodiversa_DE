@@ -60,7 +60,7 @@ rule samples_data:
     output: "samples_data"
     shell:
         """
-			cut -f 1,2,9,14 {input} > {output}
+			cut -f 1,2,9,14 {input} | tr " " "_" > {output}
         """
 
 # we need to get different counts for different samples cause life is bad and charles river dataset is an hybrid
@@ -83,3 +83,18 @@ rule usable_reads:
 #MARKER=""
 #MEDA_DIR=""
 #SELECTED=""
+
+rule n_reads:
+    input: n_reads='usable_reads',counts='counts.tsv.gz'
+    output: matrix='reads_info.tsv.gz'
+    run:
+        import pandas as pd
+        counts = pd.read_csv(input.counts, sep="\t", index_col=0)
+        # gather total mouse and human reads
+        h_counts = counts.filter(regex="^H_", axis=0).sum(axis=0)
+        m_counts = counts.filter(regex="^M_", axis=0).sum(axis=0)
+        count_res = pd.DataFrame(data={'h_tot':h_counts, 'm_tot':m_counts, 'frac_h' : h_counts/(m_counts+h_counts)})
+        usable_reads = pd.read_csv(input.n_reads, sep="\t", index_col=0, usecols=['sample', 'tot','Assigned'])
+        usable_reads['frac_assigned'] = usable_reads['Assigned']/usable_reads['tot']
+        res = pd.concat([count_res, usable_reads], axis=1, sort=True)
+        res.to_csv(output.matrix, sep="\t", compression='gzip', header=True)
