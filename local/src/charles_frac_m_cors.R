@@ -22,6 +22,6 @@ d <- read.table('/mnt/cold1/snaketree/prj/DE_RNASeq/local/share/data/metadata_ch
 mm <- merge(m, d, by.x="sample", by.y="id")
 stopifnot(nrow(mm)==nrow(m))
 library(ggsignif)
-ggplot(data=mm, aes(x=Strand, y=cetuxi_perc_3w))+geom_boxplot(outlier.shape=NULL)+geom_jitter()
+ggplot(data=mm, aes(x=Strand, y=cetuxi_perc_3w))+geom_boxplot(outlier.shape=NA)+geom_jitter()
   +geom_signif(comparisons = list(c("firststrand", "unstranded")))+
   +theme(text = element_text(size = 20))
