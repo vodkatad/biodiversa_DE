@@ -13,7 +13,6 @@ CORES=6
 PRJ_ROOT=find_prj_root()
 ROOT=os.getenv('SNAKE_ROOT')                                                    
 BROOT=os.getenv('BIOINFO_ROOT')                                                    
-NAME="evil_MA"
 DATA=PRJ_ROOT+"/local/share/data"
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
@@ -31,6 +30,7 @@ META=DATA+"/metadata_charlesriver.tsv"
 ###
 DESIGN="~stranded+Site.of.origin"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+SPECIES_ADD_DESC="" # org.Hs.eg.db is used by default, if needed set to -l org.Mm etc...
 MINC=5
 MINSAMPLES=2
 

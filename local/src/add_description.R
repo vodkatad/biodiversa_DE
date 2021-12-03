@@ -50,7 +50,6 @@ if (!opt$hasheader) {
 } else {
     IDtsv <- read.table(opt$inputfile, stringsAsFactors = FALSE, sep = "\t", quote = "", na.strings=c("", " ", "NA"), header=TRUE)
 }
-save.image("p.RData")
 keys <- as.character(IDtsv[,opt$colnumber])
 merge <- function(x) { paste(x, collapse=',')}
 geneIDSymbols <- mapIds(get(opt$library), keys=keys, column=opt$to, keytype=opt$from, multiVals=merge)

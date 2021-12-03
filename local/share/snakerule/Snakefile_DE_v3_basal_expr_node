@@ -44,6 +44,63 @@ rule my_beloved_waterfall:
         """
 
 
-# TODO regola CRIS
+# ASK MARTINA
+#rule PC:
 
-# TODO regola CMS
+# CRIS
+rule cris_v2:
+    input: expr="{metric}_" +SPECIES+".tsv.gz"
+    params: prefix="cris_{metric}"
+    output: "cris_{metric}_prediction_result.xls"
+    script: SRC_DIR+"/cris_classify_V2.R"
+
+rule wipe_up_after_cris:
+    input: "cris_{metric}_prediction_result.xls"
+    output: tsv="cris_{metric}_prediction_result.tsv", png="cris_{metric}_prediction_result.png"
+    shell:
+        """
+            mv {input} {output.tsv}
+            mv cris_{wildcards.metric}_heatmp.png {output.png}
+            rm cris_{wildcards.metric}_sample_info.txt cris_{wildcards.metric}_sorted.dataset.gct cris_{wildcards.metric}_predicted*sorted.cls cris_{wildcards.metric}_FDR*png cris_{wildcards.metric}_*legend.png  cris_{wildcards.metric}_features.xls
+            rm cris_{wildcards.metric}.tmp
+        """
+
+rule cris_classes:
+    input: tsv="cris_{metric}_prediction_result.tsv"
+    output: tsv="cris_{metric}_{thr}_classes.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        #sample.names    predict.label2  dist.to.template        dist.to.cls1.rank       nominal.p       BH.FDR  Bonferroni.p
+        d = pd.read_table(input.tsv, sep="\t", index_col=False)
+        d.rename(columns={"predict.label2": "cris", "BH.FDR": "fdr","sample.names": "genealogy"}, inplace=True)
+        thr = float(wildcards.thr)
+        d = d[d['fdr'] < thr]
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output.tsv, sep="\t")
+
+
+# CMS # TODO MAYBE wildcard on FDR?
+rule get_symbols:
+    input: expr="{metric}_" +SPECIES+".tsv.gz"
+    output: "{metric}_entrez.tsv.gz"
+    log: "{metric}_entrez.tsv.gz.log"
+    params: tool=SRC_DIR+"/add_description.R", specie=SPECIES_ADD_DESC
+    shell:
+        """
+            zcat {input} | bawk 'NR==1{{print "symbol",$0}} NR!=1 {{print $0}}' > {output}.tmp2
+            {params.tool} -i {output}.tmp2 -o {output}.tmp -n 1 -f SYMBOL -t ENTREZID -d {params.specie}
+            cut --complement -f 1 {output}.tmp  | bawk '$1 == "description"{{$1="entrez";print $0; next}} $1 != "NA" {{print $0}}' | grep -v "," | gzip > {output}
+            sed 1d {output}.tmp | bawk '$2 ~ ","{{print "multi"; next}} $2 == "NA" {{print "missing"; next}} {{print "single"}}' | sort | uniq -c > {log}
+            rm {output}.tmp*
+            PURPLE='\033[0;35m' && NC='\033[0m' && echo "${{PURPLE}}Warning${{NC}}, multimapped symbol removed, check how many do you have!"
+        """
+
+
+
+rule CMS:
+    input: expr = "{metric}_entrez.tsv.gz"
+    output: RES = "{metric}_CMScaller.tsv", CMS_heatmap = "{metric}_CMS_heatmap.pdf"
+    script: SRC_DIR+'/CMScaller_nofilters.R'
