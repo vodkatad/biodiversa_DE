@@ -1,11 +1,11 @@
 
-expr_input <- snakemake@input[["expr"]]
+expr_input <- snakemake@input[["expr_input"]]
 metadata_input <- snakemake@input[["metadata"]]
 buoni <- snakemake@input[["goodOrBad"]]
-expr_output <- snakemake@output[["expr"]]
+expr_output <- snakemake@output[["expr_output"]]
 metadata_output <- snakemake@output[["metadata_clu"]]
+image <- snakemake@output[["script"]]
 
-save.image('pippo.Rdata')
 selection <- read.table(buoni, sep="\t", header=TRUE, stringsAsFactors=FALSE, quote='')
 metadata <- read.table(metadata_input, sep="\t", header=TRUE, stringsAsFactors=FALSE, quote='')
 
@@ -27,30 +27,34 @@ wanted <- rbind(lmo_good_has_xh, lmx_good, lmh_good)
 
 expr_selected <- expr_df[,colnames(expr_df) %in% rownames(wanted)]
 
+save.image(image)
+
 ### calcolo mediana della media e rimozione geni non espressi (expr media < mediana della media)
 ### procediamo solo con geni con sd alta
 ### NOTA: filtro fatto post selezione dei campioni quindi non coincidente al 100% con quello che avevamo
 ### per le correlazioni
 # codice da vecchio filtro pre correlazioni che facevamo separatmente sulle matrici o/x
-#######################################################################3
-#means_lmo <- apply(lmo_df, 1, mean)
-#med_lmo <- median(means_lmo)
+### da qui in poi , splittare e il tutto dovrebbe finire in una funzione per scegliere la sd
+### delle tre classi
+#######################################################################
+means_expr <- apply(expr_selected, 1, mean)
+med_expr <- median(means_expr)
 
 ### I obtain a data.table that contain only the genes  mean expression over the median
-#lmo_filtered <- as.data.frame(lmo_df[means_lmo > med_lmo,])
+expr_filtered <- as.data.frame(expr_selected[means_expr > med_expr,])
 
 ### I want to calculate the standard deviation
-#sds_lmo <- apply(lmo_filtered, 1, sd) 
+sds_expr <- apply(expr_filtered, 1, sd) 
 
 ### now we keep the top 10% variable genes 
-#sds_lmo <- sds_lmo[order(-sds_lmo)]
-#n_lmo <- length(sds_lmo)
-#keep_lmo <- head(sds_lmo, round(0.10*n_lmo))
-#keep_genes_lmo <- names(keep_lmo)
-#desd_lmo <- lmo_filtered[rownames(lmo_filtered) %in% keep_genes_lmo,]
+sds_expr <- sds_expr[order(-sds_expr)]
+n_expr <- length(sds_expr)
+keep_expr <- head(sds_expr, round(0.10*n_expr))
+keep_genes_expr <- names(keep_expr)
+expr_selected_fin <- expr_filtered[rownames(expr_filtered) %in% keep_genes_expr,]
 ###############################################################
 
-write.table(expr_selected, gzfile(expr_output), sep="\t", quote=FALSE)
+write.table(expr_selected_fin, gzfile(expr_output), sep="\t", quote=FALSE)
 
 
 write.table(wanted, metadata_output, sep="\t", quote=FALSE)
