@@ -18,7 +18,7 @@ BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
 
 CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
-BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK'
 # DATA_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data/'
 #BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020'
 
@@ -27,8 +27,8 @@ GENE_LEN=BIT_DIR+"/gene_len"
 ###
 DESIGN="~type"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
-MINC=5
-MINSAMPLES=2
+MINC=0
+MINSAMPLES=0
 
 FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
 
@@ -46,7 +46,6 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 
 # for biodiversa change - in . in metadata
 SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
-#SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 rule samples_data:
     input: meta=BIT_DIR+"/selected_metadata", keep=SELECTED
     output: "samples_data"
@@ -97,8 +96,8 @@ rule cris_basali_NS:
         res.to_csv(output[0], sep="\t")
 
 rule cris_merged_models_pdx_basali_NS:
-    input: "cris_tmm_0.2_classes_{type}_basali.tsv"
-    output: "cris_tmm_0.2_classes_{type}_basali_models_ns.tsv"
+    input: "cris_tmm_0.2_classes_lmx_basali.tsv"
+    output: "cris_tmm_0.2_classes_lmx_basali_models_ns.tsv"
     run: 
         import pandas as pd
         import numpy as np

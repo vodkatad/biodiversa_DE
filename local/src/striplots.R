@@ -10,6 +10,8 @@ what <- args[[4]]
 
 load(ddsf)
 
+save.image("pippo.Rdata")
+
 striplots <- function(gene, dds) {
     if (!any(rownames(dds) == gene)) {
         return()
