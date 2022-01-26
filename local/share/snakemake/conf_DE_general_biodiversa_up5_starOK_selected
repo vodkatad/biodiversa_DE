@@ -9,6 +9,10 @@ def find_prj_root(path=os.getcwd()):
 		else:
 			raise Exception("Can not find the PRJ_ROOT directory")
 
+if ROOT != "/scratch/trcanmed":
+    NEED_PRJ = "/prj"
+else:
+    NEED_PRJ = ""
 
 PRJ_ROOT=find_prj_root()
                                                     
@@ -96,6 +100,9 @@ rule cris_basali_NS:
         res = pd.DataFrame(dp)
         res.to_csv(output[0], sep="\t")
 
+# why do we need this? For PDX the previous rule collapses at branch, for LMO does not make sense.
+# We need to use _ns not for population level freqs! New rule that keeps > 0.2 (in Snakefile) will
+# supersede this.
 rule cris_merged_models_pdx_basali_NS:
     input: "cris_tmm_0.2_classes_{type}_basali.tsv"
     output: "cris_tmm_0.2_classes_{type}_basali_models_ns.tsv"
@@ -112,10 +119,11 @@ rule cris_merged_models_pdx_basali_NS:
 #rule prepare_sankey:
 #	input: array="cris_uarray_{thr}.tsv", meta=
 #	output:
-
-META="../../../RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
+MEDA_BASALI=ROOT+NEED_PRJ+"/RNASeq_biod_metadata/dataset/july2020_starOK/filtered_metadata_ctx_basali_human-org-xeno"
+META=ROOT+NEED_PRJ+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier" 
+METASAFE=ROOT+NEED_PRJ+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier_replisafe" #  here the  -2 .2 issue is fixed a priori
 rule cris_basali:
-	input: me=META, cris="cris_tmm_0.2_classes.tsv"
+	input: me=METASAFE, cris="cris_tmm_0.2_classes.tsv"
 	output: "cris_tmm_0.2_classes_lmx_basali.tsv"
 	shell:
 		"""
@@ -124,7 +132,7 @@ rule cris_basali:
 		"""
 
 rule cris_basali_lmo:
-	input: me=META, cris="cris_tmm_0.2_classes.tsv"
+	input: me=METASAFE, cris="cris_tmm_0.2_classes.tsv"
 	output: "cris_tmm_0.2_classes_lmo_basali.tsv"
 	shell:
 		"""
@@ -133,7 +141,7 @@ rule cris_basali_lmo:
         """
 
 rule cris_all_annot:
-	input: me=META, cris="cris_tmm_0.2_classes.tsv"
+	input: me=METASAFE, cris="cris_tmm_0.2_classes.tsv"
 	output: "cris_annot.tsv"
 	shell:
 		"""
