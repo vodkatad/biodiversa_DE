@@ -425,10 +425,10 @@ rule gsva_msigdb:
 ### cris on averaged vsd
 # pper avere le medie nella stessa cartella puoi anche spostarti in biobanca se ti trovi più comoda!
 rule cris_v2_trial:
-    input: expr="{metric}_.tsv.gz"
-    params: prefix="trial_cris_{metric}"
-    output: "trial_cris_{metric}_prediction_result.xls"
-    script: SRC_DIR+"/cris_classify_V2.R"
+    input: expr="{metric}_{class}_mean_gene_genealogyall.tsv.gz"
+    params: prefix="{class}_trial_cris_{metric}"
+    output: "{class}_trial_cris_{metric}_prediction_result.xls"
+    script: SRC_DIR+"/cris_classify_V2_avgvsd.R"
 
 # rule wipe_up_after_cris:
 #     input: "cris_{metric}_prediction_result.xls"
