@@ -204,33 +204,35 @@ rule cris_sankey_biscollapsed_nc:
         """
 
 # Vs known dataset freqs overall dataset
-CRIS_S11=PRJ_ROOT+'/local/share/data/cris_suppl_11.tsv'
-CMSCALLER=PRJ_ROOT+'/local/share/data/freqs_cmscaller.tsv'
+CRIS_S11=PRJ_ROOT+'/local/share/data/CRIS_CMS/cris_suppl_11.tsv'
+CMSCALLER=PRJ_ROOT+'/local/share/data/CRIS_CMS/freqs_cmscaller.tsv'
 # vs CRIS population freqs
-# rule CRIS_to_n:
-#     input: CRIS_S11
-#     output: "freqs_cris.tsv"
-#     run:
-#         import pandas as pd
-#         import numpy as np
-#         d = pd.read_table(input.tsv, sep="\t", header=0)
-#         notHasMinus = np.logical_not(d['CRIS Assignment'].str.contains('-'))
-#         needMinus = d[notHasMinus]['CRIS Assignment']
-# 		withMinus = needMinus.replace('CRIS', 'CRIS-', regex=True)
-#         d.loc[notHasMinus, 'CRIS Assignment'] = withMinus
-#         d.loc[d['BH.FDR'] > 0.2, 'CRIS Assignment'] = 'NS'
-#         dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
-#         dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "HET"
-#         res = pd.DataFrame(dp)
-#         res.to_csv(output.tsv, sep="\t")
+rule CRIS_to_n:
+    input: tsv=CRIS_S11
+    output: freqs="freqs_cris.tsv"
+    run:
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input.tsv, sep="\t", header=0)
+        notHasMinus = np.logical_not(d['CRIS Assignment'].str.contains('-'))
+        needMinus = d[notHasMinus]['CRIS Assignment']
+        withMinus = needMinus.replace('CRIS', 'CRIS-', regex=True)
+        d.loc[notHasMinus, 'CRIS Assignment'] = withMinus
+        d.loc[d['BH.FDR'] > 0.2, 'CRIS Assignment'] = 'NS'
+        d.groupby(['Dataset ID'])['CRIS Assignment'].value_counts()
+        n_cris= d.groupby(['Dataset ID'])['CRIS Assignment'].value_counts().unstack()
+        n_el= d.groupby(['Dataset ID'])['CRIS Assignment'].agg(['count'])
+        freqs = n_cris.div(n_el['count'], axis=0)
+        freqs.to_csv(output.freqs, sep="\t")
 
 
-        
-# rule barplot_chisq:
-#     input: pop="freqs_cris.tsv", us="cris_fpkm_{xo}_nc_smodel.tsv"
-#     output: "cris_pop_barplot.svg"
-#     log: "cris_pop_barplot.log"
-#     script: SRC_DIR+"/pop_barplot_classifiers.R"
+rule barplot_chisq:
+    input: pop="freqs_cris.tsv", lmx="cris_fpkm_lmx_nc_smodel.tsv", 
+	    lmo="cris_fpkm_lmo_nc_smodel.tsv", lmh="cris_fpkm_prediction_result_nc_lmh.tsv",
+   	    Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_12.Rdata'
+    output: plot="cris_pop_barplot.svg"
+    log: "pop_barplot.log"
+    script: SRC_DIR+"/pop_barplot_classifiers.R"
 
 
 # fpkm single sample CMS are in /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr/ LMO_BASALE_CMScaller_fpkm.tsv    they need collapsing with the same logic
