@@ -203,13 +203,13 @@ rule cris_sankey_biscollapsed_nc:
             rm {output.sankey}.tmp
         """
 
-# Vs known dataset freqs overall dataset
+######################### Vs known dataset freqs overall dataset
 CRIS_S11=PRJ_ROOT+'/local/share/data/CRIS_CMS/cris_suppl_11.tsv'
 CMSCALLER=PRJ_ROOT+'/local/share/data/CRIS_CMS/freqs_cmscaller.tsv'
 # vs CRIS population freqs
 rule CRIS_to_n:
     input: tsv=CRIS_S11
-    output: freqs="freqs_cris.tsv"
+    output: freqs="freqs_cris.tsv", counts="counts_cris.tsv"
     run:
         import pandas as pd
         import numpy as np
@@ -224,17 +224,42 @@ rule CRIS_to_n:
         n_el= d.groupby(['Dataset ID'])['CRIS Assignment'].agg(['count'])
         freqs = n_cris.div(n_el['count'], axis=0)
         freqs.to_csv(output.freqs, sep="\t")
+        n_cris.to_csv(output.counts, sep="\t")
 
 
 rule barplot_chisq:
-    input: pop="freqs_cris.tsv", lmx="cris_fpkm_lmx_nc_smodel.tsv", 
+    input: pop="freqs_cris.tsv", popc='counts_cris.tsv', lmx="cris_fpkm_lmx_nc_smodel.tsv", 
 	    lmo="cris_fpkm_lmo_nc_smodel.tsv", lmh="cris_fpkm_prediction_result_nc_lmh.tsv",
    	    Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_12.Rdata'
-    output: plot="cris_pop_barplot.svg"
-    log: "pop_barplot.log"
-    script: SRC_DIR+"/pop_barplot_classifiers.R"
+    output: plot="cris_pop_barplot.pdf"
+    log: "cris_pop_barplot.log"
+    script: SRC_DIR+"/pop_barplot.R"
 
+################# CMS 
+rule CMS_to_n:
+    input: tsv=CMSCALLER
+    output: freqs="freqs_cms.tsv"
+    run:
+        import pandas as pd
+        d = pd.read_table(input.tsv, sep="\t", header=0, index_col=0)
+        tot = d.sum(axis=1) # sum across cols, 1 for each row
+        freqs =  d.div(tot, axis=0) # align d index (datasets) with tot indexs
+        freqs.to_csv(output.freqs, sep="\t")
 
-# fpkm single sample CMS are in /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr/ LMO_BASALE_CMScaller_fpkm.tsv    they need collapsing with the same logic
+# fpkm single sample CMS are in /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr/LMO_BASALE_CMScaller_fpkm.tsv    they need collapsing with the same logic (+ if needed produce vsd ones)
+# collapsed:
+# /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr$ cut -f 2 cms_fpkm_LMX_BASALE_nc_smodel.tsv
+BASE_CMS=ROOT+NEED_PRJ+'/biobanca/dataset/V1/trans_sign/expr'
+rule cms_barplot_chisq:
+    input: pop="freqs_cms.tsv", popc=CMSCALLER, 
+        lmx=BASE_CMS+"/cms_fpkm_LMX_BASALE_nc_smodel.tsv", 
+        lmo=BASE_CMS+"/cms_fpkm_LMO_BASALE_nc_smodel.tsv", 
+        lmh=BASE_CMS+"/cms_fpkm_LMH_nc_smodel.tsv",
+   	    Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_12.Rdata'
+    output: plot="cms_pop_barplot.pdf"
+    log: "cms_pop_barplot.log"
+    script: SRC_DIR+"/cms_pop_barplot.R"
 
 # vsd average CMS are in ...
+
+### CRIS on single samples but separated 

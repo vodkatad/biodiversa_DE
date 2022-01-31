@@ -424,64 +424,41 @@ rule gsva_msigdb:
 
 ### cris on averaged vsd
 # pper avere le medie nella stessa cartella puoi anche spostarti in biobanca se ti trovi più comoda!
-rule cris_v2_trial:
-    input: expr="{metric}_{class}_mean_gene_genealogyall.tsv.gz"
-    params: prefix="{class}_trial_cris_{metric}"
-    output: "{class}_trial_cris_{metric}_prediction_result.xls"
+rule cris_v2_vsd:
+    input: expr="{metric}_mean_gene_genealogyall.tsv.gz"
+    params: prefix="vsd_cris_{metric}"
+    output: "vsd_cris_{metric}_prediction_result.xls"
     script: SRC_DIR+"/cris_classify_V2_avgvsd.R"
 
-# rule wipe_up_after_cris:
-#     input: "cris_{metric}_prediction_result.xls"
-#     output: tsv="cris_{metric}_prediction_result.tsv", png="cris_{metric}_prediction_result.png"
-#     shell:
-#         """
-#             mv {input} {output.tsv}
-#             mv cris_{wildcards.metric}_heatmp.png {output.png}
-#             rm cris_{wildcards.metric}_sample_info.txt cris_{wildcards.metric}_sorted.dataset.gct cris_{wildcards.metric}_predicted*sorted.cls cris_{wildcards.metric}_FDR*png cris_{wildcards.metric}_*legend.png  cris_{wildcards.metric}_features.xls
-#             rm cris_{wildcards.metric}.tmp
-#         """
+### with the script prepare_lmh_cris I prepared the expr file starting from vsd, maybe rule to have it modified if needed
 
-# rule highlight_NC:
-#     input: tsv="cris_{metric}_prediction_result.tsv"
-#     output: "cris_{metric}_prediction_result_nc.tsv"
-#     shell:
-#         """
-#             cat {input.tsv} | bawk 'NR==1' > {output}
-#             cat {input.tsv} | sed 1d | bawk '$6>0.2 {{$2="NC"}}1' >> {output}
-#         """
+rule cris_v2_vsd_lmh:
+    input: expr="{metric}_gene_genealogyall.tsv.gz"
+    params: prefix="vsd_cris_{metric}"
+    output: "vsd_cris_{metric}_prediction_result.xls"
+    script: SRC_DIR+"/cris_classify_V2_vsdlmh.R"
 
-# rule nc_basali:
-#     input: df="cris_{metric}_prediction_result_nc.tsv", meda=MEDA_BASALI
-#     output: "cris_{metric}_prediction_result_nc_basali.tsv"
-#     shell:
-#         """
-#             cat {input.df} | bawk 'NR==1 {{print $0}}' > {output}
-#             cat {input.df} | filter_1col 1 <(cut -f1 {input.meda}) >> {output}
-#         """
+rule wipe_up_after_cris_vsd:
+    input: "vsd_cris_{metric}_prediction_result.xls"
+    output: tsv="vsd_cris_{metric}_prediction_result.tsv", png="vsd_cris_{metric}_prediction_result.png"
+    shell:
+        """
+            mv {input} {output.tsv}
+            mv vsd_cris_{wildcards.metric}_heatmp.png {output.png}
+            rm vsd_cris_{wildcards.metric}_sample_info.txt vsd_cris_{wildcards.metric}_sorted.dataset.gct vsd_cris_{wildcards.metric}_predicted*sorted.cls vsd_cris_{wildcards.metric}_FDR*png vsd_cris_{wildcards.metric}_*legend.png  vsd_cris_{wildcards.metric}_features.xls
+            rm vsd_cris_{wildcards.metric}.tmp
+        """
 
-# rule lmx_lmo: # TODO FIXME questo tiene sia i basali che i non
-#     input: "cris_{metric}_prediction_result_nc_basali.tsv"
-#     output: lmx="cris_{metric}_prediction_result_nc_lmx.tsv", lmo="cris_{metric}_prediction_result_nc_lmo.tsv"
-#     shell:
-#         """
-#             cat {input} | bawk 'NR==1' > {output.lmx}
-#             cat {input} | sed 1d | grep -F 'LMX' >> {output.lmx}
-#             cat {input} | bawk 'NR==1' > {output.lmo}
-#             cat {input} | sed 1d | grep -F 'LMO' >> {output.lmo}
-#         """
+rule highlight_NC_vsd:
+    input: tsv="vsd_cris_{metric}_prediction_result.tsv"
+    output: "vsd_cris_{metric}_prediction_result_nc.tsv"
+    shell:
+        """
+            cat {input.tsv} | bawk 'NR==1' > {output}
+            cat {input.tsv} | sed 1d | bawk '$6>0.2 {{$2="NC"}}1' >> {output}
+        """
 
-# rule cris_classes:
-#     input: tsv="cris_{metric}_prediction_result.tsv"
-#     output: tsv="cris_{metric}_{thr}_classes.tsv"
-#     run: 
-#         import pandas as pd
-#         import numpy as np
-#         #sample.names    predict.label2  dist.to.template        dist.to.cls1.rank       nominal.p       BH.FDR  Bonferroni.p
-#         d = pd.read_table(input.tsv, sep="\t", index_col=False)
-#         d.rename(columns={"predict.label2": "cris", "BH.FDR": "fdr","sample.names": "genealogy"}, inplace=True)
-#         thr = float(wildcards.thr)
-#         d = d[d['fdr'] < thr]
-#         dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
-#         dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
-#         res = pd.DataFrame(dp)
-#         res.to_csv(output.tsv, sep="\t")
+
+
+
+
