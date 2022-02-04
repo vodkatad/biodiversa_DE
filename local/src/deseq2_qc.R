@@ -61,6 +61,8 @@ save.image('paperoga.Rdata')
 efilterGenes <- rowSums(new_data > minc) < minsamples
 edata <- new_data[!efilterGenes,]
 e_new_data <- edata[,match(rownames(metadata), colnames(edata))]
+
+###esegui fino a qui e da qui faccio limma su un confronto
 y <- DGEList(counts=e_new_data, samples=metadata)
 #https://www.biostars.org/p/317701/
 y <- calcNormFactors(y)

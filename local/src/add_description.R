@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+# Translate a column with gene symbols adding a column with the corresponding long names.
+# TODO FUTURE pass also parameters with the wanted translation
 
 #options(error=traceback)
 

@@ -9,10 +9,6 @@ def find_prj_root(path=os.getcwd()):
 		else:
 			raise Exception("Can not find the PRJ_ROOT directory")
 
-if ROOT != "/scratch/trcanmed":
-    NEED_PRJ = "/prj"
-else:
-    NEED_PRJ = ""
 
 PRJ_ROOT=find_prj_root()
                                                     
@@ -22,7 +18,7 @@ BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
 
 CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
-BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK'
 # DATA_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data/'
 #BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020'
 
@@ -31,8 +27,8 @@ GENE_LEN=BIT_DIR+"/gene_len"
 ###
 DESIGN="~type"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
-MINC=5
-MINSAMPLES=2
+MINC=0
+MINSAMPLES=0
 
 FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
 
@@ -50,7 +46,6 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 
 # for biodiversa change - in . in metadata
 SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
-#SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 rule samples_data:
     input: meta=BIT_DIR+"/selected_metadata", keep=SELECTED
     output: "samples_data"
@@ -100,12 +95,9 @@ rule cris_basali_NS:
         res = pd.DataFrame(dp)
         res.to_csv(output[0], sep="\t")
 
-# why do we need this? For PDX the previous rule collapses at branch, for LMO does not make sense.
-# We need to use _ns not for population level freqs! New rule that keeps > 0.2 (in Snakefile) will
-# supersede this.
 rule cris_merged_models_pdx_basali_NS:
-    input: "cris_tmm_0.2_classes_{type}_basali.tsv"
-    output: "cris_tmm_0.2_classes_{type}_basali_models_ns.tsv"
+    input: "cris_tmm_0.2_classes_lmx_basali.tsv"
+    output: "cris_tmm_0.2_classes_lmx_basali_models_ns.tsv"
     run: 
         import pandas as pd
         import numpy as np
@@ -119,11 +111,10 @@ rule cris_merged_models_pdx_basali_NS:
 #rule prepare_sankey:
 #	input: array="cris_uarray_{thr}.tsv", meta=
 #	output:
-MEDA_BASALI=ROOT+NEED_PRJ+"/RNASeq_biod_metadata/dataset/july2020_starOK/filtered_metadata_ctx_basali_human-org-xeno"
-META=ROOT+NEED_PRJ+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier" 
-METASAFE=ROOT+NEED_PRJ+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier_replisafe" #  here the  -2 .2 issue is fixed a priori
+
+META="../../../RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
 rule cris_basali:
-	input: me=METASAFE, cris="cris_tmm_0.2_classes.tsv"
+	input: me=META, cris="cris_tmm_0.2_classes.tsv"
 	output: "cris_tmm_0.2_classes_lmx_basali.tsv"
 	shell:
 		"""
@@ -132,7 +123,7 @@ rule cris_basali:
 		"""
 
 rule cris_basali_lmo:
-	input: me=METASAFE, cris="cris_tmm_0.2_classes.tsv"
+	input: me=META, cris="cris_tmm_0.2_classes.tsv"
 	output: "cris_tmm_0.2_classes_lmo_basali.tsv"
 	shell:
 		"""
@@ -141,7 +132,7 @@ rule cris_basali_lmo:
         """
 
 rule cris_all_annot:
-	input: me=METASAFE, cris="cris_tmm_0.2_classes.tsv"
+	input: me=META, cris="cris_tmm_0.2_classes.tsv"
 	output: "cris_annot.tsv"
 	shell:
 		"""
@@ -172,94 +163,3 @@ rule starok_sankey:
             join -t$'\\t' <(bawk '$2!="NS"' {input.m1}) <(cat {input.m2} | bawk '$2!="NS"') | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
             {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched} -t "starOK-old" -k {output.cohen}
         """
-
-
-rule cris_microarray_nc:
-    input: CRIS_UARRAY
-    output: "nc_cris_uarray_{thr}.tsv"
-    run: 
-        import pandas as pd
-        import numpy as np
-        d = pd.read_table(input[0], sep="\t", header=None, names=["sample","GSM","cris","fdr"])
-        thr = float(wildcards.thr)
-        d.loc[d['fdr'] > thr, 'cris'] = 'NC'
-        spl = [x.split('-')  for x in d['sample'].values]
-        d['genealogy'] = [x[0] + "LMX0" + x[1] for x in spl]
-        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
-        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "HET"
-        res = pd.DataFrame(dp)
-        res.to_csv(output[0], sep="\t")
-
-# TODO adapt to NC/HET flag
-rule cris_sankey_biscollapsed_nc:
-    input: m1="nc_cris_uarray_0.2.tsv", m2="cris_fpkm_lmx_nc_arm.tsv"
-    params: tool=BIN_DIR+"/sankey", header=HEADER
-    output: sankey="ncarray_sankey_diagram_PDX-PDO_CRISswitch.html", classes="ncarray_classes_freq_in_samples.png", switch="ncarray_switch_numbers.png", switched="ncarray_switching_CRIS_withBARs.png", cohen="cohen_ncarray.txt"
-    shell:
-        """
-            echo -e {params.header} > {output.sankey}.tmp
-            join -t$'\\t' {input.m1} {input.m2} | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
-            {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched} -t ncarray -k {output.cohen}
-            rm {output.sankey}.tmp
-        """
-
-######################### Vs known dataset freqs overall dataset
-CRIS_S11=PRJ_ROOT+'/local/share/data/CRIS_CMS/cris_suppl_11.tsv'
-CMSCALLER=PRJ_ROOT+'/local/share/data/CRIS_CMS/freqs_cmscaller.tsv'
-# vs CRIS population freqs
-rule CRIS_to_n:
-    input: tsv=CRIS_S11
-    output: freqs="freqs_cris.tsv", counts="counts_cris.tsv"
-    run:
-        import pandas as pd
-        import numpy as np
-        d = pd.read_table(input.tsv, sep="\t", header=0)
-        notHasMinus = np.logical_not(d['CRIS Assignment'].str.contains('-'))
-        needMinus = d[notHasMinus]['CRIS Assignment']
-        withMinus = needMinus.replace('CRIS', 'CRIS-', regex=True)
-        d.loc[notHasMinus, 'CRIS Assignment'] = withMinus
-        d.loc[d['BH.FDR'] > 0.2, 'CRIS Assignment'] = 'NS'
-        d.groupby(['Dataset ID'])['CRIS Assignment'].value_counts()
-        n_cris= d.groupby(['Dataset ID'])['CRIS Assignment'].value_counts().unstack()
-        n_el= d.groupby(['Dataset ID'])['CRIS Assignment'].agg(['count'])
-        freqs = n_cris.div(n_el['count'], axis=0)
-        freqs.to_csv(output.freqs, sep="\t")
-        n_cris.to_csv(output.counts, sep="\t")
-
-
-rule barplot_chisq:
-    input: pop="freqs_cris.tsv", popc='counts_cris.tsv', lmx="cris_fpkm_lmx_nc_smodel.tsv", 
-	    lmo="cris_fpkm_lmo_nc_smodel.tsv", lmh="cris_fpkm_prediction_result_nc_lmh.tsv",
-   	    Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_12.Rdata'
-    output: plot="cris_pop_barplot.pdf"
-    log: "cris_pop_barplot.log"
-    script: SRC_DIR+"/pop_barplot.R"
-
-################# CMS 
-rule CMS_to_n:
-    input: tsv=CMSCALLER
-    output: freqs="freqs_cms.tsv"
-    run:
-        import pandas as pd
-        d = pd.read_table(input.tsv, sep="\t", header=0, index_col=0)
-        tot = d.sum(axis=1) # sum across cols, 1 for each row
-        freqs =  d.div(tot, axis=0) # align d index (datasets) with tot indexs
-        freqs.to_csv(output.freqs, sep="\t")
-
-# fpkm single sample CMS are in /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr/LMO_BASALE_CMScaller_fpkm.tsv    they need collapsing with the same logic (+ if needed produce vsd ones)
-# collapsed:
-# /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr$ cut -f 2 cms_fpkm_LMX_BASALE_nc_smodel.tsv
-BASE_CMS=ROOT+NEED_PRJ+'/biobanca/dataset/V1/trans_sign/expr'
-rule cms_barplot_chisq:
-    input: pop="freqs_cms.tsv", popc=CMSCALLER, 
-        lmx=BASE_CMS+"/cms_fpkm_LMX_BASALE_nc_smodel.tsv", 
-        lmo=BASE_CMS+"/cms_fpkm_LMO_BASALE_nc_smodel.tsv", 
-        lmh=BASE_CMS+"/cms_fpkm_LMH_nc_smodel.tsv",
-   	    Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_12.Rdata'
-    output: plot="cms_pop_barplot.pdf"
-    log: "cms_pop_barplot.log"
-    script: SRC_DIR+"/cms_pop_barplot.R"
-
-# vsd average CMS are in ...
-
-### CRIS on single samples but separated 
