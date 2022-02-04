@@ -1,5 +1,7 @@
 ROOT="/mnt/trcanmed/snaketree/prj"
 MATRIX="../vsd.tsv.gz"
+CMATRIX='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/merged_hs_mm.tsv.gz'
+
 METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
 WANTEDT=ROOT+"/RNASeq_biod_metadata/local/share/data/basali_human_xeno"
 BIN_DIR="../../../local/bin"
@@ -13,6 +15,16 @@ rule select_wanted:
             sed 1d {input.metadata} | filter_1col 7 {input.types} | cut -f 1,6,7 >> {output.metadata}
             cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
             zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """ 
+
+rule select_wanted_counts:
+    input: metadata='selected_metadata.tsv', counts=CMATRIX
+    output: counts="selected_matrix_counts.tsv.gz"
+    shell:
+        """
+            cat <(echo Geneid) <(cut -f 1 {input.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
             rm {output.counts}.tmp
         """ 
 
