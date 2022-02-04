@@ -104,3 +104,13 @@ rule CMS:
     input: expr = "{metric}_entrez.tsv.gz"
     output: RES = "{metric}_CMScaller.tsv", CMS_heatmap = "{metric}_CMS_heatmap.pdf"
     script: SRC_DIR+'/CMScaller_nofilters.R'
+
+### ssGSEA
+rule gsva_msigdb:
+    input: expr='tmm_H.tsv.gz',  sign=DATA+'/{class}.symbol.rds'
+    output: '{class}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
