@@ -1,5 +1,7 @@
 import os
 ROOT=os.environ.get('SNAKE_ROOT')
+SCRATCH_ROOT=os.getenv('SCRATCH_ROOT')
+
 def find_prj_root(path=os.getcwd()):
 	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
 		return path
@@ -227,9 +229,13 @@ rule CRIS_to_n:
         n_cris.to_csv(output.counts, sep="\t")
 
 
+# we go get the separated cris classification in the biobanca prj
+BASE_CRIS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/cris'
 rule barplot_chisq:
-    input: pop="freqs_cris.tsv", popc='counts_cris.tsv', lmx="cris_vsd_lmx_nc_smodel.tsv", 
-        lmo="cris_vsd_lmo_nc_smodel.tsv", lmh="cris_vsd_prediction_result_nc_lmh.tsv",
+    input: pop="freqs_cris.tsv", popc='counts_cris.tsv', 
+        lmx=BASE_CRIS+"/vsd_cris_LMX_BASALE_nc_smodel.tsv", 
+        lmo=BASE_CRIS+"/vsd_cris_LMO_BASALE_nc_smodel.tsv", 
+        lmh=BASE_CRIS+"/vsd_cris_LMH_prediction_result.tsv",
         Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_5.Rdata',
         keepTRUE=ROOT+NEED_PRJ+'/biobanca/local/share/data/biobanca_pdo_buoni.tsv'
     output: plot="cris_pop_barplot.svg"

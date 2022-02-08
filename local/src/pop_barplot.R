@@ -125,7 +125,7 @@ sink()
 
 psum <- as.data.frame(apply(public_nohet, 2, sum))
 #oursum <- as.data.frame(apply(us_nohet, 2, sum)) 
-oursum <- us_nohet[rownames(us_nohet)=="LMX", , drop=FALSE] # we keep only xeno as reference for chisq instead of summing everyone
+oursum <- t(us_nohet[rownames(us_nohet)=="LMX", , drop=FALSE]) # we keep only xeno as reference for chisq instead of summing everyone
 chi_n <- cbind(psum, oursum)
 sink(log_f, append=TRUE)
 print('Summing pops chisq')
