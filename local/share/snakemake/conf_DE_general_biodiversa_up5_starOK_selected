@@ -238,7 +238,7 @@ rule barplot_chisq:
         lmh=BASE_CRIS+"/vsd_cris_LMH_prediction_result.tsv",
         Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_5.Rdata',
         keepTRUE=ROOT+NEED_PRJ+'/biobanca/local/share/data/biobanca_pdo_buoni.tsv'
-    output: plot="cris_pop_barplot.svg"
+    output: plot="cris_pop_barplot.pdf"
     log: "cris_pop_barplot.log"
     script: SRC_DIR+"/pop_barplot.R"
 
@@ -256,12 +256,12 @@ rule CMS_to_n:
 # fpkm single sample CMS are in /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr/LMO_BASALE_CMScaller_fpkm.tsv    they need collapsing with the same logic (+ if needed produce vsd ones)
 # collapsed:
 # /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr$ cut -f 2 cms_fpkm_LMX_BASALE_nc_smodel.tsv
-BASE_CMS=ROOT+NEED_PRJ+'/biobanca/dataset/V1/trans_sign/expr'
+BASE_CMS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/expr'
 rule cms_barplot_chisq:
     input: pop="freqs_cms.tsv", popc=CMSCALLER, 
-        lmx=BASE_CMS+"/cms_fpkm_LMX_BASALE_nc_smodel.tsv", 
-        lmo=BASE_CMS+"/cms_fpkm_LMO_BASALE_nc_smodel.tsv", 
-        lmh=BASE_CMS+"/cms_fpkm_LMH_nc_smodel.tsv",
+        lmx=BASE_CMS+"/cms_vsd_LMX_BASALE_nc_smodel.tsv",
+        lmo=BASE_CMS+"/cms_vsd_LMO_BASALE_nc_smodel.tsv", 
+        lmh=BASE_CMS+"/cms_vsd_LMH_nc_smodel.tsv",
         Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_5.Rdata',
         keepTRUE=ROOT+NEED_PRJ+'/biobanca/local/share/data/biobanca_pdo_buoni.tsv'
     output: plot="cms_pop_barplot.pdf"

@@ -93,7 +93,7 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
 scale_fill_brewer(palette="Dark2")+
 xlab('Dataset')+
 ylab('Fraction of samples')
-ggsave(plot_f, width=8, height=8, units="cm")
+ggsave(plot_f, h=4, w=4, units="in")
 
 
 
