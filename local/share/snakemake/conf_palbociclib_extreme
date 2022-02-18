@@ -136,5 +136,16 @@ rule all_go_gsea_excel:
     output: sign_go_gsea_xls = "go_gsea_LFC0_cutoff0.05.xlsx", merged_tsv = "go_gsea_LFC0_cutoff0.05.tsv"
     script: SRC_DIR+"/excel_sign.R" 
 
+rule signH:
+    input: inp = "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: output = "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_H.tsv"
+    script: SRC_DIR+"/preparefilefor_adddescription.R"
 
-
+rule select_annoteH:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_H.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_H_genedesc.tsv"
+    params: tool=BIN_DIR+"/add_description"
+    shell:
+        """
+            {params.tool} -d -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
+        """

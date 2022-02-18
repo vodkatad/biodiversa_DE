@@ -21,7 +21,7 @@ meda_f <- meda_f %>% mutate(type = gsub(".1", "", type))
 meda_f <- meda_f %>% mutate(sample_id_R = gsub("-2", ".2", sample_id_R))
 
 palbo_res <- c("CRC1257", "CRC1588", "CRC1589")
-palbo_non_res <- c("CRC0078", "CRC0322", "CRC0543")
+palbo_non_res <- c("CRC0078", "CRC0322", "CRC0534")
 
 meda_f_res <- meda_f[meda_f$model %in% palbo_res,]
 meda_f_res$type <- NULL

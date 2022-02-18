@@ -86,7 +86,6 @@ M_MARKER=""
 SELECTED=""
 
 
-
 CHOSEN='CRC0327,CRC0399,CRC0069,CRC0322,CRC1331,CRC1272,CRC0542,CRC0059'
 rule striplots_chosen:
     input: wanted=BASE_DATA+'/{what}', dds="dds.Rdata"
