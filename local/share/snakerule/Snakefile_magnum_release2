@@ -24,7 +24,7 @@ rule select_wanted_counts:
     shell:
         """
             cat <(echo Geneid) <(cut -f 1 {input.metadata}) > {output.counts}.tmp
-            zcat {input.counts} | transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            zcat {input.counts} | transpose | filter_1col 1 {output.counts}.tmp | transpose | egrep -v "^M_" | sed 's/H_//1' | gzip > {output.counts}            
             rm {output.counts}.tmp
         """ 
 

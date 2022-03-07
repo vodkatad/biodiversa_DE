@@ -19,7 +19,7 @@ rule de:
 ## correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
 
 ## rule that removes H_ / M_ and filters only one kind of genes from metric.tsv.gz files
-ule s:
+rule s:
     input: "{metric}.tsv.gz"
     output: "{metric}_"+SPECIES+".tsv.gz"
     params: specie=SPECIES
@@ -65,7 +65,7 @@ rule my_beloved_type:
         """
 
 rule all_type:
-    input: data="{metric}_"+SPECIES+".tsv.gz", meta=SELECTED
+    input: data="{metric}_"+SPECIES+".tsv.gz", meta=SELECTED2
     output: "{type}-{metric}.tsv.gz"
     params: find_type
     shell:

@@ -52,6 +52,7 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 
 # for biodiversa change - in . in metadata
 SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
+SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
 #SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 rule samples_data:
     input: meta=BIT_DIR+"/selected_metadata", keep=SELECTED
@@ -268,6 +269,14 @@ rule cms_barplot_chisq:
     log: "cms_pop_barplot.log"
     script: SRC_DIR+"/cms_pop_barplot.R"
 
-# vsd average CMS are in ...
 
-### CRIS on single samples but separated 
+### gsva scores on single groups
+rule gsva_msigdb_single_type:
+    input: expr='{type}-tmm.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
+    output: '{class}-scores_{type}.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+

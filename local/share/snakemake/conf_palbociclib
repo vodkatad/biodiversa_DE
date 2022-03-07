@@ -12,7 +12,7 @@ def find_prj_root(path=os.getcwd()):
 PRJ_ROOT=find_prj_root()
 ROOT= os.getenv('SNAKE_ROOT')
                                                     
-NAME="Class comparison LMO-LMX"
+NAME="Responder vs non responder palbociclib"
 DATA=PRJ_ROOT+"/local/share/data/"+NAME
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
