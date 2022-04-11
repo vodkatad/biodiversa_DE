@@ -27,7 +27,7 @@ library(RColorBrewer)
 library(pheatmap)
 library(ggplot2)
 library(edgeR)
-
+save.image("pippo.Rdata")
 
 data <- read.table(gzfile(counts), header=T, sep="\t", row=1)
 if (prefix != "all") {
