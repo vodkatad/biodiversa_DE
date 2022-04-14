@@ -1,0 +1,20 @@
+include: "conf.sk"
+import os
+
+rule plots:
+    input: counts=COUNTS, metadata="samples_datas"
+    output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc_multi", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
+        """
+
+rule de:
+    input: "dds.Rdata"
+    output: tsv="cluster_methy_cutoff{alpha}.deseq2.tsv"#, volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    params: threads=CORES, alpha="{alpha}"#, factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff_multiclass.R"
+
+
+## aggiungere una regola che prende i significativi (top 1000 per padjust), fa la heatmap e prendo vsd e per i significativi faccio la media dell'espressione cluster per cluster 

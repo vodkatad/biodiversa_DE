@@ -143,6 +143,8 @@ rule all_go_gsea_excel:
 # rule to produce vsd filtered as input to clustering procedure
 ## subsetting of vsd for clustering analyses
 # we want to keep all the good LMO (validated considering Simo's list) who have expression data for them and also either LMH or LMX_BASALE
+## working here to finish clustering before making dds.Rdata on Clustering_Cutoff0.05_LFC0.584_ok
+
 rule clustering_selection:
     input: expr_input='vsd.tsv.gz', goodOrBad=PROOT+'/biobanca/local/share/data/biobanca_pdo_buoni.tsv', metadata="samples_datas"
     output: expr_output='vsd_clustering.tsv.gz', metadata_clu="metadata_clustering.tsv", script = "expression.Rdata"

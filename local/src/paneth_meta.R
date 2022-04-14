@@ -19,3 +19,5 @@ tmm <- tmm[wanted, ]
 meta <- colMeans(log(tmm+1))
 
 write.table(as.data.frame(meta), '/home/egrassi/panethmeta_biod5starok_selected.tsv', sep="\t",  quote=F)
+
+samples <- read.table('/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5starOK_cetuxi_treat_PDO_72h_S/samples_data', sep="\t", header=T)
