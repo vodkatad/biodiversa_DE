@@ -73,6 +73,52 @@ write.table(mscores, file='PIS_scores_atp_tmm.tsv', sep="\t", quote=FALSE, row.n
 ggplot(mscores, aes(y=lPIS,x=reorder(model, -lPIS),fill=CTG_5000))+geom_col()+ylab("PIS")+xlab("Model")+theme_bw()+theme(axis.text.x = element_text(size=15, angle = 90, hjust = 1, vjust=0.5))+scale_fill_distiller(palette="RdYlBu")
 ggsave('PNS_tmm_gradientviability.svg')
 
+#### PIS vs ETS1 basale
+
+efpkm <- d[rownames(d) == "H_ETS1",]
+efpkm_pdo_treat <- efpkm[,colnames(efpkm) %in% pdo_treat$id]
+efpkm_pdo_basali <- efpkm[,colnames(efpkm) %in% pdo_basali$id] #no loss of replicates: all . here
+pseudoc <- 1
+elfpkm_pdo_basali <- log(efpkm_pdo_basali+pseudoc)
+elfpkm_pdo_treat <- log(efpkm_pdo_treat+pseudoc)
+ets <- data.frame(id=names(elfpkm_pdo_treat), ETS1=as.numeric(elfpkm_pdo_treat))
+ets_m <- merge(pdo_treat, ets, by="id")
+ets_m <- ets_m[order(ets_m$type),]
+
+
+efc <- function(model, data) {
+  d <- data[data$model == model,]
+  if (nrow(d) == 4) {
+    #fc <- mean(c(d[1, 'ave'] / d[2, 'ave'], d[4, 'ave'] / d[3, 'ave'])) # due to order
+    res <- mean(d[2,'ETS1'],d[3,'ETS1'])
+  } else {
+    #fc <- d[1, 'ave'] / d[2, 'ave']
+    res <- d[2,'ETS1']
+  }
+  return(res)
+}
+
+ets_nt <- as.data.frame(sapply(unique(ets_m$model), efc, ets_m))
+
+mets_pis <- merge(ets_nt, mscores, by.x="row.names", by.y="model")
+ggplot(mets_pis, aes(x=lPIS, y=x, color=CTG_5000))+geom_point()+geom_smooth(method="lm")+theme_bw()+ylab('ETS1 noEGF')+scale_color_distiller(palette="RdYlBu")
+
+etsEGF <- data.frame(id=names(elfpkm_pdo_basali), ETS1=as.numeric(elfpkm_pdo_basali))
+etsEGF$model <- substr(etsEGF$id, 0,7)
+
+egf_ave <- function(model, data) {
+  d <- data[data$model == model,]
+  return(mean(d$ETS1))
+}
+
+ets_basale <- as.data.frame(sapply(unique(etsEGF$model), egf_ave, etsEGF))
+colnames(ets_basale) <- 'ETS'
+etsb_pis <- merge(ets_basale, mscores, by.x="row.names", by.y="model")
+ggplot(etsb_pis, aes(x=PIS, y=ETS, color=CTG_5000))+geom_point()+geom_smooth(method="lm")+theme_bw()+ylab('ETS1 EGF')+scale_color_distiller(palette="RdYlBu")
+
+
+ggplot(mets_pis, aes(x=PNS, y=x, color=CTG_5000))+geom_point()+geom_smooth(method="lm")+theme_bw()+ylab('ETS1 noEGF')+scale_color_distiller(palette="RdYlBu")
+
 ##########
 
 pdo_treat_annot <- pdo_treat[,c('id','type','ctx')]
