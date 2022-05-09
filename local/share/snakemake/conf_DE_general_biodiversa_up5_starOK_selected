@@ -292,6 +292,12 @@ rule pc_batch_summarizedtype:
 # and then stitches it with the others with grid.arrange (its place is now marked with a NA in the layout matrix).
 # If here does not seem a good place move it around freely!
 
+## supplementary figure D with PCA and leuco scores
+
+rule pca_grid:
+    input: pca = "pc_manual_plots.Rdata", leuco = "/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/leuco_score.Rdata"
+    output: fig = "figure_d_supplementary.pdf"
+    script: SRC_DIR+"/grid_pca_leuco.R"
 
 ### gsva scores on single groups
 rule gsva_msigdb_single_type:

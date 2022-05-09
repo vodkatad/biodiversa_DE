@@ -1,0 +1,54 @@
+include: "conf.sk"
+import os
+
+rule plots:
+    input: counts=COUNTS, metadata="samples_datas"
+    output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc_multi", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
+        """
+
+rule de:
+    input: "dds.Rdata"
+    output: tsv="CRIS_LMX_cutoff{alpha}.deseq2.tsv"#, volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    params: threads=CORES, alpha="{alpha}"#, factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff_multiclass.R"
+
+
+## aggiungere una regola che prende i significativi (top 1000 per padjust), fa la heatmap e prendo vsd e per i significativi faccio la media dell'espressione cluster per cluster 
+
+# GO
+
+rule go_input_up_down:
+    input: "CRIS_LMX_cutoff{alpha}.deseq2.tsv"
+    output: up = "CRIS_LMX_cutoff{alpha}.goinsplit_up.tsv", down = "CRIS_LMX_cutoff{alpha}.goinsplit_down.tsv"
+    params: thr=PVAL, specie=SPECIES, lfc=LFC
+    shell:
+        """
+            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 > {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.up}
+            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 < {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
+        """
+
+rule go_universe:
+    input: "CRIS_LMX_cutoff{alpha}.deseq2.tsv"
+    output: "CRIS_LMX_cutoff{alpha}.gouniverse.tsv"
+    params: specie=SPECIES
+    shell:
+        """
+            sed 1d {input} | cut -f 1 | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output}
+        """
+
+rule go_analysis_plot:
+    input: gene_list= "CRIS_LMX_cutoff{alpha}.goinsplit_{direction}.tsv", gene_univ = "CRIS_LMX_cutoff{alpha}.gouniverse.tsv"
+    output: GO_r = "GO_results_CRIS_LMX_cutoff{alpha}_{direction}.tsv", out_dir=directory('barplot_go_CRIS_LMX_cutoff{alpha}_{direction}')
+    script: SRC_DIR+'/GO_analysis.R'
+
+
+## filtering DEG results
+
+# rule filtering:
+#     input: deg = "cluster_methy_cutoff0.05.deseq2.tsv", expr = "vsd.tsv.gz", sample = "samples_datas"
+#     output: sign = "means_cluster_sign_genes.tsv", top = "top_100_clusters_sign_genes.tsv", pbig = "heatmap_sign_genes.png", psmall = "heatmap_100_genes.png"
+#     script: SRC_DIR+'/filtering_deg_results.R'

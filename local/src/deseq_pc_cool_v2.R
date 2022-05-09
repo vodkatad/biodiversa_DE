@@ -8,6 +8,7 @@ number1 <- as.numeric(snakemake@wildcards[["pc1"]])
 number2 <- as.numeric(snakemake@wildcards[["pc2"]])
 what <- snakemake@wildcards[["what"]]
 
+save.image("pc_type.Rdata")
 
 pc_cool <- function (object, intgroup = "condition", pc1=1, pc2 =2, ntop = 500, returnData = FALSE, plotfile, legend=TRUE) {
     rv <- rowVars(assay(object))
