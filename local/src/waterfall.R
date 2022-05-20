@@ -4,8 +4,9 @@ library(ggplot2)
 args <- commandArgs(trailingOnly=TRUE)
 input <- args[[1]]
 genen <- args[[2]]
-output1 <- args[[3]]
-output2 <- args[[4]]
+output1_wf <- args[[3]]
+output2_repli <- args[[4]]
+output3_averaged <- args[[5]]
 
 expr <- read.table(input, sep="\t", header=FALSE)
 colnames(expr) <- c('lsample','gene')
@@ -14,12 +15,14 @@ f <- as.data.frame(sapply(levels(expr$sample), function(x) { mean(expr[expr$samp
 colnames(f) <- 'expr'
 f$model <- rownames(f)
 
+write.table(f, output3_averaged, sep="\t", quote=FALSE, row.names=FALSE)
+
 tt <- table(expr$sample)
 dup <- names(tt[tt>1])
 fdup <- expr[expr$sample %in% dup,]
 fdup <- fdup[order(fdup[,'gene']),]
 p <- ggplot(fdup, aes(x=reorder(sample, gene), y=gene)) +  geom_point() +theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ggtitle(genen)
-ggsave(output2, plot=p)
+ggsave(output2_repli, plot=p)
 
 textSize <- 1
 current_theme <-
@@ -53,10 +56,10 @@ current_theme <-
   )
 f$l <- log2(f$expr+1)
 me <- median(f$l)
-save.image(paste0(output1, '.Rdata'))
+save.image(paste0(output1_wf, '.Rdata'))
 #p <- ggplot(f, aes(y=l,x=reorder(model, -l)))+geom_col(colour='black')+ylab('expr')+xlab("")+current_theme+scale_fill_manual(values=c("darkgrey","orange"))+ggtitle(genen)+geom_hline(aes(yintercept=me, linetype="1"), size=1,color="darkblue")+scale_x_discrete(expand=expansion(add=4))
 p <- ggplot(f, aes(y=l,x=reorder(model, -l)))+geom_col()+ylab('expr')+xlab("")+current_theme+ggtitle(genen)+geom_hline(aes(yintercept=me, linetype="1"), size=1,color="darkblue")+scale_x_discrete(expand=expansion(add=4))
 p <- p+scale_linetype_manual(name = "median", labels = "", values="solid") 
 
-ggsave(output1, plot=p)
+ggsave(output1_wf, plot=p)
 

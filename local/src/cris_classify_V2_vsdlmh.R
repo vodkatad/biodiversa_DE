@@ -5,7 +5,7 @@ library(tidyverse)
 exprfile <- snakemake@input[["expr"]]
 outPrefix <- snakemake@params[["prefix"]]
 
-exprfile <- "/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/LMH_gene_genealogyall.tsv"
+#exprfile <- "/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/LMH_gene_genealogyall.tsv"
 ex <- read.table(exprfile, sep="\t", header=TRUE)
 # ex <- as.data.frame(t(ex))
 # 

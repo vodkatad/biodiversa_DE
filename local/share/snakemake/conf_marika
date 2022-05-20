@@ -12,7 +12,7 @@ def find_prj_root(path=os.getcwd()):
 PRJ_ROOT=find_prj_root()
 ROOT= os.getenv('SNAKE_ROOT')
                                                     
-NAME="Magnifici30"
+NAME="KRAS deg"
 DATA=PRJ_ROOT+"/local/share/data/"+NAME
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
@@ -24,7 +24,7 @@ COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
 #DESIGN="~batch+time+treat"
-DESIGN="~batch+type"
+DESIGN="~type"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -62,9 +62,9 @@ SELECTED = "to do Elena check origin of PDO_cetuxi"
 
 
 rule samples_data:
-    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
+    input: txt = "rasdep_20220207.txt", metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
     output: meta="samples_data"
-    script: SRC_DIR+"/magnifici30_lmx.R"
+    script: SRC_DIR+"/kras_samplesdata.R"
 
 #CRC0166LMX0A05011TUMR05000      CRC0166 1       6w      NT -> this was the first design with everything together
 # fixme or was it correct to consider the NT at different times? or we could work separately at 6w and 72h...yes, let's do that. 
@@ -84,7 +84,6 @@ MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
 H_MARKER=""
 M_MARKER=""
 SELECTED=""
-
 
 
 CHOSEN='CRC0327,CRC0399,CRC0069,CRC0322,CRC1331,CRC1272,CRC0542,CRC0059'
@@ -114,32 +113,29 @@ rule de_shrink:
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff_shrink.R"
 
-rule all_go_gsea_heatmap:
-    input: expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_up.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]), 
-            expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_down.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]),
-            expand("GSEA_results_H_type_cutoff0.05-{nom}.vs.{den}.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"])
-    output: hm = "heatmap_go_gsea.pdf"
-    script: SRC_DIR+"/pheatmap_diffexpr_list.R"
+# rule all_go_gsea_heatmap:
+#     input: expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_up.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]), 
+#             expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_down.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]),
+#             expand("GSEA_results_H_type_cutoff0.05-{nom}.vs.{den}.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"])
+#     output: hm = "heatmap_go_gsea.pdf"
+#     script: SRC_DIR+"/pheatmap_diffexpr_list.R"
 
-## pheatmap_diffexpr_list is hardcoded for pvalue 0.05, changed momentarly in 0.001, maybe threshold?
-rule all_go_gsea_heatmap_cutoff:
-    input: expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_up.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]), 
-            expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_down.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]),
-            expand("GSEA_results_H_type_cutoff0.05-{nom}.vs.{den}.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"])
-    output: hm = "heatmap_go_gsea_0.05.pdf", sign_go_gsea = "significant_go_gsea_0.05.tsv", hm_20 = "heatmap_go_gsea_0.05_subset.pdf", sign_go = "significant_go.tsv"
-    script: SRC_DIR+"/pheatmap_diffexpr_list.R"            
+# ## pheatmap_diffexpr_list is hardcoded for pvalue 0.05, changed momentarly in 0.001, maybe threshold?
+# rule all_go_gsea_heatmap_cutoff:
+#     input: expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_up.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]), 
+#             expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_down.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]),
+#             expand("GSEA_results_H_type_cutoff0.05-{nom}.vs.{den}.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"])
+#     output: hm = "heatmap_go_gsea_0.05.pdf", sign_go_gsea = "significant_go_gsea_0.05.tsv", hm_20 = "heatmap_go_gsea_0.05_subset.pdf", sign_go = "significant_go.tsv"
+#     script: SRC_DIR+"/pheatmap_diffexpr_list.R"            
 
-rule all_go_gsea_excel:
-    input: expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_up.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]), 
-            expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_down.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]),
-            expand("GSEA_results_H_type_cutoff0.05-{nom}.vs.{den}.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"])
-    output: sign_go_gsea_xls = "go_gsea_LFC0.5_cutoff0.05.xlsx", merged_tsv = "go_gsea_LFC0.5_cutoff0.05.tsv"
-    script: SRC_DIR+"/excel_sign.R" 
+# rule all_go_gsea_excel:
+#     input: expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_up.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]), 
+#             expand("GO_results_type_cutoff0.05-{nom}.vs.{den}_down.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"]),
+#             expand("GSEA_results_H_type_cutoff0.05-{nom}.vs.{den}.tsv", zip, nom = ["LMO_BASALE", "LMX_BASALE", "LMO_BASALE"], den = ["LMH", "LMH", "LMX_BASALE"])
+#     output: sign_go_gsea_xls = "go_gsea_LFC0_cutoff0.05.xlsx", merged_tsv = "go_gsea_LFC0_cutoff0.05.tsv"
+#     script: SRC_DIR+"/excel_sign.R" 
 
-
-rule get_livios_genes:
-    input: tsv="type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv"
-    output: de_genes = "type_cutoff0.05-resistant.vs.sensitive.deseq2_livios_genes.tsv", excel = "differential_expression_livios_genes.xlsx"
-    script: SRC_DIR+"/livios_genes.R"
-
-
+rule gsea_sign:
+    input: c2 = "GSEA_results_C2_type_cutoff0.05-4Q.vs.1Q.tsv", h = "GSEA_results_H_type_cutoff0.05-4Q.vs.1Q.tsv"
+    output: res = "gsea_sign_qvalues.tsv", xls = "gsea_sign_qvalues.xls"
+    script: SRC_DIR+"/sign_gsea.R"
