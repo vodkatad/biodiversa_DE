@@ -13,7 +13,7 @@ samples_data <- read.table('samples_data', sep="\t", header=T)
 rownames(samples_data) <- samples_data$id
 samples_data$id <- NULL
 
-#THR <- 0.5849625
+THR <- 0.5849625
 THR <- 0
 PC <- 1
 deg_lf <- deg[deg$log2FoldChange > THR,]
