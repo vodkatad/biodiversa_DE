@@ -62,9 +62,9 @@ SELECTED = "to do Elena check origin of PDO_cetuxi"
 
 
 rule samples_data:
-    input: txt = "rasdep_20220207.txt", metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
+    input: txt = "RASdepscore.xlsx", metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
     output: meta="samples_data"
-    script: SRC_DIR+"/kras_samplesdata.R"
+    script: SRC_DIR+"/new_kras_samplesdata.R"
 
 #CRC0166LMX0A05011TUMR05000      CRC0166 1       6w      NT -> this was the first design with everything together
 # fixme or was it correct to consider the NT at different times? or we could work separately at 6w and 72h...yes, let's do that. 
