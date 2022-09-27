@@ -28,8 +28,8 @@ rule metric_gct:
             zcat {input} | head -n 1 > {output}.tmp || echo 'plh'
             zcat {input} | sed 1d | sed 's/^{params.specie}_//1' >> {output}.tmp
             echo "#1.2" > {output}
-            NROW=`cat {output}.tmp | wc -l`
-            NCOL=`head -n1 {output}.tmp | bawk '{{print NF-1}}'` 
+            NROW=`cat {output}.tmp | sed 1d | wc -l`
+            NCOL=`head -n1 {output}.tmp | bawk '{{print NF}}'` 
             echo -e "$NROW\\t$NCOL" >> {output}
             {params.tool} {output}.tmp {output}
             rm {output}.tmp
