@@ -292,6 +292,12 @@ rule pc_batch_summarizedtype:
 # and then stitches it with the others with grid.arrange (its place is now marked with a NA in the layout matrix).
 # If here does not seem a good place move it around freely!
 
+## supplementary figure D with PCA and leuco scores
+
+rule pca_grid:
+    input: pca = "pc_manual_plots.Rdata", leuco = "/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/leuco_score.Rdata"
+    output: fig = "figure_d_supplementary.pdf"
+    script: SRC_DIR+"/grid_pca_leuco.R"
 
 ### gsva scores on single groups
 rule gsva_msigdb_single_type:
@@ -302,4 +308,67 @@ rule gsva_msigdb_single_type:
         """
             {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
         """
+### TUMOR of origin
+#egrassi@godot:/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected$ sed 1d prediction__mnt_trcanmed_snaketree_prj_DE_RNASeq_dataset_Biodiversa_up5_starOK_selected_log2tmm_pc1_filled.csv | grep -v COADREAD | tr "," "\t"| bawk '{print substr($1,0,7)}' |sort | uniq -c | 
+#tr -s " " "\t" | cut -f 2,3 > other
+#egrassi@godot:/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected$ sed 1d prediction__mnt_trcanmed_snaketree_prj_DE_RNASeq_dataset_Biodiversa_up5_starOK_selected_log2tmm_pc1_filled.csv | grep  COADREAD | tr "," "\t"| bawk '{print substr($1,0,7)}' |sort | uniq -c | tr -s " " "\t" | cut -f 2,3 > coad
 
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected$ cat <(head -n1 pippo_tmm.tsv | bawk '{print "entr", $0}') <(cat tmm_entrez.tsv) > tmm_entrez_header.tsv
+
+#d <- read.table('tmm_entrez_header.tsv', header=T,sep="\t")
+#head(colnames(d))
+#head(d$entr)
+#d$entr <- as.character(d$entr)
+#head(d$entr)
+#dd <- dd[!is.na(dd$entr),]
+#dd <- d[!is.na(d$entr),]
+#dim(dd)
+#dim(d)
+#table(grepl(',', dd$entr))
+#dd <- dd[!grepl(',', dd$entr), ]
+#dim(dd)
+#ddd <- dd[!(duplicated(dd$entr) | duplicated(dd$entr, fromLast = TRUE)),]
+#dim(ddd)
+#rownames(dd) <- dd$entr
+#dd$entr <- NULL
+#td <- t(dd)
+#colnames(td) <- paste0('X', colnames(td))
+#logtd <- log2(td+1)
+#write.table(logtd, "log2tmm_pc1.csv", sep=",", quote=F)
+#
+#(tf-cpu) [root@1b0419c17e50 scripts]# python RunPrediction.py --data_set /mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/log2tmm_pc1.csv
+#
+#Using model:
+#Inception_40_icgc_29class
+#Traceback (most recent call last):
+#  File "RunPrediction.py", line 17, in <module>
+#    from Model import ExternalValidate, cross_validate_keras, reshape_data_1d, reset_weights
+#  File "Helpers/Model.py", line 15, in <module>
+#    import DataRna as Data
+#  File "Helpers/DataRna.py", line 34, in <module>
+#    df_new = df_new[common_columns]
+#  File "/root/anaconda3/envs/tf-cpu/lib/python3.6/site-packages/pandas/core/frame.py", line 2905, in __getitem__
+#    indexer = self.loc._get_listlike_indexer(key, axis=1, raise_missing=True)[1]
+#  File "/root/anaconda3/envs/tf-cpu/lib/python3.6/site-packages/pandas/core/indexing.py", line 1254, in _get_listlike_indexer
+#    self._validate_read_indexer(keyarr, indexer, axis, raise_missing=raise_missing)
+#  File "/root/anaconda3/envs/tf-cpu/lib/python3.6/site-packages/pandas/core/indexing.py", line 1304, in _validate_read_indexer
+#    raise KeyError(f"{not_found} not in index")
+#KeyError: "['X1584', 'X4308', 'X644511', 'X3045', 'X150677', 'X122706', 'X79923', 'X3080', 'X127124', 'X3047', 'X89792', 'X653509', 'X5897', 'X9623', 'X644591', 'X6440', 'X2657', 'X276'] not in index"
+#
+#ok not so straightforward, we do not have certain genes?
+#
+#letś fill them with 0
+#
+#d <- read.csv('log2tmm_pc1.csv')
+#w <-c('X1584', 'X4308', 'X644511', 'X3045', 'X150677', 'X122706', 'X79923', 'X3080', 'X127124', 'X3047', 'X89792', 'X653509', 'X5897', 'X9623', 'X644591', 'X6440', 'X2657', 'X276')
+#dim(d)
+#df <- data.frame(matrix(rep(0, 1189*length(w)), ncol=length(w))
+#)
+#dim(df)
+#colnames(df) <- 
+#w
+#head(df
+#)
+#dd <- cbind(d, df)
+#write.table(dd, file='log2tmm_pc1_filled.csv', sep=",", quote=F)
+#history()

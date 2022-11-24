@@ -119,6 +119,20 @@ ggplot(etsb_pis, aes(x=PIS, y=ETS, color=CTG_5000))+geom_point()+geom_smooth(met
 
 ggplot(mets_pis, aes(x=PNS, y=x, color=CTG_5000))+geom_point()+geom_smooth(method="lm")+theme_bw()+ylab('ETS1 noEGF')+scale_color_distiller(palette="RdYlBu")
 
+efcc <- function(model, data) {
+  d <- data[data$model == model,]
+  if (nrow(d) == 4) {
+    #fc <- mean(c(d[1, 'ave'] / d[2, 'ave'], d[4, 'ave'] / d[3, 'ave'])) # due to order
+    res <- mean(d[1,'ETS1'],d[4,'ETS1'])
+  } else {
+    #fc <- d[1, 'ave'] / d[2, 'ave']
+    res <- d[1,'ETS1']
+  }
+  return(res)
+}
+
+ets_ctx <- as.data.frame(sapply(unique(ets_m$model), efcc, ets_m))
+
 ##########
 
 pdo_treat_annot <- pdo_treat[,c('id','type','ctx')]

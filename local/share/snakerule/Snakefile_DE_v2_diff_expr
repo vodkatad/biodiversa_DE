@@ -18,18 +18,28 @@ rule de:
 
 ## correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
 
-## rule that removes H_ / M_ and filters only one kind of genes from metric.tsv.gz files
-rule species_specific_matrices:
+# rule that removes H_ / M_ to generate a .gct file for GSEA
+rule metric_gct:
     input: "{metric}.tsv.gz"
-    output: "{metric}_"+SPECIES+".tsv.gz"
-    params: specie=SPECIES
+    output: "{metric}.gct"
+    params: specie=SPECIES, tool=BIN_DIR+'/gctize'
     shell:
         """
             zcat {input} | head -n 1 > {output}.tmp || echo 'plh'
             zcat {input} | sed 1d | sed 's/^{params.specie}_//1' >> {output}.tmp
-            gzip -c {output}.tmp > {output}
+            echo "#1.2" > {output}
+            NROW=`cat {output}.tmp | sed 1d | wc -l`
+            NCOL=`head -n1 {output}.tmp | bawk '{{print NF}}'` 
+            echo -e "$NROW\\t$NCOL" >> {output}
+            {params.tool} {output}.tmp {output}
             rm {output}.tmp
         """
+
+rule cls:
+    input: samples="samples_data", expr="tmm.tsv.gz"
+    output: clsf="{what}_{nom}.vs.{den}.cls"
+    script: SRC_DIR+'/clsize.R'
+
 
 # GO
 rule go_input:
@@ -136,6 +146,16 @@ rule gsea_input:
             echo -e "geneid\\tname\\tsort" > {output}
             sed 1d {input} | bawk '{{print $1,"{params.name}",$3}}' | perl -pane 's/{params.specie}_(.+)/$1/g' >> {output}
         """
+
+rule gsea_input_rnk:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.rnk"
+    shell: 
+        """ 
+            echo -e "#gene\\trank" > {output}
+            sed 1d {input} >> {output}
+        """
+    
 
 rule gsea_input_2:
     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"

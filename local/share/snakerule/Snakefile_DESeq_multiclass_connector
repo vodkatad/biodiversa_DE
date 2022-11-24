@@ -1,0 +1,72 @@
+include: "conf.sk"
+import os
+
+rule plots:
+    input: counts=COUNTS, metadata="samples_datas_{sclass}"
+    output: "dds_{sclass}.Rdata", "fpkm_{sclass}.tsv.gz", "tmm_{sclass}.tsv.gz", "vsd_{sclass}.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc_multi", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
+        """
+
+rule de:
+    input: "dds_{sclass}.Rdata"
+    output: tsv="connector_{sclass}_cutoff{alpha}.deseq2.tsv"#, volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    params: threads=CORES, alpha="{alpha}"#, factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff_multiclass.R"
+
+
+## aggiungere una regola che prende i significativi (top 1000 per padjust), fa la heatmap e prendo vsd e per i significativi faccio la media dell'espressione cluster per cluster 
+
+# GO
+
+# quick hack to have up==down, here up and down do not make sense like in the 1 vs 1 comparison hence we start with all significant genes for GO analyses
+rule go_input_up_down:
+    input: "connector_{sclass}_cutoff{alpha}.deseq2.tsv"
+    output: up = "connector_{sclass}_cutoff{alpha}.goinsplit_up.tsv", down = "connector_{sclass}_cutoff{alpha}.goinsplit_down.tsv"
+    params: thr=PVAL, specie=SPECIES, lfc=LFC
+    shell:
+        """
+            sed 1d {input} | bawk '$7 < {params.thr} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.up}
+            sed 1d {input} | bawk '$7 < {params.thr} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
+        """
+
+rule go_universe:
+    input: "connector_{sclass}_cutoff{alpha}.deseq2.tsv"
+    output: "connector_{sclass}_cutoff{alpha}.gouniverse.tsv"
+    params: specie=SPECIES
+    shell:
+        """
+            sed 1d {input} | cut -f 1 | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output}
+        """
+
+rule go_analysis_plot:
+    input: gene_list= "connector_{sclass}_cutoff{alpha}.goinsplit_{direction}.tsv", gene_univ = "connector_{sclass}_cutoff{alpha}.gouniverse.tsv"
+    output: GO_r = "GO_results_connector_{sclass}_cutoff{alpha}_{direction}.tsv", out_dir=directory('barplot_go_connector_{sclass}_cutoff{alpha}_{direction}')
+    script: SRC_DIR+'/GO_analysis.R'
+
+
+## filtering DEG results
+
+rule filtering:
+    input: deg = "connector_{sclass}_cutoff0.05.deseq2.tsv", expr = "vsd_{sclass}.tsv.gz", sample = "samples_datas_{sclass}"
+    output: sign = "means_connector_{sclass}_sign_genes.tsv", top = "top_100_connector_{sclass}_sign_genes.tsv", pbig = "connector_{sclass}_heatmap_sign_genes.png", psmall = "connector_{sclass}_heatmap_100_genes.png"
+    script: SRC_DIR+'/filtering_deg_results.R'
+
+### GSEA
+
+rule gsea_input_2:
+    input: "connector_{sclass}_cutoff{alpha}.deseq2.tsv"
+    output: "connector_{sclass}_cutoff{alpha}.gseain_2.tsv"
+    params: lfc=LFC, thr=PVAL, specie=SPECIES
+    shell:
+        """
+            echo -e "gene\\tFreq" > {output}
+            sed 1d {input} | bawk '{{print $1, $3}}' | perl -pane 's/^{params.specie}_(.+)/$1/g' >> {output}
+        """
+
+rule gsea_analysis_plot:
+    input: gene_res_freq = "connector_{sclass}_cutoff{alpha}.gseain_2.tsv"
+    output: GSEA_r = "GSEA_results_{msign}_connector_{sclass}_cutoff{alpha}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}_connector_{sclass}_cutoff{alpha}.pdf"
+    script: SRC_DIR+'/GSEA_analysis.R'

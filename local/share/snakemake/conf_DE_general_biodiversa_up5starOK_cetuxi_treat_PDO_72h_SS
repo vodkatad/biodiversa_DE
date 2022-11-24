@@ -90,9 +90,11 @@ MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
 H_MARKER=""
 M_MARKER=""
 SELECTED=""
+SELECTED2=""
+MEDA_BASALI=""
+METASAFE=""
 
-
-CHOSEN='CRC0327,CRC0399,CRC0069,CRC0322,CRC1331,CRC1272,CRC0542,CRC0059'
+CHOSEN='CRC0327,CRC0069,CRC0322,CRC1331,CRC0542,CRC0059'
 rule striplots_chosen:
     input: wanted=BASE_DATA+'/{what}', dds="dds.Rdata"
     output: directory("{what}_lineplots_{class}")
@@ -118,3 +120,4 @@ rule de_shrink:
     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff_shrink.R"
+

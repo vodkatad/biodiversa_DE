@@ -80,5 +80,6 @@ egoall_df$p.adjust <- p.adjust(egoall_df$pvalue, method='BH')
 write.table(egoall_df, file = GO_r, quote = FALSE, sep = "\t", row.names = TRUE,
             col.names = TRUE)
 
+save.image('GO.Rdata')
 # then print a single dataframe with all the information together
 # we should understand how to do the same for GSEA...
