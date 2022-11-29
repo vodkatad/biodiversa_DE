@@ -212,6 +212,14 @@ rule lmh:
             cat {input.cris} | bawk 'NR==1' > {output.lmh}
             cat {input.cris} | sed 1d | filter_1col 1 <(bawk '$7 ~ "LMH" {{print $1}}' {input.meda}) >> {output.lmh}
             """
+rule prh:
+    input: cris="cris_{metric}_prediction_result_nc_basali.tsv", meda=METASAFE
+    output: lmh="cris_{metric}_prediction_result_nc_prh.tsv"
+    shell:
+        """
+            cat {input.cris} | bawk 'NR==1' > {output.lmh}
+            cat {input.cris} | sed 1d | filter_1col 1 <(bawk '$7 ~ "PRH" {{print $1}}' {input.meda}) >> {output.lmh}
+            """
 
 # rule cris_classes_nc collapsed, we want to collapse at smodel for population freqs, at arm for comparisons vs old cris for example and Simo's pairs
 rule cris_classes_with_nc:

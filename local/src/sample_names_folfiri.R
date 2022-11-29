@@ -14,7 +14,7 @@ casi <- casi[order(casi$folfiri.vol_3w, decreasing = TRUE),]
 casi$ntile <- ntile(casi$folfiri.vol_3w, 4)
 casi$ntile3 <- ntile(casi$folfiri.vol_3w, 3)
 
-ggplot(casi, aes(x = reorder(model, -folfiri.vol_3w), y = folfiri.vol_3w, fill = ntile)) + geom_bar(stat = "identity")+
+ggplot(casi, aes(x = reorder(model, -folfiri.vol_3w), y = folfiri.vol_3w, fill = as.factor(ntile))) + geom_bar(stat = "identity")+
   theme(axis.text.x = element_text(angle = 90, size = 5))
 
 ggplot(casi, aes(x = reorder(model, -folfiri.vol_3w), y = folfiri.vol_3w, fill = ntile3)) + geom_bar(stat = "identity")+
@@ -51,12 +51,12 @@ names(res)[names(res) == "model"] <- "sample"
 
 for (i in seq(rownames(res))){
   if (res[i, "quartile"] == 1) {
-    res[i, "quartile"] <- "1Q"
+    res[i, "quartile"] <- "PR"
   } else {
-    res[i, "quartile"] <- "3Q"
+    res[i, "quartile"] <- "PD"
   }
 }
 
-names(res)[names(res) == "quartile"] <- "Q"
+names(res)[names(res) == "quartile"] <- "type"
 
 write.table(res, file = meta, quote = FALSE, sep = "\t", col.names = TRUE)

@@ -38,7 +38,7 @@ rule metric_gct:
 rule cls:
     input: samples="samples_data", expr="tmm.tsv.gz"
     output: clsf="{what}_{nom}.vs.{den}.cls"
-    script: SRC_DIR+'/clsize.R'
+    script: SRC_DIR+'/clsize_open.R'
 
 
 # GO
@@ -146,15 +146,6 @@ rule gsea_input:
             echo -e "geneid\\tname\\tsort" > {output}
             sed 1d {input} | bawk '{{print $1,"{params.name}",$3}}' | perl -pane 's/{params.specie}_(.+)/$1/g' >> {output}
         """
-
-rule gsea_input_rnk:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.rnk"
-    shell: 
-        """ 
-            echo -e "#gene\\trank" > {output}
-            sed 1d {input} >> {output}
-        """
     
 
 rule gsea_input_2:
@@ -165,6 +156,15 @@ rule gsea_input_2:
         """
             echo -e "gene\\tFreq" > {output}
             sed 1d {input} | bawk '{{print $1, $3}}' | perl -pane 's/^{params.specie}_(.+)/$1/g' >> {output}
+        """
+
+rule gsea_input_rnk:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.rnk"
+    shell: 
+        """ 
+            echo -e "#gene\\trank" > {output}
+            sed 1d {input} >> {output}
         """
 
 rule gsea_analysis_plot:
