@@ -10,6 +10,8 @@ rule plots:
             {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
         """
 
+## dds.Rdata rigirato il 29/11 per necessità di ottenre vsd per il calcolo del proliferative index
+
 rule de:
     input: "dds.Rdata"
     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
