@@ -241,11 +241,11 @@ one.data$new_log_size <- NA
 
 for (i in rownames(one.data)) {
   if (one.data[i, "log_size"] < 2.01) {
-    one.data[i, "new_log_size"] <- 0.47
+    one.data[i, "new_log_size"] <- 3
   } else if (one.data[i, "log_size"] > 2.01 & one.data[i, "log_size"] < 2.5 | one.data[i, "log_size"] == 2.01) {
-    one.data[i, "new_log_size"] <- 2.01
+    one.data[i, "new_log_size"] <- 5
   } else {
-    one.data[i, "new_log_size"] <- 3.0
+    one.data[i, "new_log_size"] <- 8
   }
 }
 
@@ -273,10 +273,10 @@ p1 <- p1 + geom_point(aes( plot_X, plot_Y, colour = value, size = new_log_size))
 p1 <- p1 + scale_colour_gradient(low = "red", high = "yellow")#, limits = c( min(one.data$value), 5) );
 p1 <- p1 + geom_point( aes(plot_X, plot_Y, size = new_log_size), shape = 21, fill = "transparent", colour = I (alpha ("white", 0.6) ))# + scale_size_area();
 #p1 <- p1 + scale_size(one.data$new_log_size) + theme_bw(); # + scale_fill_gradientn(colours = heat_hcl(7), limits = c(-300, 0) );
-p1 <- p1 + scale_size_continuous(breaks = c(0.47, 2.01, 3.0)) + theme_bw()
+p1 <- p1 + scale_size_continuous(labels = c(0.47, 2.01, 3.0), breaks = c(3,5,8)) + theme_bw()
 ex <- one.data [ one.data$chosen == "YES", ];
 #ex <- one.data [ one.data$dispensability < 0.15, ]
-p1 <- p1 + geom_label_repel(data = ex, aes(plot_X, plot_Y, label = description), color = 'black', size = 3,
+p1 <- p1 + geom_label_repel(data = ex, aes(plot_X, plot_Y, label = description), color = 'black', size = (6/2.8),
                             box.padding = unit(0.35, "lines"),
                             point.padding = unit(0.5, "lines"),
                             segment.color = 'grey50'
@@ -287,7 +287,7 @@ one.x_range = max(one.data$plot_X) - min(one.data$plot_X);
 one.y_range = max(one.data$plot_Y) - min(one.data$plot_Y);
 p1 <- p1 + xlim(min(one.data$plot_X)-one.x_range/10,max(one.data$plot_X)+one.x_range/10);
 p1 <- p1 + ylim(min(one.data$plot_Y)-one.y_range/10,max(one.data$plot_Y)+one.y_range/10);
-
-ggsave("revigo_lmx_lmh_down.pdf", width = 11.69, height = 8.27)
 p1 <- p1 + unmute_theme
+ggsave("revigo_lmx_lmh_down.pdf", width = 120, height = 107, useDingbats=FALSE, units = "mm")
+p1
 dev.off()
