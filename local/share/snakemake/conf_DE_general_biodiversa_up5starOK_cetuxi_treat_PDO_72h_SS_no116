@@ -1,0 +1,131 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT= os.getenv('SNAKE_ROOT')
+                                                    
+NAME="Biodiversa_up5starOK_cetuxi_treat_PDO_72h_S"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+BASE_DATA=PRJ_ROOT+"/local/share/data"
+#BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK'
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+#DESIGN="~batch+time+treat"
+DESIGN="~sample+treat"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data # WTF :(
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+PDO_CETUXI=PRJ_ROOT+'/local/share/data/pdo_cetuxi'
+
+# for biodiversa change - in . in metadata
+rule wanted:
+	output: "wanted"
+	shell:
+		"""
+		 echo -e "LMO_cetuxi_72h_NT\\nLMO_cetuxi_72h" > {output}
+		"""
+
+# work on sensible cases only and work on R ones in another dir to substract their 'spurious' DEG
+# decided to work separately at 72h and 6w 
+SELECTED = "to do Elena check origin of PDO_cetuxi"
+# Done the 18/01/23, origin unknown but checked and it is ok, selection can be described as S < -50 , R > 35 (even if in the code run as 30 initially) in xeno.
+# last sentence is not true due to:
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5starOK_cetuxi_treat_PDX_R_no1241$ grep CRC0494 /scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot
+#CRC0494LMX0A02004TUMR06000      pass    pass    2       LMX_BASALE      0.3355274652903779      NA
+#CRC0494LMX0A05016TUMR02000      pass    pass    2       LMX_cetux_6w_NT 0.3355274652903779      NA
+#CRC0494LMX0A05032TUMR02000      pass    pass    2       LMX_cetux_6w    0.3355274652903779      NA
+# rerun everything without him or not? Let's try.
+# Cannot define on PDO in vitro cause 116 does not have the experiment, 0.405551195463539 is the higher CTG in PR
+#egrassi@godot:/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5starOK_cetuxi_treat_PDO_72h_S$ filter_1col 1 <(cut -f 1 samples_data ) < /scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier | wc -l
+#48
+#egrassi@godot:/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5starOK_cetuxi_treat_PDO_72h_S$ wc -l samples_data
+#49 samples_data
+# also PDO_R are ok (14), PDX_R (56), PDX_S (89)
+
+
+rule samples_data:
+    input: meta=BIT_DIR+"/../july2020/selected_metadata_annot", wanted="wanted", cetuxi=PDO_CETUXI
+    output: "samples_data"
+    shell:
+        """
+			echo -e "id\\tsample\\tbatch\\ttreat" > {output}
+			cat {input.meta} | bawk '$2=="pass" || $2=="NA"' | bawk '$3=="pass"'| perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/'  \
+			| cut -f 1,4,5,6 | sed 's/\.1//1' | grep -v CRC0116 | filter_1col 3 {input.wanted} | tr "_" "\\t" | bawk '$5=="72h"' \
+			| bawk '$6=="NT" {{print $1, substr($1,0,7), $2,"NT"}} $6!="NT"{{print $1,substr($1,0,7),$2,"cetuxi"}}' | filter_1col 2 <(bawk '$2=="PR"{{print $1}}' {input.cetuxi}) >> {output}
+        """
+
+#CRC0166LMX0A05011TUMR05000      CRC0166 1       6w      NT -> this was the first design with everything together
+# fixme or was it correct to consider the NT at different times? or we could work separately at 6w and 72h...yes, let's do that. 
+# then two separated directories for R and S cases
+
+
+LFC=0.5849625 # 1.5 FC
+#LFC=0
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+
+
+MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
+H_MARKER=""
+M_MARKER=""
+SELECTED=""
+SELECTED2=""
+MEDA_BASALI=""
+METASAFE=""
+
+CHOSEN='CRC0327,CRC0069,CRC0322,CRC0542,CRC0059'
+rule striplots_chosen:
+    input: wanted=BASE_DATA+'/{what}', dds="dds.Rdata"
+    output: directory("{what}_lineplots_{class}")
+    params: tool=BIN_DIR+"/striplots_single_sample_mirated", chosen=CHOSEN
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} {wildcards.class} {params.chosen}
+        """
+
+
+rule plots_shrink:
+    input: counts=COUNTS, metadata="samples_data"
+    output: "dds_nobeta.Rdata", "fpkm_nobeta.tsv.gz", "tmm_nobeta.tsv.gz", "vsd_nobeta.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc_nobeta", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
+        """
+
+rule de_shrink:
+    input: "dds_nobeta.Rdata"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff_shrink.R"
+
