@@ -1,0 +1,69 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+
+# was test_deg_magnum but we rename it to deg_magnum - 16/03/22 removed results
+# and switched this to work on whole set, rather than on test only
+NAME="test_deg_magnum"
+DATA=PRJ_ROOT+"/local/share/data/"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR=ROOT+'/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+#COUNTS="counts.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+META1=ROOT+"/prj/magnum/dataset/de_tt/0_test_samplesheet.tsv"
+META2=ROOT+"/prj/magnum/dataset/de_tt/0_train_samplesheet.tsv"
+###
+DESIGN="~batch+response"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+#rule rename_cols:
+#    input: matrix=COUNTS_PRE, meta=META
+#    output: hmat=COUNTS
+#    script: SRC_DIR+'/rename_columns.R'
+
+#rule samples_data:
+#    input: meta1=META1, meta2=META2
+#    output: "samples_data"
+#    shell:
+#        """
+#		cat {input.meta1} > {output}
+#		sed 1d {input.meta2} >> {output}
+#       """
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""
+SELECTED2=""
+MEDA_BASALI=''
+METASAFE=''
+
+rule shrinkage:
+	input: chemo= "/scratch/trcanmed/pdxopedia/local/share/data/treats/september2022/folfiri-cetuxi_3w_treated_models.tsv"
+	output: p="plot.pdf", f="shrink.tsv"
+	script: SRC_DIR + "/Shrink.R"
