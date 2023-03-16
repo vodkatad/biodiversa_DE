@@ -11,17 +11,21 @@ def find_prj_root(path=os.getcwd()):
 
 PRJ_ROOT=find_prj_root()
 ROOT=os.getenv('SNAKE_ROOT')                                                    
+
+# was test_deg_magnum but we rename it to deg_magnum - 16/03/22 removed results
+# and switched this to work on whole set, rather than on test only
 NAME="test_deg_magnum"
 DATA=PRJ_ROOT+"/local/share/data/"
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
 
-BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+BIT_DIR=ROOT+'/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
 
 COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
 #COUNTS="counts.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
-META="/mnt/trcanmed/snaketree/prj/magnum/dataset/de_tt/0_test_samplesheet.tsv"
+META1=ROOT+"/prj/magnum/dataset/de_tt/0_test_samplesheet.tsv"
+META2=ROOT+"/prj/magnum/dataset/de_tt/0_train_samplesheet.tsv"
 ###
 DESIGN="~batch+response"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
@@ -40,11 +44,12 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #    script: SRC_DIR+'/rename_columns.R'
 
 rule samples_data:
-    input: meta=META
+    input: meta1=META1, meta2=META2
     output: "samples_data"
     shell:
         """
-		cp {input} {output}
+		cat {input.meta1} > {output}
+		sed 1d {input.meta2} >> {output}
         """
 
 LFC=0.5849625 # 1.5 FC
@@ -55,3 +60,6 @@ DEBUG="yes"
 MARKER=""
 MEDA_DIR=""
 SELECTED=""
+SELECTED2=""
+MEDA_BASALI=''
+METASAFE=''
