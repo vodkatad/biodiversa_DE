@@ -63,3 +63,16 @@ SELECTED=""
 SELECTED2=""
 MEDA_BASALI=''
 METASAFE=''
+
+PROM='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/1500_500_tss.tsv'
+rule select_promoters:
+	input: bed_prom=PROM, deg= 'response_cutoff0.05-ORSD.vs.PD.deseq2.tsv'
+	output: up="up_promoters_deg.bed", down="down_promoters_deg.bed"
+	shell:
+		"""
+			sed 1d {input.deg} | bawk '$3 > 0.58 && $7 < 0.01 {{print $1}}' > {output.up}.tmp
+			sed 1d {input.deg} | bawk '$3 < -0.58 && $7 < 0.01 {{print $1}}' > {output.down}.tmp
+			filter_1col 4 {output.up}.tmp < {input.bed_prom} > {output.up}
+			filter_1col 4 {output.down}.tmp < {input.bed_prom} > {output.down}
+			rm {output.up}.tmp {output.down}.tmp
+		"""
