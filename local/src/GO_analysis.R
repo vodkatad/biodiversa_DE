@@ -75,6 +75,9 @@ setwd("..")
 # call also for MF, BP, produce three separated plots (either use a directory for output or three separate filenames, as you prefer :))
 # rbind the ego@result in a single dataframe after having addead a column 'ontology' with CC, MF or BP , use p.adjust to correct the nominal pvalue in a single run (https://www.biostars.org/p/12182/)
 
+egocc@result$ontology <- "CC"
+egobp@result$ontology <- "BP"
+egomf@result$ontology <- "MF"
 egoall_df <- rbind(egocc@result, egobp@result, egomf@result)
 egoall_df$p.adjust <- p.adjust(egoall_df$pvalue, method='BH')
 write.table(egoall_df, file = GO_r, quote = FALSE, sep = "\t", row.names = TRUE,

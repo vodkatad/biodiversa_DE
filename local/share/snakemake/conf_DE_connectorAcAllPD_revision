@@ -56,9 +56,9 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 
 rule samples_data:
-    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", connector_class = "/scratch/trcanmed/connector/local/share/data/Models.RDs"
+    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", connector_class = "/scratch/trcanmed/connector/local/share/data/Models.RDs", recist_perc_3= "/scratch/trcanmed/biobanca/dataset/V1/cetuximab/cetuxi_perc_w3.tsv"
     output: sample="samples_datas_{first}_{second}"
-    script: SRC_DIR+"/sample_data_connector4all_revision.R"
+    script: SRC_DIR+"/samples_data_conn_Ab_PD_revision.R"
 
 LFC=0.5849625 # 1.5 FC
 CORES=6

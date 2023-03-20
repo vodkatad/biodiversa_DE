@@ -1,6 +1,7 @@
 library(DESeq2)
 library(ggplot2)
-library(gridExtra)
+#library(gridExtra)
+library(ggpubr)
 
 pca_data <- snakemake@input[["pca"]]
 leuco_data <- snakemake@input[["leuco"]]
@@ -44,6 +45,10 @@ if ( color == "Leucocyte" | color == "CAF" | color == "Endothelial") {
   # theme(axis.line=element_line(size=2, colour = "black"))
 }
 lay <- rbind(c(1, 2), c(3, 4), c(5,6), c(7,8))
-m <- grid.arrange(p0, p1, p2, p3, p4, p5, p6, p7, layout_matrix=lay)
-ggsave(filename=figure, plot=m, dpi=300, width=8.3, height=11.7, units="in")
+#m <- grid.arrange(p0, p1, p2, p3, p4, p5, p6, p7, layout_matrix=lay)
+m <- ggarrange(plotlist=list(p0,p1,p2,p3,p4,p5,p6,p7), ncol=2, nrow=4)
+#ggsave(filename=figure, plot=m, dpi=300, width=8.3, height=11.7, units="in")
+pdf(figure, width=8.27, height=11.69)
+print(m+ theme(plot.margin = margin(1.6,1.6,4,1.6, "cm")))
+graphics.off()
 #savehistory('testPC.Rhistory')

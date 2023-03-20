@@ -58,7 +58,7 @@ f$l <- log2(f$expr+1)
 me <- median(f$l)
 save.image(paste0(output1_wf, '.Rdata'))
 #p <- ggplot(f, aes(y=l,x=reorder(model, -l)))+geom_col(colour='black')+ylab('expr')+xlab("")+current_theme+scale_fill_manual(values=c("darkgrey","orange"))+ggtitle(genen)+geom_hline(aes(yintercept=me, linetype="1"), size=1,color="darkblue")+scale_x_discrete(expand=expansion(add=4))
-p <- ggplot(f, aes(y=l,x=reorder(model, -l)))+geom_col()+ylab('expr')+xlab("")+current_theme+ggtitle(genen)+geom_hline(aes(yintercept=me, linetype="1"), size=1,color="darkblue")+scale_x_discrete(expand=expansion(add=4))
+p <- ggplot(f, aes(y=l,x=reorder(model, -l)))+geom_col()+ylab('expr')+xlab("")+current_theme+ggtitle(genen)+geom_hline(aes(yintercept=me, linetype="1"), size=1,color="darkblue")#+scale_x_discrete(expand=expansion(add=4))
 p <- p+scale_linetype_manual(name = "median", labels = "", values="solid") 
 
 ggsave(output1_wf, plot=p)

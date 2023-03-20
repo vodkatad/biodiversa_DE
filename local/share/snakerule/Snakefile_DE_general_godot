@@ -52,6 +52,8 @@ def find_type(wildcards):
         return "LMX_BASALE LMX_BASALE.1 PRX_BASALE PRX_BASALE.1"
     elif wildcards.type == "X":
         return "LMH PRH"
+    else:
+        return wildcards.type
 
 rule my_beloved_type:
     input: data="{gene}_{metric}.tsv", meta=SELECTED
