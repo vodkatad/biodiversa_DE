@@ -68,10 +68,10 @@ rule shrinkage:
 	output: p="plot.pdf", f="shrink.tsv"
 	script: SRC_DIR + "/Shrink.R"
 
-rule lmxBasShrink:
+rule lmx_bas_shrink:
 	input: lmx= "/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier_replisafe", f1= "shrink.tsv"
 	output: f2="lmx_bas_shrink.tsv"
-	script: "/home/jelhajj/R/lmx_bas_shrink.R"
+	script: SRC_DIR + "/lmx_bas_shrink.R"
 
 # next step will be linking the slow-fast classes defined in shrink.tsv
 # with the specific genealogy ids of the aliquots that were sequenced for those models.
