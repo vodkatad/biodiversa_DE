@@ -16,6 +16,7 @@ if (is.null(opt$signature) || is.null(opt$expression) || is.null(opt$outfile) ||
     stop(usage)
 }
 
+save.image("provagsea.R")
 expr_file <- opt$expression
 rds_sign <- opt$signature
 

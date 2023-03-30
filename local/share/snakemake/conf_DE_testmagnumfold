@@ -76,3 +76,32 @@ rule select_promoters:
 			filter_1col 4 {output.down}.tmp < {input.bed_prom} > {output.down}
 			rm {output.up}.tmp {output.down}.tmp
 		"""
+
+
+rule sign_bis:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2bis_sign.tsv"
+    shell:
+        """
+            bawk '$7<0.05' {input} | bawk 'NR==1{{print "gene",$0}}NR!=1{{print $0}}'  | cut -f 1,2,3,4,7  | sed s'/H_//1'  > {output}
+        """
+
+rule select_annote_bis:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2bis_sign_genedesc.tsv"
+    params: tool=BIN_DIR+"/add_description"
+    shell:
+        """
+            {params.tool} -d -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
+        """
+
+rule xlsx_deg:
+    input: "response_cutoff0.05-ORSD.vs.PD.deseq2bis_sign_genedesc.tsv"
+    output: "Suppl_table_XXX1_DEG.xlsx"
+    shell: "tsv_to_xls -i {input} -s DEG -o {output}"
+    
+
+rule xlsx_gsea:
+    input: H="GSEA_results_H_response_cutoff0.05-ORSD.vs.PD.tsv", C2="GSEA_results_C2_response_cutoff0.05-ORSD.vs.PD.tsv"
+    output: "Suppl_table_XXX2_gsea.xlsx"
+    shell: "tsv_to_xls -i {input.H},{input.C2} -s Hallmarks,C2 -o {output}"

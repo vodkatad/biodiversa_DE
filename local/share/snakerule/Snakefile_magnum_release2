@@ -1,7 +1,7 @@
 ROOT="/mnt/trcanmed/snaketree/prj"
 MATRIX="../vsd.tsv.gz"
 CMATRIX='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/merged_hs_mm.tsv.gz'
-
+SCR_DIR="../../../local/src"
 METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
 WANTEDT=ROOT+"/RNASeq_biod_metadata/local/share/data/basali_human_xeno"
 BIN_DIR="../../../local/bin"
@@ -49,6 +49,15 @@ rule gsva_msigdb:
             {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
         """
 
+rule gsva_msigdb_allexpr:
+    input: train_tmm = "train_tmm.tsv.gz", test_tmm = "test_tmm.tsv.gz", rds = "../../../../scRNA/dataset/CRC0327_pseudobulks/c2.symbol.rds"
+    output: gsva_res = "all_matrix_reactome_scores.tsv"
+    script: SCR_DIR+"/gsea_c2_reactome_umberto.R"
+
+rule gsva_msigdb_allexpr_h:
+    input: train_tmm = "train_tmm.tsv.gz", test_tmm = "test_tmm.tsv.gz", rds = "../../../../scRNA/dataset/CRC0327_pseudobulks/h.symbol.rds"
+    output: gsva_res = "all_matrix_h_scores.tsv"
+    script: SCR_DIR+"/gsea_hallmarks_umberto.R"
 
 rule train_test_smodel:
     input: tt=ROOT+'/DE_RNASeq/local/share/data/magnum/DrugResponse_LMXfirslevel_trainTest.csv'
