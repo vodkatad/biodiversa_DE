@@ -1,6 +1,7 @@
 library(reshape2)
 setwd('~/work/def_targeted_sanger672_iorio/charlesriver/')
 
+
 ss <- read.table('ss_charles.txt', sep="\t", header=TRUE)
 soc <- read.table('soc.txt', sep="\t", header=TRUE, stringsAsFactors = FALSE)
 
@@ -69,3 +70,31 @@ ggplot(data=mdata[!is.na(mdata$cetuxi_perc_3w),], aes(x=reorder(id, -cetuxi_perc
 
 
 write.table(mdata, file="metadata_charlesriver.tsv", sep="\t", quote=FALSE, row.names = FALSE)
+
+## godot 15 05 23
+
+#- model 233 has been treated for 314 days with Bevacizumab? Do you by any chance have also the value at 3 weeks? The number in this field is wrong, it should say 21 not 314!
+  
+#- model 243 have two different values for Irinotecan hydrochloride trihydrate, are they replicates? yes
+
+#- the values are the ratio of the tumor volume at week 3 divided by week 0 (before treatment)? I know that you told Livio that they are relative to the starting point but  I wanted to be sure about the formula (since we use v3/v0 -1 usually and therefore have also negative values). Yes that is correct. We take day 0 as 100%
+
+setwd('/mnt/trcanmed/snaketree/prj/magnum/local/share/data/charlesriver')
+
+soc <- read.table('soc.txt', sep="\t", header=TRUE, stringsAsFactors = FALSE)
+soc$id <- paste0(soc$Tissue.Type, "_", soc$Model.Number,  "_PDX")
+soc <- soc[soc$Drug == "Irinotecan hydrochloride trihydrate",] # Oxaliplatin
+soc$rel..Tumor.vol. <- as.numeric(soc$rel..Tumor.vol.)
+
+
+nid <- as.data.frame(table(soc$id))
+uniqueid <- nid[nid$Freq == 1, 'Var1']
+avg243 <- mean(soc[soc$id=="CXF_243_PDX", 'rel..Tumor.vol.']) - 100
+
+soc <- soc[soc$id %in% uniqueid,]
+drug3w <- data.frame(id=c(soc$id, 'CXF_243_PDX'), perc_3w=c((soc$rel..Tumor.vol. -100), avg243))
+
+drug3w$cetuxi_recist <- ifelse(drug3w$perc_3w < -50, 'OR', ifelse(drug3w$perc_3w > 35, 'PD','SD'))
+
+ggplot(data=drug3w[!is.na(drug3w$perc_3w),], aes(x=reorder(id, -perc_3w), y=perc_3w, fill=cetuxi_recist))+geom_bar(stat="identity")+theme_bw()+theme(axis.text.x=element_text(angle=90, vjust=1))
+
