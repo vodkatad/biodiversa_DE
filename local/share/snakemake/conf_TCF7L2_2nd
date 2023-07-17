@@ -1,0 +1,100 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+BROOT=os.getenv('BIOINFO_ROOT')                                                    
+NAME="TCF7L2_2nd"
+DATA=PRJ_ROOT+"/local/share/data/TCF7L2_2nd"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/TCF7L2_2nd/'
+
+COUNTS_PRE=BROOT+"/prj/ngs_standard_processing/dataset/TCF7L2_2nd/GEP.count.gz"
+COUNTS="counts_crc.tsv.gz"
+COUNTS_SH="counts_sh.tsv.gz"
+SAMPLES=DATA+"/samples_names.xlsx"
+GENE_LEN=BIT_DIR+"/gene_len"
+#PREMETA=DATA+'/ss_tcf7l2.txt'
+#META="meta.txt"
+###
+DESIGN="~geno_resp" #CAMBIA APPENA CAPISCI COME FARE
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+#FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+# rule ss:
+#     input: PREMETA
+#     output: META
+#     shell:
+#         """
+#             echo -e "old_id\\tnew_id" > {output}
+#             bawk '{{print $2,$2}}' {input} >> {output}
+#         """
+
+# rule rename_cols:
+#     input: matrix=COUNTS_PRE, meta=META
+#     output: hmat=COUNTS
+#     script: SRC_DIR+'/rename_columns.R'
+
+# rule samples_data:
+#     input: meta=META
+#     output: "samples_data"
+#     shell:
+#         """
+# 			echo -e "id\\tmodel\\tgeno\\tclone" > {output}
+# 			sed 1d {input.meta} | tr "-" "_" | bawk '{{f=$1; gsub("_","\t",$1); print f, $1}}' \\
+#             | bawk '$4==""{{print $1,$2,$3,"NA"}}$4!=""{{print $0}}'  >> {output}
+#         """
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""
+
+rule prepare_counts: 
+    input: counts_or=COUNTS_PRE, samples_or=SAMPLES
+    output: hmat_sh=COUNTS_SH, hmat_crc=COUNTS
+    script: SRC_DIR+'/counts_for_tcf7round2.R'
+
+## to have the complete tables of samples comment line 21 in ../../local/src/samples_data_TCF7L2.R 
+rule tables_data:
+    input: samples_or = SAMPLES
+    output: meta="table_cases.tsv"
+    script: SRC_DIR+"/samples_data_TCF7L2.R"
+
+rule samples_data:
+    input: samples_or = SAMPLES
+    output: meta="{smodel}_samples_data"
+    script: SRC_DIR+"/samples_data_TCF7L2.R"
+
+rule samples_data_mut:
+    input: samples_or = SAMPLES
+    output: meta="mut_samples_data_{geno}"
+    script: SRC_DIR+"/samples_data_TCF7L2_2nd_mut.R"
+
+rule samples_data_dep_ind:
+    input: samples_or = SAMPLES, order_or= "../../local/share/data/tcf7l2_order_def.xlsx"
+    output: meta="response_samples_data_{geno}"
+    script: SRC_DIR+"/samples_data_TCF7L2_2nd_dep_ind.R"
+
+    
