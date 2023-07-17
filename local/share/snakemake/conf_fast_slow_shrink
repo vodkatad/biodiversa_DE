@@ -42,14 +42,13 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #    output: hmat=COUNTS
 #    script: SRC_DIR+'/rename_columns.R'
 
-#rule samples_data:
-#    input: meta1=META1, meta2=META2
-#    output: "samples_data"
-#    shell:
-#        """
-#		cat {input.meta1} > {output}
-#		sed 1d {input.meta2} >> {output}
-#       """
+rule samples_data:
+    input: "lmx_bas_shrink.tsv"
+    output: "samples_data"
+    shell:
+        """
+		cut -f 1 --complement {input} > {output}
+       """
 
 LFC=0.5849625 # 1.5 FC
 CORES=6

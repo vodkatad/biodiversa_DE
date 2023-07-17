@@ -15,6 +15,9 @@ table(ems$enrichmentScore < 0)
 #dotplot(em, showCategory=n, color="pvalue", x="GeneRatio", font.size=10)ridgeplot(em, showCategory = 20, fill="pvalue", core_enrichment = TRUE)
 ridgeplot(em, showCategory = n, fill="pvalue", core_enrichment = TRUE)
 
+pp <- ridgeplot(em, showCategory = n, fill="pvalue", core_enrichment = TRUE)
+pp+xlab('Genes Log Fold Change')
+ggsave('/mnt/trcanmed/snaketree/prj/magnum/local/share/data/ridge.svg')
 ws <-c('HALLMARK_INFLAMMATORY_RESPONSE', 'HALLMARK_HEDGEHOG_SIGNALING', 'HALLMARK_ANGIOGENESIS')
 wi <- c()
 for (w in ws) {
@@ -65,6 +68,17 @@ show <- d[rownames(d)%in% sreact$Description, ]
 
 show <- show[, match(rownames(annot), colnames(show))]
 pheatmap(as.matrix(show), annotation_col = annot, show_colnames = F, cluster_cols = F, show_rownames = T)
+
+
+table(unlist(show[rownames(show)=="REACTOME_KERATINIZATION", colnames(show) %in% rownames(annot[annot$response=="PD",, drop=F])]) > 0)
+table(unlist(show[rownames(show)=="REACTOME_INTERFERON_GAMMA_SIGNALING", colnames(show) %in% rownames(annot[annot$response=="PD",, drop=F])]) > 0)
+table(unlist(show[rownames(show)=="REACTOME_SIGNALING_BY_EGFR_IN_CANCER", colnames(show) %in% rownames(annot[annot$response=="PD",, drop=F])]) > 0)
+
+d <- t(show)
+m <- merge(d, annot, by="row.names")
+write.table(m, file="/mnt/trcanmed/snaketree/prj/magnum/local/share/data/reactome.tsv", sep="\t", quote=F)
+
+table(annot$response)
 
 ws <-c('REACTOME_FORMATION_OF_THE_CORNIFIED_ENVELOPE', 'REACTOME_KERATINIZATION')
 wi <- c()

@@ -71,3 +71,20 @@ PVAL=0.05
 DEBUG="yes"
 MARKER=""
 MEDA=""
+SELECTED=''
+SELECTED2=''
+MEDA_BASALI=''
+METASAFE=''
+ROOT="/mnt/trcanmed/"
+
+CHOSEN='CRC0327,CRC0069,CRC0322,CRC0542'
+rule striplots_chosen:
+    input: wanted=BASE_DATA+'/{what}', dds="dds.Rdata"
+    output: directory("{what}_lineplots_{class}")
+    params: tool=BIN_DIR+"/striplots_single_sample_mirated", chosen=CHOSEN
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} {wildcards.class} {params.chosen}
+        """
+
