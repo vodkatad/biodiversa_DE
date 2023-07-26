@@ -19,7 +19,9 @@ meda_f <- filter(meda_f, grepl("LMX_BASALE", type))
 meda_f$model <- substr(meda_f$sample_id_R, 1,7)
 meda_f <- meda_f %>% mutate(type = gsub(".1", "", type))
 
-magnifici_30_resistant <- c("CRC0029", "CRC1078", "CRC0382", "CRC1502", "CRC0031", "CRC0772", "CRC0077", "CRC0534",
+##removed CRC1502 11/07 post riunione chemio
+
+magnifici_30_resistant <- c("CRC0029", "CRC1078", "CRC0382", "CRC0031", "CRC0772", "CRC0077", "CRC0534",
                             "CRC0151", "CRC0479", "CRC0137", "CRC0204", "CRC0370", "CRC0568", "CRC0019")
 magnifici_30_sens <- c("CRC0322", "CRC0076", "CRC0196", "CRC0542", "CRC0330", "CRC0096", "CRC0297", "CRC0729","CRC0161",
                        "CRC0152","CRC0059","CRC0121","CRC0069","CRC0743","CRC0197")
