@@ -13,19 +13,19 @@ PRJ_ROOT=find_prj_root()
 ROOT=os.getenv('SNAKE_ROOT')                                                    
 BROOT=os.getenv('BIOINFO_ROOT')                                                    
 NAME="evil_MA"
-DATA=PRJ_ROOT+"/local/share/data/scTimeCourse_Palbo"
+DATA=PRJ_ROOT+"/local/share/data/TCF7L2"
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
 
-BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/scTimeCourse_Palbo'
+BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/TCF7L2/'
 
 COUNTS_PRE=BIT_DIR+"/GEP.count.gz"
 COUNTS="counts.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
-PREMETA=DATA+'/ss.tsv'
-META="samples_data"
+PREMETA=DATA+'/ss_tcf7l2.txt'
+META="meta.txt"
 ###
-DESIGN="~treat"
+DESIGN="~geno"
 SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -36,10 +36,29 @@ GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
 GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
 GSEA=PRJ_ROOT+"/local/src/gsea.R"
 
-rule sum_lanes:
-    input: matrix=COUNTS_PRE, meta=PREMETA
-    output: hmat=COUNTS, meta=META
-    script: SRC_DIR+'/sum_lanes.R'
+rule ss:
+    input: PREMETA
+    output: META
+    shell:
+        """
+            echo -e "old_id\\tnew_id" > {output}
+            bawk '{{print $2,$2}}' {input} >> {output}
+        """
+
+rule rename_cols:
+    input: matrix=COUNTS_PRE, meta=META
+    output: hmat=COUNTS
+    script: SRC_DIR+'/rename_columns.R'
+
+rule samples_data:
+    input: meta=META
+    output: "samples_data"
+    shell:
+        """
+			echo -e "id\\tmodel\\tgeno\\tclone" > {output}
+			sed 1d {input.meta} | tr "-" "_" | bawk '{{f=$1; gsub("_","\t",$1); print f, $1}}' \\
+            | bawk '$4==""{{print $1,$2,$3,"NA"}}$4!=""{{print $0}}'  >> {output}
+        """
 
 LFC=0.5849625 # 1.5 FC
 CORES=6
@@ -49,15 +68,3 @@ DEBUG="yes"
 MARKER=""
 MEDA_DIR=""
 SELECTED=""
-
-
-SPECIES="H"
-rule gsva_alberto:
-    input: expr='tmm_H.tsv.gz', sign='/mnt/trcanmed/snaketree/prj/scRNA/dataset/CRC0327_pseudobulks/coll_genes_pop_{sample}.rds'
-    output: 'Alberto_{sample}-scores.txt'
-    params: tool=BIN_DIR+'/gsva'
-    shell:
-        """
-            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
-        """
-

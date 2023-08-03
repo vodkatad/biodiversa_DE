@@ -1,0 +1,366 @@
+include: "conf.sk"
+import os
+import pandas as pd
+import numpy as np
+from  scipy.stats import pearsonr
+
+rule plots:
+    input: counts=COUNTS_SH, metadata= "{smodel}_samples_data"
+    output: "{smodel}_dds.Rdata", "{smodel}_fpkm.tsv.gz", "{smodel}_tmm.tsv.gz", "{smodel}_vsd.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
+        """
+
+## dds.Rdata rigirato il 29/11 per necessità di ottenre vsd per il calcolo del proliferative index
+
+rule de:
+    input: "{smodel}_dds.Rdata"
+    output: tsv="{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff.R"
+
+## correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
+
+# rule that removes H_ / M_ to generate a .gct file for GSEA
+# rule metric_gct:
+#     input: "{metric}.tsv.gz"
+#     output: "{metric}.gct"
+#     params: specie=SPECIES, tool=BIN_DIR+'/gctize'
+#     shell:
+#         """
+#             zcat {input} | head -n 1 > {output}.tmp || echo 'plh'
+#             zcat {input} | sed 1d | sed 's/^{params.specie}_//1' >> {output}.tmp
+#             echo "#1.2" > {output}
+#             NROW=`cat {output}.tmp | sed 1d | wc -l`
+#             NCOL=`head -n1 {output}.tmp | bawk '{{print NF}}'` 
+#             echo -e "$NROW\\t$NCOL" >> {output}
+#             {params.tool} {output}.tmp {output}
+#             rm {output}.tmp
+#         """
+
+# rule cls:
+#     input: samples="samples_data", expr="tmm.tsv.gz"
+#     output: clsf="{what}_{nom}.vs.{den}.cls"
+#     script: SRC_DIR+'/clsize_open.R'
+
+
+# GO
+# rule go_input:
+#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv"
+#     params: lfc=LFC, thr=PVAL, specie=SPECIES
+#     shell:
+#         """
+#             sed 1d {input} | bawk '$7 < {params.thr} && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\t{params.specie}_(.+)/\\t$1/g' > {output}
+#         """
+
+rule go_input_up_down:
+    input: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: up = "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_up.tsv", down = "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_down.tsv"
+    params: thr=PVAL, specie=SPECIES, lfc=LFC
+    shell:
+        """
+            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 > {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.up}
+            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 < {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
+        """
+
+rule go_universe:
+    input: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    params: specie=SPECIES
+    shell:
+        """
+            sed 1d {input} | cut -f 1 | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output}
+        """
+
+#rule go:
+    # input: classes="{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv", universe="{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    # output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+    # params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
+    # script: SRC_DIR+"/go.R"
+
+
+#rule go_sign:
+    # input: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+    # output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.significant.tsv"
+    # shell:
+    #     """
+    #             zcat {input} | bawk '$9 !="NA" && $9 < 0.05' | sort  -t $'\\t' -k9,9 -g  > {output}
+    #     """
+
+
+rule go_analysis_plot:
+    input: gene_list= "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_{direction}.tsv", gene_univ = "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    output: GO_r = "GO_results_{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}.tsv", out_dir=directory('barplot_go_{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}')
+    script: SRC_DIR+'/GO_analysis.R'
+
+# rule go_n_sign:
+#     input: up="GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_up.tsv", down="GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_down.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.go_n.txt"
+#     shell:
+#         """
+#             sed 1d {input.up} | bawk '$6 < 0.05' | wc -l | bawk '{{print $1, "up"}}' > {output}
+#             sed 1d {input.down} | bawk '$6 < 0.05' | wc -l | bawk '{{print $1, "down"}}' >> {output}
+#         """
+
+#### Dot plots and selection of genes annoted
+# rule sign:
+#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+#     shell:
+#         """
+#             bawk '$7<0.05' {input} | bawk 'NR==1{{print "gene",$0}}NR!=1{{print $0}}'  | cut -f 1,2,3,4,7  | sed s'/H_//1'  > {output}
+#         """
+
+# rule select_annote:
+#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign_genedesc.tsv"
+#     params: tool=BIN_DIR+"/add_description"
+#     shell:
+#         """
+#             {params.tool} -d -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
+#         """
+
+## prendi questo output e da qui fai i geni di livio
+
+# def defwhat(wildcards):
+#     if (wildcards.target == "de"):
+#         return {'wanted': BASE}
+#     else:
+#         return {'wanted': BASE_DATA+'/'+wildcards.target}
+
+# rule striplots:
+#     input: unpack(defwhat), dds="dds.Rdata"
+#     output: directory("{what}_plots_{target}")
+#     params: tool=BIN_DIR+"/striplots"
+#     shell:
+#         """
+#             mkdir -p {output}
+#             {params.tool} {input.wanted} {input.dds} {output} {wildcards.what}
+#         """
+
+### GSEA
+# rule gsea_input:
+#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.tsv"
+#     params: lfc=LFC, thr=PVAL, specie=SPECIES, name=NAME
+#     shell:
+#         """
+#             echo -e "geneid\\tname\\tsort" > {output}
+#             sed 1d {input} | bawk '{{print $1,"{params.name}",$3}}' | perl -pane 's/{params.specie}_(.+)/$1/g' >> {output}
+#         """
+    
+
+rule gsea_input_2:
+    input: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    params: lfc=LFC, thr=PVAL, specie=SPECIES
+    shell:
+        """
+            echo -e "gene\\tFreq" > {output}
+            sed 1d {input} | bawk '{{print $1, $3}}' | perl -pane 's/^{params.specie}_(.+)/$1/g' >> {output}
+        """
+
+# rule gsea_input_rnk:
+#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.rnk"
+#     shell: 
+#         """ 
+#             echo -e "#gene\\trank" > {output}
+#             sed 1d {input} >> {output}
+#         """
+
+rule gsea_analysis_plot:
+    input: gene_res_freq = "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    output: GSEA_r = "GSEA_results_{smodel}_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "{smodel}_gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
+    script: SRC_DIR+'/GSEA_analysis.R'
+
+# rule gsea:
+#     input: tsv="{what}_cutoff0.05-{nom}.vs.{den}.gseain.tsv", pathways=GSEA_PATHWAYS
+#     output: outdir=directory("{what}_gsea_{nom}vs{den}"), outtable="{what}_{nom}.vs.{den}.significant_NES_gsea", outtableall="{what}_{nom}.vs.{den}.all_NES_gsea"
+#     params: save="gsea_{what}_{nom}.vs.{den}.Rdata", cores=CORES, debug="no"
+#     script: GSEA
+
+
+# rule gsea_not_hallmark:
+#     input: tsv="{what}_cutoff0.05-{nom}.vs.{den}.gseain.tsv", pathways=GSEA_PATHWAYS_NOTHALL
+#     output: outdir=directory("{what}_gseanh_{nom}vs{den}"), outtable="{what}_{nom}.vs.{den}.significant_NES_gseanh", outtableall="{what}_{nom}.vs.{den}.all_NES_gseanh"
+#     params: save="gseanh_{what}_{nom}.vs.{den}.Rdata", cores=CORES, debug="no"
+#     script: GSEA
+
+# rule gsea_rnk:
+#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.rnk"
+#     shell:
+#         """
+#             cut -f 1,3 {input} | sed 1d | sort | uniq > {output}
+#         """
+
+        
+#### begin remove in V2 ####
+# rule my_beloved:
+#     input: "{metric}_"+SPECIES+".tsv.gz"
+#     output: "{gene, \w+}_{metric}.tsv"
+#     shell:
+#         """
+#             zcat {input} | head -n1 | tr "." "-" > {output}.tmp || echo 'plh'
+#             zcat {input} | bawk '$1=="{wildcards.gene}"' | cut -f 1 --complement >> {output}.tmp
+#             transpose < {output}.tmp > {output}
+#             rm {output}.tmp
+#         """
+
+# rule my_beloved_waterfall:
+#     input: "{gene}_{metric}.tsv"
+#     output: "{gene}_{metric}.png"
+#     params: tool=BIN_DIR+"/waterfall_v2"
+#     shell:
+#         """
+#             {params.tool} {input} {wildcards.gene} {output}
+#         """
+def find_gsea(wildcards):
+    sign=wildcards.msign
+    list_gsea_files=[]
+    for file in os.listdir(os.path.join(PRJ_ROOT,'dataset/TCF7L2_2nd/GSEA')):
+        if sign in file and '.tsv' in file:
+            list_gsea_files.append(os.path.join(PRJ_ROOT,'dataset/TCF7L2_2nd/GSEA',file))
+    return list_gsea_files
+#Rule to produce heatmap of significative signature separate for each gsea genes set 
+rule gsea_summary_files:
+    input:list_gsea=find_gsea
+    output:out_data='gsea_summary/data_heatmap_{msign}_th_{intersection}.csv',out_annot='gsea_summary/annot_heatmap_{msign}_th_{intersection}.csv'
+    run:
+
+        num_min_samples=int(wildcards.intersection)
+        data_upset=pd.DataFrame(columns=['signature','sample'],dtype=object)
+        sample_names=[]
+        #print(input)
+        for file in input:
+            sample_name=file.split(PRJ_ROOT)[1].split('/')[4].split('_')[2]
+            print(sample_name)
+        
+            results=pd.read_csv(file,sep='\t',header=0,index_col=0)
+            best=results[(results['p.adjust']<0.05)]
+            best['ID']=np.where(best['enrichmentScore']>0,best['ID']+'_POS',best['ID']+'_NEG')
+            sample_names.append(sample_name)
+        
+    
+            sample_cluster=[sample_name]*len(best)
+            marker=best['ID'].tolist()
+            data_sample_cluster=pd.DataFrame(marker,columns=['signature'])
+            data_sample_cluster['sample']=sample_cluster
+            data_upset=pd.concat([data_upset,data_sample_cluster],axis=0, ignore_index=True)
+        sopravvissuti=[]
+        for signature in data_upset['signature'].unique():
+            if len(data_upset.loc[data_upset['signature']==signature])>(num_min_samples):
+                sopravvissuti.append(signature)
+        print(len(sopravvissuti))
+        sample_names.append('signature')
+
+        data_heat=pd.DataFrame(columns=sample_names,dtype=object)
+        sign_heat=pd.DataFrame(columns=sample_names,dtype=object)
+        for sign in sopravvissuti:
+            riga={}
+            riga_annot={}
+            riga['signature']=sign
+            for sample in input.list_gsea:
+                sample_name=sample.split(PRJ_ROOT)[1].split('/')[4].split('_')[2]
+                print(sample_name)
+                data=pd.read_csv(sample,header=0,sep='\t')
+                data['ID']=np.where(data['enrichmentScore']>0,data['ID']+'_POS',data['ID']+'_NEG')
+
+                try:
+                    en=data[data['ID']==sign]['NES'][0]
+                    s=data[data['ID']==sign]['p.adjust'][0]
+
+                except:
+                    en=np.NAN
+                    s=1
+                
+                
+                riga[sample_name]=en
+                riga_annot[sample_name]=s
+            data_heat=data_heat.append(riga,ignore_index=True)
+            sign_heat=sign_heat.append(riga_annot,ignore_index=True)
+        
+        data_heat.set_index('signature',inplace=True)
+        sign_heat.set_index('signature',inplace=True)
+        print(data_heat.columns)
+
+        sign_heat=pd.DataFrame(np.where(sign_heat<0.05,'-','°'),index=data_heat.index,columns=data_heat.columns)
+
+        data_heat.to_csv(output.out_data)
+        sign_heat.to_csv(output.out_annot)
+
+rule plot_gsea_summary_heatmap:
+    input:data='gsea_summary/data_heatmap_{msign}_th_{intersection}.csv',annot='gsea_summary/annot_heatmap_{msign}_th_{intersection}.csv', order="../../local/share/data/tcf7l2_order_def.xlsx"
+    output:plot='gsea_summary/heatmap_{msign}_th_{intersection}.pdf'
+    script: SRC_DIR+'/gsea_heatmap_tcf.R'
+
+def find_summary(wildcards):
+    return 'gsea_summary/data_heatmap_{msign}_th_{intersection}.csv'
+
+rule gsea_summary_genes_file:
+    input:list_gsea=find_gsea,signature=find_summary
+    output:intersection='gsea_summary/gene_intersection_{msign}_th_{intersection}.csv'
+    run:
+        #import venn
+        num_min_samples=int(wildcards.intersection)
+        #sign=wildcards.sign
+        signature=wildcards.msign
+        #sign_file=PRJ_ROOT+'/local/share/data/gsea_geneset/'+signature.lower()+'.all.v2023.1.Hs.symbols.gmt'
+        #print(sign_file)
+        #sign_data={}
+        #with open(sign_file) as f:
+            #lines = [line.rstrip() for line in f]
+            #for line in lines:
+                #key=line.split('\t')[0]
+                #values=line.split('\t')[2:]
+                #sign_data[key]=values
+        data_upset=pd.DataFrame(columns=['signature','sample'],dtype=object)
+        sample_names=[]
+        signature=pd.read_csv(input.signature,header=0,index_col=0)
+        print(signature)
+        intersezioni={}
+        #universo_dic={}
+        
+        for name in signature.index:
+            i=0
+            #if name[-3:]==sign:
+            intersezione=set()
+                #universe_post_gsea=set()
+            name_ = name[:-4]
+            print(name_)
+            for file in input.list_gsea:
+                sample_name=file.split(PRJ_ROOT)[1].split('/')[4].split('.')[2]
+                #if sample_name in SAMPLES_NO_TIMECOURSE:
+                results=pd.read_csv(file,sep='\t',header=0,index_col=0)
+                if i==0:
+                    intersezione.update(set(results.loc[name_,'core_enrichment'].split('/')))
+                    i=1+1
+                else :
+                    intersezione= intersezione.intersection(set(results.loc[name_,'core_enrichment'].split('/')))
+                #universe_post_gsea.update(set(results.loc[name_,'core_enrichment'].split('/'))) #universo =unine dei geni leading edges
+                #universe_post_gsea.update(set(sign_data[name_]))  # universo = unione dei geni dei geneset che appaiono in intersezione
+            intersezioni[name]=list(intersezione)
+            #universo_dic[name]=list(universe_post_gsea)
+        #Creo due dataframe con colonne ['signature','gene'] uno per intersezione, uno per universo
+       
+        data=pd.DataFrame(columns=['signature','gene'])
+        #universe=pd.DataFrame(columns=['signature','gene'])
+        for key,values in intersezioni.items():
+            for value in values:
+                data=data.append({'signature':key,'gene':value},ignore_index=True)
+        #universo== sottinsieme di C8
+        #for key,values in universo_dic.items():
+            #for value in values:
+                #universe=universe.append({'signature':key,'gene':value},ignore_index=True)
+         #per avere intera C8 o C2 come universo
+
+        #for key,values in sign_data.items():
+            #for value in values:
+                #universe=universe.append({'signature':key,'gene':value},ignore_index=True)
+
+        data.to_csv(output.intersection)
+        #universe.to_csv(output.universe)

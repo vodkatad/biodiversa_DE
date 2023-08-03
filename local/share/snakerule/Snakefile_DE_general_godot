@@ -437,6 +437,16 @@ rule gsva_msigdb:
             {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
         """
 
+rule gsva_alberto:
+    input: expr='tmm_H.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/coll_genes_pop_{sample}.rds'
+    output: 'Alberto_{sample}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+### cris on averaged vsd
 ### cris on averaged vsd
 # pper avere le medie nella stessa cartella puoi anche spostarti in biobanca se ti trovi più comoda!
 rule cris_v2_vsd:
@@ -472,3 +482,23 @@ rule highlight_NC_vsd:
             cat {input.tsv} | bawk 'NR==1' > {output}
             cat {input.tsv} | sed 1d | bawk '$6>0.2 {{$2="NC"}}1' >> {output}
         """
+
+###
+
+
+rule gsea_input_2:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    params: lfc=LFC, thr=PVAL, specie=SPECIES
+    shell:
+        """
+            echo -e "gene\\tFreq" > {output}
+            sed 1d {input} | bawk '{{print $1, $3}}' | perl -pane 's/^{params.specie}_(.+)/$1/g' >> {output}
+        """
+
+rule gsea_analysis_plot:
+    input: gene_res_freq = "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    output: GSEA_r = "GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
+    script: SRC_DIR+'/GSEA_analysis.R'
+
+

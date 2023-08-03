@@ -26,7 +26,7 @@ GENE_LEN=BIT_DIR+"/gene_len"
 META1=ROOT+"/prj/magnum/dataset/de_tt/0_test_samplesheet.tsv"
 META2=ROOT+"/prj/magnum/dataset/de_tt/0_train_samplesheet.tsv"
 ###
-DESIGN="~batch+response"
+DESIGN="~batch+shrink"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -42,14 +42,13 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #    output: hmat=COUNTS
 #    script: SRC_DIR+'/rename_columns.R'
 
-#rule samples_data:
-#    input: meta1=META1, meta2=META2
-#    output: "samples_data"
-#    shell:
-#        """
-#		cat {input.meta1} > {output}
-#		sed 1d {input.meta2} >> {output}
-#       """
+rule samples_data:
+    input: "lmx_bas_shrink.tsv"
+    output: "samples_data"
+    shell:
+        """
+		cut -f 1 --complement {input} > {output}
+       """
 
 LFC=0.5849625 # 1.5 FC
 CORES=6
@@ -67,3 +66,18 @@ rule shrinkage:
 	input: chemo= "/scratch/trcanmed/pdxopedia/local/share/data/treats/september2022/folfiri-cetuxi_3w_treated_models.tsv"
 	output: p="plot.pdf", f="shrink.tsv"
 	script: SRC_DIR + "/Shrink.R"
+
+rule lmx_bas_shrink:
+	input: lmx= "/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier_replisafe", f1= "shrink.tsv"
+	output: f2="lmx_bas_shrink.tsv"
+	script: SRC_DIR + "/lmx_bas_shrink.R"
+
+# next step will be linking the slow-fast classes defined in shrink.tsv
+# with the specific genealogy ids of the aliquots that were sequenced for those models.
+# /mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier_replisafe 
+
+# type ==  LMX_BASALE (subset the dataframe)
+# df$short_id <- substr( df$sample_id_R, 0, 7)
+# merge with the dataframe that you've already created for shrinkage
+# keep only long_id, shrink and batch columns
+# save samples_data

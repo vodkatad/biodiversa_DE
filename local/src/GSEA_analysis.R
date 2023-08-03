@@ -33,4 +33,6 @@ write.table(em@result, file = GSEA_r, quote = FALSE, sep = "\t", row.names = TRU
             col.names = TRUE)
 
 ridgeplot(em, showCategory = 20)
-ggsave(GSEA_ridgeplot)
+ggsave(GSEA_ridgeplot, width = 300, height = 107, useDingbats=FALSE, units = "mm")
+
+#save.image('GSEA.Rdata')
