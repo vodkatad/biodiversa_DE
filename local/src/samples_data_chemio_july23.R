@@ -60,4 +60,8 @@ for (i in seq(rownames(res))){
 
 names(res)[names(res) == "quartile"] <- "type"
 
+### rimozioni 
+### CRC0578 perchè tette
+res <- res %>% filter(!sample == "CRC0578")
+
 write.table(res, file = meta, quote = FALSE, sep = "\t", col.names = TRUE)

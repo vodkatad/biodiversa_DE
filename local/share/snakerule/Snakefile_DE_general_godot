@@ -12,7 +12,7 @@ rule plots:
 
 rule de:
     input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    output: tsv="{what}{alpha}{nom}{den}FIXMETODO", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff.R"
 
@@ -472,8 +472,3 @@ rule highlight_NC_vsd:
             cat {input.tsv} | bawk 'NR==1' > {output}
             cat {input.tsv} | sed 1d | bawk '$6>0.2 {{$2="NC"}}1' >> {output}
         """
-
-
-
-
-
