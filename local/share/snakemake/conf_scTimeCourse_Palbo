@@ -49,3 +49,15 @@ DEBUG="yes"
 MARKER=""
 MEDA_DIR=""
 SELECTED=""
+
+
+SPECIES="H"
+rule gsva_alberto:
+    input: expr='tmm_H.tsv.gz', sign='/mnt/trcanmed/snaketree/prj/scRNA/dataset/CRC0327_pseudobulks/coll_genes_pop_{sample}.rds'
+    output: 'Alberto_{sample}-scores.txt'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+

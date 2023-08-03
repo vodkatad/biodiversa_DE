@@ -5,8 +5,8 @@ import numpy as np
 from  scipy.stats import pearsonr
 
 rule plots:
-    input: counts=COUNTS, metadata= "response_samples_data_N2"
-    output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
+    input: counts=COUNTS_SH, metadata= "{smodel}_samples_data"
+    output: "{smodel}_dds.Rdata", "{smodel}_fpkm.tsv.gz", "{smodel}_tmm.tsv.gz", "{smodel}_vsd.tsv.gz"
     params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
     shell:
         """
@@ -16,8 +16,8 @@ rule plots:
 ## dds.Rdata rigirato il 29/11 per necessità di ottenre vsd per il calcolo del proliferative index
 
 rule de:
-    input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    input: "{smodel}_dds.Rdata"
+    output: tsv="{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff.R"
 
@@ -57,8 +57,8 @@ rule de:
 #         """
 
 rule go_input_up_down:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: up = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_up.tsv", down = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_down.tsv"
+    input: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: up = "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_up.tsv", down = "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_down.tsv"
     params: thr=PVAL, specie=SPECIES, lfc=LFC
     shell:
         """
@@ -67,8 +67,8 @@ rule go_input_up_down:
         """
 
 rule go_universe:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    input: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
     params: specie=SPECIES
     shell:
         """
@@ -92,8 +92,8 @@ rule go_universe:
 
 
 rule go_analysis_plot:
-    input: gene_list= "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_{direction}.tsv", gene_univ = "{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
-    output: GO_r = "GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}.tsv", out_dir=directory('barplot_go_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}')
+    input: gene_list= "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_{direction}.tsv", gene_univ = "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    output: GO_r = "GO_results_{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}.tsv", out_dir=directory('barplot_go_{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}')
     script: SRC_DIR+'/GO_analysis.R'
 
 # rule go_n_sign:
@@ -154,8 +154,8 @@ rule go_analysis_plot:
     
 
 rule gsea_input_2:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    input: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
     params: lfc=LFC, thr=PVAL, specie=SPECIES
     shell:
         """
@@ -173,8 +173,8 @@ rule gsea_input_2:
 #         """
 
 rule gsea_analysis_plot:
-    input: gene_res_freq = "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
-    output: GSEA_r = "GSEA_{msign}_results_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
+    input: gene_res_freq = "{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    output: GSEA_r = "GSEA_results_{smodel}_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "{smodel}_gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
     script: SRC_DIR+'/GSEA_analysis.R'
 
 # rule gsea:

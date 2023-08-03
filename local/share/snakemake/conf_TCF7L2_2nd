@@ -27,7 +27,7 @@ GENE_LEN=BIT_DIR+"/gene_len"
 #PREMETA=DATA+'/ss_tcf7l2.txt'
 #META="meta.txt"
 ###
-DESIGN="~geno_resp" #CAMBIA APPENA CAPISCI COME FARE
+DESIGN="~geno" #CAMBIA APPENA CAPISCI COME FARE
 SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -77,24 +77,37 @@ rule prepare_counts:
     script: SRC_DIR+'/counts_for_tcf7round2.R'
 
 ## to have the complete tables of samples comment line 21 in ../../local/src/samples_data_TCF7L2.R 
+## commentare alla bisogna se si vuole far girare tcf7l2 o gli scr_t2_b2
+
+# rule tables_data:
+#     input: samples_or = SAMPLES
+#     output: meta="table_cases.tsv"
+#     script: SRC_DIR+"/samples_data_TCF7L2.R"
+
+# rule samples_data:
+#     input: samples_or = SAMPLES
+#     output: meta="{smodel}_samples_data"
+#     script: SRC_DIR+"/samples_data_TCF7L2.R"
+
+# rule samples_data_mut:
+#     input: samples_or = SAMPLES
+#     output: meta="mut_samples_data_{geno}"
+#     script: SRC_DIR+"/samples_data_TCF7L2_2nd_mut.R"
+
+# rule samples_data_dep_ind:
+#     input: samples_or = SAMPLES, order_or= "../../local/share/data/tcf7l2_order_def.xlsx"
+#     output: meta="response_samples_data_{geno}"
+#     script: SRC_DIR+"/samples_data_TCF7L2_2nd_dep_ind.R"
+
+## to have the complete tables of samples comment line 21 in ../../local/src/samples_datas_scr_t2_b2.R
+    
 rule tables_data:
     input: samples_or = SAMPLES
     output: meta="table_cases.tsv"
-    script: SRC_DIR+"/samples_data_TCF7L2.R"
+    script: SRC_DIR+"/samples_datas_scr_t2_b2.R"
 
 rule samples_data:
     input: samples_or = SAMPLES
     output: meta="{smodel}_samples_data"
-    script: SRC_DIR+"/samples_data_TCF7L2.R"
+    script: SRC_DIR+"/samples_datas_scr_t2_b2.R"
 
-rule samples_data_mut:
-    input: samples_or = SAMPLES
-    output: meta="mut_samples_data_{geno}"
-    script: SRC_DIR+"/samples_data_TCF7L2_2nd_mut.R"
-
-rule samples_data_dep_ind:
-    input: samples_or = SAMPLES, order_or= "../../local/share/data/tcf7l2_order_def.xlsx"
-    output: meta="response_samples_data_{geno}"
-    script: SRC_DIR+"/samples_data_TCF7L2_2nd_dep_ind.R"
-
-    

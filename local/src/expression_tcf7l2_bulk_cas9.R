@@ -79,3 +79,9 @@ res_log2$CRC1502 <- c1502$log2_1502
 
 Mprova = cor(res_log2)
 prova <- corrplot(Mprova, method = 'number')
+
+ggplot(res_log2, aes(x=CRC0277, y=CRC0515)) + 
+  geom_point()+
+  geom_smooth(method=lm)
+
+ggplot(res_log2, aes(x=CRC1278, y = CRC1502))+geom_point()+geom_smooth(method = lm)
