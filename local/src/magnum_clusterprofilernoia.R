@@ -68,6 +68,7 @@ show <- d[rownames(d)%in% sreact$Description, ]
 
 show <- show[, match(rownames(annot), colnames(show))]
 pheatmap(as.matrix(show), annotation_col = annot, show_colnames = F, cluster_cols = F, show_rownames = T)
+write.table(sreact, file="/mnt/trcanmed/snaketree/prj/magnum/local/share/data/sreact.tsv", sep="\t", quote=F)
 
 
 table(unlist(show[rownames(show)=="REACTOME_KERATINIZATION", colnames(show) %in% rownames(annot[annot$response=="PD",, drop=F])]) > 0)
@@ -87,4 +88,7 @@ for (w in ws) {
   wi <- c(wi, i)
   #print(gseaplot(em, geneSetID = i, title = em$Description[i], by = "runningScore"))
 }
-gseaplot2(em, geneSetID=wi, subplots = 1:2)asd
+gseaplot2(em, geneSetID=wi, subplots = 1:2)
+
+### REACTOME suppl
+load('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/magnum_deg/C2_GSEA.Rdata')
