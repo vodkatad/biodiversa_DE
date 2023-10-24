@@ -142,4 +142,10 @@ rule get_livios_genes:
     output: de_genes = "type_cutoff0.05-resistant.vs.sensitive.deseq2_livios_genes.tsv", excel = "differential_expression_livios_genes.xlsx"
     script: SRC_DIR+"/livios_genes.R"
 
+rule plotcounts:
+    input: dds="type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv_DESeq.Rdata", deseq="type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv"
+    output: plotcounts="plotcounts_RAD51_associated_m29_scritte.eps", plotcounts_mute="plotcounts_RAD51_associated_m29_mute.eps", tsv="pvalues_genes_associated_RAD51_m29.tsv"
+    script: SRC_DIR+"/plotCounts_allgenes_chemiojul23.R"
+
+
 
