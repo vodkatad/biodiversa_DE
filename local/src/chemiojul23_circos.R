@@ -85,7 +85,7 @@ data <- eval(parse(text=order_command))
 th <- (1/length(order_cols)) / 1.5
 legends <- list()
 
-#pdf("/home/mferri/circles_prediletti_complete.pdf")
+pdf("/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/circos_for_chemio.pdf")
 for (i in seq(1, length(order_cols))) {
   name <- names(order_cols)[i]
   print(name)
