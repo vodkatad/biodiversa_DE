@@ -57,14 +57,14 @@ rule cls:
 
 
 # GO
-rule go_input:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv"
-    params: lfc=LFC, thr=PVAL, specie=SPECIES
-    shell:
-        """
-            sed 1d {input} | bawk '$7 < {params.thr} && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\t{params.specie}_(.+)/\\t$1/g' > {output}
-        """
+# rule go_input:
+#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv"
+#     params: lfc=LFC, thr=PVAL, specie=SPECIES
+#     shell:
+#         """
+#             sed 1d {input} | bawk '$7 < {params.thr} && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\t{params.specie}_(.+)/\\t$1/g' > {output}
+#         """
 
 rule go_input_up_down:
     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
@@ -73,7 +73,7 @@ rule go_input_up_down:
     shell:
         """
             sed 1d {input} | bawk '$7 < {params.thr} &&  $3 > {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.up}
-            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 < {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
+            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 < -{params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
         """
 
 rule go_universe:

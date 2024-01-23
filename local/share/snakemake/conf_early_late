@@ -1,0 +1,75 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+BROOT=os.getenv('BIOINFO_ROOT')                                                    
+NAME="evil_MA"
+DATA=PRJ_ROOT+"/local/share/data/early_late"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/earlylate_biobanca'
+
+COUNTS_PRE=BIT_DIR+"/GEP.count.gz"
+COUNTS="counts.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+PREMETA=DATA+'/ss_early_late_biobanca.txt'
+##META="meta.txt"
+###
+DESIGN="~model+passage"
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+#FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+# rule ss:
+#     input: PREMETA
+#     output: META
+#     shell:
+#         """
+#             echo -e "old_id\\tnew_id" > {output}
+#             bawk '{{print $2,$2}}' {input} >> {output}
+#         """
+
+rule rename_cols:
+    input: matrix=COUNTS_PRE, meta=PREMETA
+    output: hmat=COUNTS
+    script: SRC_DIR+'/rename_columns_early_late.R'
+
+rule samples_data:
+    input: meta="/mnt/cold1/snaketree/prj/DE_RNASeq/local/share/data/early_late/Sequencing_report_biobanca_earlylate.xlsx"
+    output: tsv="samples_data"
+    script: SRC_DIR+"/samples_data_early_late_biob.R"
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""
+
+rule corr_early_late:
+    input: vsd_file="vsd.tsv.gz", samples_file="samples_data", tsv_deg="passage_cutoff0.05-early.vs.late.deseq2.tsv"
+    output: tsv="correlation_early_late.tsv", pdf1="CRC0095_corr_early_late.pdf", pdf2="CRC1961_corr_early_late.pdf"
+    script: SRC_DIR+"/correlazioni_early_late.R"
+
+rule heatmap_corr_el:
+    input: vsd_file="vsd.tsv.gz", samples_file="samples_data"
+    output: result="correlation_matrix_early_late.tsv", res_pdf="heatmap_correlation_early_late.pdf"
+    script: SRC_DIR+"/heatmap_correlation_early_late.R"
