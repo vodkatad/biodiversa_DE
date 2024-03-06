@@ -10,9 +10,10 @@ rule plots:
             {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
         """
 
+#treat_cutoff0.05-cetuxi.vs.NT.deseq2.tsv
 rule de:
     input: "dds.Rdata"
-    output: tsv="{what}{alpha}{nom}{den}FIXMETODO", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff.R"
 
