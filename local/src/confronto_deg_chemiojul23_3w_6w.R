@@ -81,6 +81,7 @@ w6$geni <- rownames(w6)
 merged <- merge(w3, w6, by="geni")
 
 sink(log_f, append=TRUE)
+"Correlation logFC w3 and w6"
 cor.test(merged$log2FoldChange_w3, merged$log2FoldChange_w6)
 sink()
 # Pearson's product-moment correlation
@@ -135,6 +136,7 @@ merged <- merge(h_w3, h_w6, by="ID")
 merged <- merged[c("ID", "enrichmentScore_w3", "enrichmentScore_w6")]
 
 sink(log_f, append=TRUE)
+"Correlation enrichment Score gsea H"
 cor.test(merged$enrichmentScore_w3, merged$enrichmentScore_w6)
 sink()
 # Pearson's product-moment correlation
@@ -171,6 +173,7 @@ merged <- merged[c("ID", "enrichmentScore_w3", "enrichmentScore_w6")]
 
 write.table(merged, file=cor_gsea_c2, quote = FALSE, sep = "\t", col.names = TRUE, row.names = FALSE)
 sink(log_f, append=TRUE)
+"Correlation enrichment Score gsea C2"
 cor.test(merged$enrichmentScore_w3, merged$enrichmentScore_w6)
 sink()
 # Pearson's product-moment correlation
@@ -203,6 +206,7 @@ merged <- merged[c("ID", "enrichmentScore_w3", "enrichmentScore_w6")]
 
 write.table(merged, file=cor_gsea_c6, quote = FALSE, sep = "\t", col.names = TRUE, row.names = FALSE)
 sink(log_f, append=TRUE)
+"Correlation enrichment Score gsea C6"
 cor.test(merged$enrichmentScore_w3, merged$enrichmentScore_w6)
 sink()
 # Pearson's product-moment correlation

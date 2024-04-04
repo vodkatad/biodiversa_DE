@@ -10,8 +10,10 @@ pdo_treat$model <- substr(pdo_treat$id, 0,7)
 basali <- unique(substr(pdo_basali[,'id'],0,7))
 
 d <- read.table(gzfile('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/tmm.tsv.gz'), sep="\t", header=T)
-#wanted <- data.frame(gs=c('ATOH1','DEFA5','DEFA6','DLL1','GFI1','AREG', 'EREG','EGF','HBEGF','TGFA','BTC'))
-paneth <- data.frame(gs=c("ATOH1","GFI1","SOX9","XBP1","DEFA5","DEFA6","LYZ","SPINK4","DLL1","DLL4"))
+paneth <- data.frame(gs=c('ATOH1','DEFA5','DEFA6','DLL1','GFI1','SOX9', 'XBP1', 'LYZ', 'SPINK4', 'DLL4'))
+#ATOH1, GFI1, SOX9, XBP1, DEFA5, DEFA6,
+#LYZ, SPINK4, DLL1, DLL4
+#paneth <- data.frame(gs=c("ATOH1","GFI1","DEFA5","DEFA6","DLL1"))
 
 colnames(paneth) <- 'gs'
 paneth$hgs <- paste0('H_', paneth$gs)
@@ -20,8 +22,8 @@ fpkm <- d[rownames(d) %in% paneth$hgs,]
 fpkm_pdo_treat <- fpkm[,colnames(fpkm) %in% pdo_treat$id]
 fpkm_pdo_basali <- fpkm[,colnames(fpkm) %in% pdo_basali$id] #no loss of replicates: all . here
 pseudoc <- 1
-lfpkm_pdo_basali <- log(fpkm_pdo_basali+pseudoc)
-lfpkm_pdo_treat <- log(fpkm_pdo_treat+pseudoc)
+lfpkm_pdo_basali <- log2(fpkm_pdo_basali+pseudoc) #changed to log2 the 6/12/2023 to be in line with Ire's thesis, results are ==
+lfpkm_pdo_treat <- log2(fpkm_pdo_treat+pseudoc)
 
 ave <- colMeans(lfpkm_pdo_treat) # run this way, changes a lot
 #ave <- colMeans(fpkm_pdo_treat) 
@@ -32,9 +34,9 @@ paneth_treat_m <- paneth_treat_m[order(paneth_treat_m$model, paneth_treat_m$type
 fc <- function(model, data) {
   d <- data[data$model == model,]
   if (nrow(d) == 4) {
-    fc <- mean(c(d[1, 'ave'] / d[2, 'ave'], d[4, 'ave'] / d[3, 'ave'])) # due to order
+    fc <- mean(c(d[1, 'ave'] - d[2, 'ave'], d[4, 'ave'] - d[3, 'ave'])) # due to order XXX -
   } else {
-    fc <- d[1, 'ave'] / d[2, 'ave']
+    fc <- d[1, 'ave'] - d[2, 'ave']
   }
   return(fc)
 }
@@ -59,7 +61,8 @@ scores$model <- rownames(scores)
 scores$ctx <- 'S'
 r <- unique(substr(r$id,0,7))
 scores[scores$model %in% r, 'ctx'] <- 'R'
-scores$lPIS <- log(scores$PIS)/log(2)
+#scores$lPIS <- log(scores$PIS)/log(2)
+scores$lPIS <- scores$PIS
 ggplot(scores, aes(y=lPIS,x=reorder(model, -lPIS),fill=ctx))+geom_col()+ylab("PIS")+xlab("Model")+theme_bw()+theme(axis.text.x = element_text(size=15, angle = 90, hjust = 1, vjust=0.5))+scale_fill_manual(values=c("red","blue"))
 #ggsave('lPIS_tmm.svg')
 ggplot(scores, aes(y=PNS,x=reorder(model, -lPIS),fill=ctx))+geom_col()+ylab("PNS")+xlab("Model")+theme_bw()+theme(axis.text.x = element_text(size=15, angle = 90, hjust = 1, vjust=0.5))+scale_fill_manual(values=c("red","blue"))
@@ -171,7 +174,7 @@ scores <- data.frame(row.names=names(sscores), PIS=sscores)
 scores$model <- rownames(scores)
 scores$ctx <- 'S'
 scores[scores$model %in% r, 'ctx'] <- 'R'
-ggplot(scores, aes(y=lPIS,x=reorder(model, -lPIS),fill=ctx))+geom_col()+ylab("PIS")+xlab("Model")+theme_bw()+theme(axis.text.x = element_text(size=15, angle = 90, hjust = 1, vjust=0.5))+scale_fill_manual(values=c("red","blue"))
+ggplot(scores, aes(y=PIS,x=reorder(model, -PIS),fill=ctx))+geom_col()+ylab("PIS")+xlab("Model")+theme_bw()+theme(axis.text.x = element_text(size=15, angle = 90, hjust = 1, vjust=0.5))+scale_fill_manual(values=c("red","blue"))
 #ggsave('lPIS_tmm.svg')
 ggplot(scores, aes(y=PNS,x=reorder(model, -lPIS),fill=ctx))+geom_col()+ylab("PNS")+xlab("Model")+theme_bw()+theme(axis.text.x = element_text(size=15, angle = 90, hjust = 1, vjust=0.5))+scale_fill_manual(values=c("red","blue"))
 
