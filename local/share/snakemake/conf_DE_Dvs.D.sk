@@ -1,0 +1,402 @@
+import os
+import pandas as pd
+import numpy as np
+ROOT=os.environ.get('SNAKE_ROOT')
+SCRATCH_ROOT=os.getenv('SCRATCH_ROOT')
+
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+if ROOT != "/scratch/trcanmed":
+    NEED_PRJ = "/prj"
+else:
+    NEED_PRJ = ""
+
+PRJ_ROOT=find_prj_root()
+                                                    
+NAME="Biodiversa_up5"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+METHY="../../../pdx_methylation"
+
+CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
+BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+DESIGN="~cluster"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/bp_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+
+
+# for biodiversa change - in . in metadata
+SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
+SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
+#SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
+CRIS = ["A","B","C","D","E"]
+CRIS2 = ["A","B","C","D","E"]
+rule all_samples_data:
+    input: expand("{cris}vsAll/{cris}vsAll_samples_data", cris=CRIS)
+rule samples_data:
+    input: meta=METHY+"/dataset/v4/limma/{cris}vsAll/samples_info_final_{cris}vsAll_2023.tsv", keep=SELECTED
+    params: what="cluster"
+    output: "{cris}vsAll/{cris}vsAll_samples_data"
+    run:
+        col = params.what
+        info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None, usecols=["mouse", col])
+        keep = pd.read_csv(input.keep, sep='\t', header=0, index_col=None, usecols=["sample_id_R", "type"])
+
+        contains = ["LMX_BASALE", "PRX_BASALE", "LMX_BASALE.1", "PRX_BASALE.1"]
+        keep = keep.loc[keep['type'].isin(contains),]
+        keep['sample_id_R'] = keep['sample_id_R'].str[:12]
+
+        info['model'] = info['mouse'].str[:7]
+        info['mouse'] = info['mouse'].str[:12]
+        info = info[['mouse','model','cluster']]
+
+        info = info.loc[info['mouse'].isin(keep['sample_id_R']),]
+        # info = info.loc[info['model'].isin(keep['sample_id_R'].str[:7]),]
+        ### mouse now is up to XA/XB: I think a good "half way", from 490, we have 386 samples left
+        ### if we go with the model, we keep 467.
+        
+        info.to_csv(output[0], header=True, index=None, sep='\t')
+
+### to remember de rule wildcards:
+### "response_cutoff0.05-ORSD.vs.PD.deseq2.tsv"
+### {what} is the column
+### {alpha} is the pvalue
+### {nom} is the first parameter for the contrast
+### {den} is the second parameter for the contrast
+
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+
+### rule score -
+MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
+### cris comparisons
+#FDR_THR = 0.2 # cris paper uses this, we mark NC as not classified samples and NS as samples that change across samplings (are they XA/XB?)
+rule cris_microarray:
+    input: CRIS_UARRAY
+    output: "cris_uarray_{thr}.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input[0], sep="\t", header=None, names=["sample","GSM","cris","fdr"])
+        thr = float(wildcards.thr)
+        d = d[d['fdr'] < thr]
+        spl = [x.split('-')  for x in d['sample'].values]
+        d['genealogy'] = [x[0] + "LMX0" + x[1] for x in spl]
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output[0], sep="\t")
+
+
+rule cris_basali_NS:
+    input: "cris_tmm_0.2_classes_lmx_basali.tsv"
+    output: "cris_tmm_0.2_classes_lmx_basali_ns.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input[0], sep="\t", index_col=False)
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output[0], sep="\t")
+
+# why do we need this? For PDX the previous rule collapses at branch, for LMO does not make sense.
+# We need to use _ns not for population level freqs! New rule that keeps > 0.2 (in Snakefile) will
+# supersede this.
+rule cris_merged_models_pdx_basali_NS:
+    input: "cris_tmm_0.2_classes_{type}_basali.tsv"
+    output: "cris_tmm_0.2_classes_{type}_basali_models_ns.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input[0], sep="\t", index_col=False)
+        d['genealogy'] = [x[0:7] for x in d['genealogy'].values]
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output[0], sep="\t")
+
+#rule prepare_sankey:
+#	input: array="cris_uarray_{thr}.tsv", meta=
+#	output:
+MEDA_BASALI=ROOT+NEED_PRJ+"/RNASeq_biod_metadata/dataset/july2020_starOK/filtered_metadata_ctx_basali_human-org-xeno"
+META=ROOT+NEED_PRJ+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier" 
+METASAFE=ROOT+NEED_PRJ+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier_replisafe" #  here the  -2 .2 issue is fixed a priori
+rule cris_basali:
+	input: me=METASAFE, cris="cris_tmm_0.2_classes.tsv"
+	output: "cris_tmm_0.2_classes_lmx_basali.tsv"
+	shell:
+		"""
+			head -n1 {input.cris}  > {output}
+			filter_1col 1 <(bawk '$7 ~ "LMX_BASALE" {{print $1}}' {input.me}) < {input.cris} | bawk '{{print substr($1,0,12),$2}}' >> {output}
+		"""
+
+rule cris_basali_lmo:
+	input: me=METASAFE, cris="cris_tmm_0.2_classes.tsv"
+	output: "cris_tmm_0.2_classes_lmo_basali.tsv"
+	shell:
+		"""
+			head -n1 {input.cris}  > {output}
+			filter_1col 1 <(bawk '$7 ~ "LMO_BASALE" {{print $1}}' {input.me}) < {input.cris} | bawk '{{print substr($1,0,12),$2}}' >> {output}
+        """
+
+rule cris_all_annot:
+	input: me=METASAFE, cris="cris_tmm_0.2_classes.tsv"
+	output: "cris_annot.tsv"
+	shell:
+		"""
+			sed 's/sample_id_R/genealogy/1' < {input.me} | translate -a -v -e "NA" {input.cris} 1 | cut -f 1,2,7,8 > {output}
+        """
+
+
+# per nuovi cris tenere solo basali non filtrati attualmente e sottoporli allo stesso trattamento
+HEADER='"LMX_lineage\\tprediction_LMX\\tBH_FDR_LMX\\tLMO_lineage\\tprediction_LMO\\tBH_FDR_LMO\\tswitched\\tswitch_type\\tpval_switch_sign"'
+rule array_cris_sankey:
+    input:  m1="cris_tmm_0.2_classes_lmx_basali_ns.tsv", m2="cris_uarray_0.2.tsv"
+    params: tool=BIN_DIR+"/sankey", header=HEADER
+    output: sankey="sankey_tmm_uarray_CRISswitch.html", classes="sankey_tmm_uarray_classes_freq_in_samples.png", switch="sankey_tmm_uarray_switch_numbers.png", switched="sankey_tmm_uarray_switching_CRIS_withBARs.png", cohen="cohen_tmm_uarray.txt"
+    shell:
+        """
+            echo -e {params.header} > {output.sankey}.tmp
+            join -t$'\\t' <(bawk '$2!="NS"' {input.m1}) <(sed 's/CRIS/CRIS-/1' < {input.m2} | bawk '$2!="NS"') | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
+            {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched} -t "uArray-RNAseq" -k {output.cohen}
+        """
+
+rule starok_sankey:
+    input:  m1="cris_tmm_0.2_classes_lmx_basali_ns.tsv",m2="../Biodiversa_up5/cris_tmm_0.2_classes_lmx_basali_ns.tsv"
+    params: tool=BIN_DIR+"/sankey", header=HEADER
+    output: sankey="sankey_starok_CRISswitch.html", classes="sankey_starok_classes_freq_in_samples.png", switch="sankey_starok_switch_numbers.png", switched="sankey_starok_switching_CRIS_withBARs.png", cohen="cohen_starok.txt"
+    shell:
+        """
+            echo -e {params.header} > {output.sankey}.tmp
+            join -t$'\\t' <(bawk '$2!="NS"' {input.m1}) <(cat {input.m2} | bawk '$2!="NS"') | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
+            {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched} -t "starOK-old" -k {output.cohen}
+        """
+
+
+rule cris_microarray_nc:
+    input: CRIS_UARRAY
+    output: "nc_cris_uarray_{thr}.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input[0], sep="\t", header=None, names=["sample","GSM","cris","fdr"])
+        thr = float(wildcards.thr)
+        d.loc[d['fdr'] > thr, 'cris'] = 'NC'
+        spl = [x.split('-')  for x in d['sample'].values]
+        d['genealogy'] = [x[0] + "LMX0" + x[1] for x in spl]
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "HET"
+        res = pd.DataFrame(dp)
+        res.to_csv(output[0], sep="\t")
+
+# TODO adapt to NC/HET flag
+rule cris_sankey_biscollapsed_nc:
+    input: m1="nc_cris_uarray_0.2.tsv", m2="cris_fpkm_lmx_nc_arm.tsv"
+    params: tool=BIN_DIR+"/sankey", header=HEADER
+    output: sankey="ncarray_sankey_diagram_PDX-PDO_CRISswitch.html", classes="ncarray_classes_freq_in_samples.png", switch="ncarray_switch_numbers.png", switched="ncarray_switching_CRIS_withBARs.png", cohen="cohen_ncarray.txt"
+    shell:
+        """
+            echo -e {params.header} > {output.sankey}.tmp
+            join -t$'\\t' {input.m1} {input.m2} | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
+            {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched} -t ncarray -k {output.cohen}
+            rm {output.sankey}.tmp
+        """
+
+######################### Vs known dataset freqs overall dataset
+CRIS_S11=PRJ_ROOT+'/local/share/data/CRIS_CMS/cris_suppl_11.tsv'
+CMSCALLER=PRJ_ROOT+'/local/share/data/CRIS_CMS/freqs_cmscaller.tsv'
+# vs CRIS population freqs
+rule CRIS_to_n:
+    input: tsv=CRIS_S11
+    output: freqs="freqs_cris.tsv", counts="counts_cris.tsv"
+    run:
+        import pandas as pd
+        import numpy as np
+        d = pd.read_table(input.tsv, sep="\t", header=0)
+        notHasMinus = np.logical_not(d['CRIS Assignment'].str.contains('-'))
+        needMinus = d[notHasMinus]['CRIS Assignment']
+        withMinus = needMinus.replace('CRIS', 'CRIS-', regex=True)
+        d.loc[notHasMinus, 'CRIS Assignment'] = withMinus
+        d.loc[d['BH.FDR'] > 0.2, 'CRIS Assignment'] = 'NS'
+        d.groupby(['Dataset ID'])['CRIS Assignment'].value_counts()
+        n_cris= d.groupby(['Dataset ID'])['CRIS Assignment'].value_counts().unstack()
+        n_el= d.groupby(['Dataset ID'])['CRIS Assignment'].agg(['count'])
+        freqs = n_cris.div(n_el['count'], axis=0)
+        freqs.to_csv(output.freqs, sep="\t")
+        n_cris.to_csv(output.counts, sep="\t")
+
+
+# we go get the separated cris classification in the biobanca prj
+BASE_CRIS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/cris'
+rule barplot_chisq:
+    input: pop="freqs_cris.tsv", popc='counts_cris.tsv', 
+        lmx=BASE_CRIS+"/vsd_cris_LMX_BASALE_nc_smodel.tsv", 
+        lmo=BASE_CRIS+"/vsd_cris_LMO_BASALE_nc_smodel.tsv", 
+        lmh=BASE_CRIS+"/vsd_cris_LMH_prediction_result.tsv",
+        Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_5.Rdata',
+        keepTRUE=ROOT+NEED_PRJ+'/biobanca/local/share/data/biobanca_pdo_buoni.tsv'
+    output: plot="cris_pop_barplot.pdf"
+    log: "cris_pop_barplot.log"
+    script: SRC_DIR+"/pop_barplot.R"
+
+################# CMS 
+rule CMS_to_n:
+    input: tsv=CMSCALLER
+    output: freqs="freqs_cms.tsv"
+    run:
+        import pandas as pd
+        d = pd.read_table(input.tsv, sep="\t", header=0, index_col=0)
+        tot = d.sum(axis=1) # sum across cols, 1 for each row
+        freqs =  d.div(tot, axis=0) # align d index (datasets) with tot indexs
+        freqs.to_csv(output.freqs, sep="\t")
+
+# fpkm single sample CMS are in /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr/LMO_BASALE_CMScaller_fpkm.tsv    they need collapsing with the same logic (+ if needed produce vsd ones)
+# collapsed:
+# /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr$ cut -f 2 cms_fpkm_LMX_BASALE_nc_smodel.tsv
+BASE_CMS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/expr'
+rule cms_barplot_chisq:
+    input: pop="freqs_cms.tsv", popc=CMSCALLER, 
+        lmx=BASE_CMS+"/cms_vsd_LMX_BASALE_nc_smodel.tsv",
+        lmo=BASE_CMS+"/cms_vsd_LMO_BASALE_nc_smodel.tsv", 
+        lmh=BASE_CMS+"/cms_vsd_LMH_nc_smodel.tsv",
+        Rimage=ROOT+NEED_PRJ+'/biobanca/dataset/V1/theme_5.Rdata',
+        keepTRUE=ROOT+NEED_PRJ+'/biobanca/local/share/data/biobanca_pdo_buoni.tsv'
+    output: plot="cms_pop_barplot.pdf"
+    log: "cms_pop_barplot.log"
+    script: SRC_DIR+"/cms_pop_barplot.R"
+
+
+## CRIS on single samples but separated 
+rule all_batches_pc:
+    input: expand('batch_PCx{pc1}_PCy{pc2}.pdf', zip, pc1=[1,3,5,7,9], pc2=[2,4,6,8,10])
+
+rule pc_batch_summarizedtype:
+    input: "dds.Rdata"
+    output: pca_cool="{what}_PCx{pc1}_PCy{pc2}.pdf"
+    script: SRC_DIR+"/deseq_pc_cool_v2.R"
+
+
+# rifare /mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/PC1_PC2_Leucocyte_not.png con grafica ggplot in e metterlo come pannello C
+# TODO check that file with pcs here:
+# /mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK/pcs 
+# is reproducible
+# scores: /mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK/fpkm_lymphoma_scores.tsv.gz
+
+# code to arrange together ggplot objects on A4 is in testPC.Rhistory . A - B - C labels were lazily added by hand.
+
+# I'd do a rule that gets the Rdata generated by pc_batch_summarizedtype (add this as output in the rule), pcs and leucoscores, produces the new ggplot
+# and then stitches it with the others with grid.arrange (its place is now marked with a NA in the layout matrix).
+# If here does not seem a good place move it around freely!
+
+## supplementary figure D with PCA and leuco scores
+
+rule pca_grid:
+    input: pca = "pc_manual_plots.Rdata", leuco = "/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/leuco_score.Rdata"
+    output: fig = "figure_d_supplementary.pdf"
+    script: SRC_DIR+"/grid_pca_leuco.R"
+
+### gsva scores on single groups
+rule gsva_msigdb_single_type:
+    input: expr='{type}-tmm.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
+    output: '{class}-scores_{type}.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+### TUMOR of origin
+#egrassi@godot:/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected$ sed 1d prediction__mnt_trcanmed_snaketree_prj_DE_RNASeq_dataset_Biodiversa_up5_starOK_selected_log2tmm_pc1_filled.csv | grep -v COADREAD | tr "," "\t"| bawk '{print substr($1,0,7)}' |sort | uniq -c | 
+#tr -s " " "\t" | cut -f 2,3 > other
+#egrassi@godot:/scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected$ sed 1d prediction__mnt_trcanmed_snaketree_prj_DE_RNASeq_dataset_Biodiversa_up5_starOK_selected_log2tmm_pc1_filled.csv | grep  COADREAD | tr "," "\t"| bawk '{print substr($1,0,7)}' |sort | uniq -c | tr -s " " "\t" | cut -f 2,3 > coad
+
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected$ cat <(head -n1 pippo_tmm.tsv | bawk '{print "entr", $0}') <(cat tmm_entrez.tsv) > tmm_entrez_header.tsv
+
+#d <- read.table('tmm_entrez_header.tsv', header=T,sep="\t")
+#head(colnames(d))
+#head(d$entr)
+#d$entr <- as.character(d$entr)
+#head(d$entr)
+#dd <- dd[!is.na(dd$entr),]
+#dd <- d[!is.na(d$entr),]
+#dim(dd)
+#dim(d)
+#table(grepl(',', dd$entr))
+#dd <- dd[!grepl(',', dd$entr), ]
+#dim(dd)
+#ddd <- dd[!(duplicated(dd$entr) | duplicated(dd$entr, fromLast = TRUE)),]
+#dim(ddd)
+#rownames(dd) <- dd$entr
+#dd$entr <- NULL
+#td <- t(dd)
+#colnames(td) <- paste0('X', colnames(td))
+#logtd <- log2(td+1)
+#write.table(logtd, "log2tmm_pc1.csv", sep=",", quote=F)
+#
+#(tf-cpu) [root@1b0419c17e50 scripts]# python RunPrediction.py --data_set /mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/log2tmm_pc1.csv
+#
+#Using model:
+#Inception_40_icgc_29class
+#Traceback (most recent call last):
+#  File "RunPrediction.py", line 17, in <module>
+#    from Model import ExternalValidate, cross_validate_keras, reshape_data_1d, reset_weights
+#  File "Helpers/Model.py", line 15, in <module>
+#    import DataRna as Data
+#  File "Helpers/DataRna.py", line 34, in <module>
+#    df_new = df_new[common_columns]
+#  File "/root/anaconda3/envs/tf-cpu/lib/python3.6/site-packages/pandas/core/frame.py", line 2905, in __getitem__
+#    indexer = self.loc._get_listlike_indexer(key, axis=1, raise_missing=True)[1]
+#  File "/root/anaconda3/envs/tf-cpu/lib/python3.6/site-packages/pandas/core/indexing.py", line 1254, in _get_listlike_indexer
+#    self._validate_read_indexer(keyarr, indexer, axis, raise_missing=raise_missing)
+#  File "/root/anaconda3/envs/tf-cpu/lib/python3.6/site-packages/pandas/core/indexing.py", line 1304, in _validate_read_indexer
+#    raise KeyError(f"{not_found} not in index")
+#KeyError: "['X1584', 'X4308', 'X644511', 'X3045', 'X150677', 'X122706', 'X79923', 'X3080', 'X127124', 'X3047', 'X89792', 'X653509', 'X5897', 'X9623', 'X644591', 'X6440', 'X2657', 'X276'] not in index"
+#
+#ok not so straightforward, we do not have certain genes?
+#
+#letś fill them with 0
+#
+#d <- read.csv('log2tmm_pc1.csv')
+#w <-c('X1584', 'X4308', 'X644511', 'X3045', 'X150677', 'X122706', 'X79923', 'X3080', 'X127124', 'X3047', 'X89792', 'X653509', 'X5897', 'X9623', 'X644591', 'X6440', 'X2657', 'X276')
+#dim(d)
+#df <- data.frame(matrix(rep(0, 1189*length(w)), ncol=length(w))
+#)
+#dim(df)
+#colnames(df) <- 
+#w
+#head(df
+#)
+#dd <- cbind(d, df)
+#write.table(dd, file='log2tmm_pc1_filled.csv', sep=",", quote=F)
+#history()

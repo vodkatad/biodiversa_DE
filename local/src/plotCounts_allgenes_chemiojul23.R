@@ -1,8 +1,21 @@
 library(tidyverse)
+<<<<<<< HEAD
 
 dds_f <- snakemake@input[["dds"]]
 results <- snakemake@output[["plotcounts"]]
 results_mute <- snakemake@output[["plotcounts_mute"]]
+=======
+library(DESeq2)
+library(ggplot2)
+library(reshape)
+library(showtext)
+
+dds_f <- snakemake@input[["dds"]]
+pvalues_f <- snakemake@input[["deseq"]]
+results <- snakemake@output[["plotcounts"]]
+results_mute <- snakemake@output[["plotcounts_mute"]]
+results_tsv <- snakemake@output[["tsv"]]
+>>>>>>> c19ebc8d50fc9c7e79799e1f67d879764a1cdb5d
 
 #load('/scratch/trcanmed/AF_spectra/dataset_Figures_Tables/theme_5.Rdata')
 size <- 8
@@ -11,6 +24,7 @@ size <- 8
 #showtext_auto()
 
 # Da Marti e https://www.christophenicault.com/post/understand_size_dimension_ggplot2/
+<<<<<<< HEAD
 #showtext_opts(dpi = 300) 
 # since we are not changing fonts in the end cause myriad end up not being text object I'm not sure it's needed
 #showtext_auto(enable = TRUE)
@@ -18,13 +32,25 @@ size <- 8
 #textSize <- textSize * (96/72) # these conversion were needed because the default dpi for text was 96?
 # in the svg the number passed to theme was reported as size = ..px.. rather than pt (?)
 #largerSize <- largerSize * (96/72) 
+=======
+showtext_opts(dpi = 300) 
+# since we are not changing fonts in the end cause myriad end up not being text object I'm not sure it's needed
+showtext_auto(enable = TRUE)
+
+#textSize <- size * (96/72) # these conversion were needed because the default dpi for text was 96?
+# in the svg the number passed to theme was reported as size = ..px.. rather than pt (?)
+#largerSize <- s * (96/72) 
+>>>>>>> c19ebc8d50fc9c7e79799e1f67d879764a1cdb5d
 death_conversion_dpi96 = 96/72
 
 textSize <- size * death_conversion_dpi96
 largerSize <- (size) * death_conversion_dpi96
 
 unmute_theme <- theme(
+<<<<<<< HEAD
   text = element_text(size = textSize, family='Arial'),
+=======
+>>>>>>> c19ebc8d50fc9c7e79799e1f67d879764a1cdb5d
   axis.title = element_text(size = largerSize),
   axis.text.x = element_text(size = textSize, color="black"),#, angle = 90, vjust = 0.5, hjust=1)
   axis.text.y = element_text(size = textSize, color="black"),
@@ -37,6 +63,7 @@ unmute_theme <- theme(
   axis.ticks.length= unit(1.905*death_conversion_dpi96, "mm"),
   panel.background = element_blank()
 )
+<<<<<<< HEAD
 #axis.ticks.length= unit(1.905*death_conversion_dpi96, "mm"),
 
 
@@ -57,6 +84,28 @@ guess_ticks <- function(values, nticks=5, fixed_max=NULL, fixed_min=0) {
 }
 
 #dds <- "/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/dds.Rdata"
+=======
+# #axis.ticks.length= unit(1.905*death_conversion_dpi96, "mm"),
+
+
+# # function that given values to be plotted on an axis will return:
+# # vector of breaks, trying to guess which max will be the best one
+# # this will be used as scale_y_continuous(breaks=  and as ylim(min, max) to have the - also limits-c()
+# # last tick at the extremity of the axis.
+# # other parameter is n. of ticks
+# guess_ticks <- function(values, nticks=5, fixed_max=NULL, fixed_min=0) {
+#   vmax <- max(values)
+#   if (is.null(fixed_max)) { 
+#     round_max <- ceiling(vmax)
+#   } else {
+#     round_max <- fixed_max
+#   }
+#   my_breaks <- seq(fixed_min, round_max, length.out=nticks)
+#   return(my_breaks)
+# }
+
+#dds_f <- "/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/dds.Rdata"
+>>>>>>> c19ebc8d50fc9c7e79799e1f67d879764a1cdb5d
 dds_file <- dds_f
 #load("/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/dds.Rdata")
 load(dds_file)
@@ -90,6 +139,7 @@ names(combined_df)[names(combined_df)=="type...2"] <- "type"
 reshaped <- melt(combined_df, id = c("type"))
 reshaped$variable <- gsub("H_", "", reshaped$variable)
 
+<<<<<<< HEAD
 #y_breaks <- guess_ticks(data$`RING1_log2(TPM+1)`, fixed_min=-100, fixed_max=5000)
 #x_breaks <- guess_ticks(data$`FBXO18_log2(TPM+1)`, fixed_min=1, fixed_max=8)
 
@@ -109,3 +159,35 @@ ggplot(reshaped, aes(x = variable, y = value, color = type)) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank(),
         axis.text.x=element_blank(), axis.text.y=element_blank())
 ggsave(p, filename = results_mute)
+=======
+save.image("plot_grid.Rdata")
+
+#y_breaks <- guess_ticks(data$`RING1_log2(TPM+1)`, fixed_min=-100, fixed_max=5000)
+#x_breaks <- guess_ticks(data$`FBXO18_log2(TPM+1)`, fixed_min=1, fixed_max=8)
+red <- rgb(165, 0, 25, max = 255)
+blue <- rgb(30, 85, 130, max = 255)
+
+r_s <- ggplot(reshaped, aes(x = variable, y = value, color = type)) + geom_point(position =position_dodge(width = 0.7))+
+  unmute_theme + scale_color_manual(values=c(red, blue))+
+  aes(x = fct_inorder(variable))+theme(axis.title.x = element_blank())
+ggsave(r_s, filename = results, width=200*(death_conversion_dpi96), height=89*(death_conversion_dpi96), units="mm")
+
+#print("change column name to log10(nreads)")
+
+r_m <- ggplot(reshaped, aes(x = variable, y = value, color = type)) + geom_point(position =position_dodge(width = 0.7))+
+  unmute_theme + scale_color_manual(values=c("#a50019", "#1e5582"))+
+  aes(x = fct_inorder(variable))+ theme(axis.title.x = element_blank(), axis.title.y = element_blank(),
+                                          axis.text.x=element_blank(), axis.text.y=element_blank())
+ggsave(r_m, filename = results_mute, width=150*(death_conversion_dpi96), height=89*(death_conversion_dpi96), units="mm")
+
+#pvalues_f <- "/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv"
+pvalues <- read.table(pvalues_f, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+pvalues$genes <- rownames(pvalues)
+pvalues <- pvalues %>% filter(genes %in% geni)
+pvalues <- pvalues[match(geni, pvalues$genes), ]
+pvalues$genes <- NULL
+rownames(pvalues) <- gsub("H_", "", rownames(pvalues))
+pvalues <- pvalues[,c(5,6)]
+
+write.table(pvalues, file=results_tsv, quote = FALSE, sep = "\t", col.names = TRUE, row.names = TRUE)
+>>>>>>> c19ebc8d50fc9c7e79799e1f67d879764a1cdb5d

@@ -1,0 +1,509 @@
+### Copia di ../../local/share/snakerule/Snakefile_DE_general_godot perché c'è un FIXMETODO in de e non volevo toccare e pacioccare
+
+include: "conf.sk"
+import os
+
+rule all_de:
+    input: expand("{cris}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", zip, cris=CRIS,what="cluster",alpha=0.05,nom=CRIS2,den="All")
+
+rule plots:
+    input: counts=COUNTS, metadata="{cris}vsAll/{cris}vsAll_samples_data"
+    output: "{cris}vsAll/dds.Rdata", "{cris}vsAll/fpkm.tsv.gz", "{cris}vsAll/tmm.tsv.gz", "{cris}vsAll/vsd.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
+        """
+
+rule de:
+    input: "{cris}vsAll/dds.Rdata"
+    output: tsv="{cris}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{cris}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff.R"
+
+## correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
+
+## rule that removes H_ / M_ and filters only one kind of genes from metric.tsv.gz files
+rule s:
+    input: "{metric}.tsv.gz"
+    output: "{metric}_"+SPECIES+".tsv.gz"
+    params: specie=SPECIES
+    shell:
+        """
+            zcat {input} | head -n 1 > {output}.tmp || echo 'plh'
+            zcat {input} | sed 1d | sed 's/^{params.specie}_//1' >> {output}.tmp
+            gzip -c {output}.tmp > {output}
+            rm {output}.tmp
+        """
+
+#### begin remove in V2 ####
+rule my_beloved:
+    input: "{metric}_"+SPECIES+".tsv.gz"
+    output: temp("{gene, \w+}_{metric}.tsv")
+    shell:
+        """
+            zcat {input} | head -n1 | tr "." "-" > {output}.tmp || echo 'plh'
+            zcat {input} | bawk '$1=="{wildcards.gene}"' | cut -f 1 --complement >> {output}.tmp
+            transpose < {output}.tmp > {output}
+            rm {output}.tmp
+        """
+
+def find_type(wildcards):
+    if wildcards.type == "LMX_BASALE":
+        return "LMX_BASALE LMX_BASALE.1"
+    elif wildcards.type == "LMO_BASALE":
+        return "LMO_BASALE LMO_BASALE.1 LMO_BASALE.2"
+    elif wildcards.type == "X_BASALE":
+        return "LMX_BASALE LMX_BASALE.1 PRX_BASALE PRX_BASALE.1"
+    elif wildcards.type == "X":
+        return "LMH PRH"
+    else:
+        return wildcards.type
+
+rule my_beloved_type:
+    input: data="{gene}_{metric}.tsv", meta=SELECTED
+    output: "{type}-{gene}_{metric}.tsv"
+    params: find_type
+    shell:
+        """
+            filter_1col 7 <(echo {params} |  tr " "  "\\n")  < {input.meta} | cut -f 1 > {output}.tmp
+            filter_1col 1 {output}.tmp < {input.data} > {output}
+            rm {output}.tmp
+        """
+
+rule all_type:
+    input: data="{metric}_"+SPECIES+".tsv.gz", meta=SELECTED2
+    output: "{type}-{metric}.tsv.gz"
+    params: find_type
+    shell:
+        """
+            filter_1col 7 <(echo {params} |  tr " "  "\\n")  < {input.meta} | cut -f 1 > {output}.tmp
+            cat {output}.tmp <(echo "gene") > {output}.tmp2
+            zcat {input.data} | bawk 'NR==1{{print "gene", $0}} NR!=1 {{print $0}}' | transpose | filter_1col 1 {output}.tmp2 | transpose > {output}
+            rm {output}.tmp {output}.tmp2
+        """
+
+rule my_beloved_waterfall:
+    input: "{type}-{gene}_{metric}.tsv"
+    output: "{type}-{gene}_{metric}.png", "{type}-{gene}_{metric}.rep.png", "{type}-{gene}_{metric}_ave.tsv"
+    params: tool=BIN_DIR+"/waterfall"
+    shell:
+        """
+            {params.tool} {input} {wildcards.gene} {output}
+        """
+    
+rule compare_lmo_lmx:
+    input: lmo="LMO_BASALE-{gene}_tmm.tsv", lmx="LMX_BASALE-{gene}_tmm.tsv"
+    output: scatter="scatter_lmx_lmo_{gene}.png", quartiles="quartiles_lmx_lmo_{gene}.tsv"
+    script: SRC_DIR+"/lmo_lmx_compare.R"
+
+def readlines_input(wildcards):
+    import os
+    list_genes = os.path.join(PRJ_ROOT, 'local/share/data', wildcards.list+'.tsv')
+    targets = []
+    if os.path.exists(list_genes):
+        with open(list_genes, 'r') as genes_file:
+            for line in genes_file:
+                line = line.rstrip('\n')
+                targets.append(wildcards.type+'-'+line+'_'+wildcards.metric+'.png')
+                targets.append(wildcards.type+'-'+line+'_'+wildcards.metric+'.rep.png')
+    else:
+        print('Cannot find ' + list_genes)
+    return targets
+
+rule list_beloved_waterfall:
+    input: readlines_input
+    output: directory("waterfall_{list}-{type}_{metric}")
+    shell: 
+        """
+           mkdir -p {output}
+           for line in {input}; do
+            mv ${{line}} {output}
+           done
+        """
+
+def readlines_input_expr(wildcards):
+    import os
+    list_genes = os.path.join(PRJ_ROOT, 'local/share/data', wildcards.list+'.tsv')
+    targets = []
+    if os.path.exists(list_genes):
+        with open(list_genes, 'r') as genes_file:
+            for line in genes_file:
+                line = line.rstrip('\n')
+                targets.append(wildcards.type+'-'+line+'_'+wildcards.metric+'.tsv')
+    else:
+        print('Cannot find ' + list_genes)
+    return targets
+
+rule list_beloved_merged:
+    input: readlines_input_expr
+    output: directory("merge_{list}-{type}_{metric}")
+    run: 
+        import pandas as pd
+        os.mkdir(output[0])
+        # TODO write in single list comprehension
+        n = [x.split('-')[1] for x in input] 
+        names = [x.split('_')[0] for x in n]
+        res = pd.read_csv(input[0], sep="\t", header=None, names=[names[0]], index_col=0)
+        i = 1
+        for gene in input[1:]:
+            gene_df = pd.read_csv(gene, sep="\t", header=None, names=[names[i]], index_col=0)
+            res = gene_df.merge(res, suffixes=(None, None), left_index=True, right_index=True)
+            i += 1
+        res.to_csv(os.path.join(output[0],'matrix_'+wildcards.metric+'.tsv.gz'), sep="\t", compression='gzip', header=True)
+
+
+## TODO print all pc instead of only 1-2
+rule pcs:
+    input: "dds.Rdata"
+    output: "pcs"
+    script: SRC_DIR+"/pcs.R"
+
+rule vsd:
+    input: vsd = "vsd.tsv.gz"
+    output: vsd_f = "vsd_ok.tsv.gz"
+    script: SRC_DIR+"/vsd_forcris.R"
+
+rule cris_v2:
+    input: expr="{metric}_" +SPECIES+".tsv.gz"
+    params: prefix="cris_{metric}"
+    output: "cris_{metric}_prediction_result.xls"
+    script: SRC_DIR+"/cris_classify_V2.R"
+
+rule wipe_up_after_cris:
+    input: "cris_{metric}_prediction_result.xls"
+    output: tsv="cris_{metric}_prediction_result.tsv", png="cris_{metric}_prediction_result.png"
+    shell:
+        """
+            mv {input} {output.tsv}
+            mv cris_{wildcards.metric}_heatmp.png {output.png}
+            rm cris_{wildcards.metric}_sample_info.txt cris_{wildcards.metric}_sorted.dataset.gct cris_{wildcards.metric}_predicted*sorted.cls cris_{wildcards.metric}_FDR*png cris_{wildcards.metric}_*legend.png  cris_{wildcards.metric}_features.xls
+            rm cris_{wildcards.metric}.tmp
+        """
+
+rule highlight_NC:
+    input: tsv="cris_{metric}_prediction_result.tsv"
+    output: "cris_{metric}_prediction_result_nc.tsv"
+    shell:
+        """
+            cat {input.tsv} | bawk 'NR==1' > {output}
+            cat {input.tsv} | sed 1d | bawk '$6>0.2 {{$2="NC"}}1' >> {output}
+        """
+
+rule nc_basali:
+    input: df="cris_{metric}_prediction_result_nc.tsv", meda=MEDA_BASALI
+    output: "cris_{metric}_prediction_result_nc_basali.tsv"
+    shell:
+        """
+            cat {input.df} | bawk 'NR==1 {{print $0}}' > {output}
+            cat {input.df} | filter_1col 1 <(cut -f1 {input.meda}) >> {output}
+        """
+
+# ci perdiamo il PMX col grep secco LMX, farei sempre filtro con i meda per evitare questi problemi.
+rule lmx_lmo:
+    input: cris="cris_{metric}_prediction_result_nc_basali.tsv", meda=METASAFE
+    output: lmx="cris_{metric}_prediction_result_nc_lmx.tsv", lmo="cris_{metric}_prediction_result_nc_lmo.tsv"
+    shell:
+        """
+            cat {input.cris} | bawk 'NR==1' > {output.lmx}
+            cat {input.cris} | sed 1d | filter_1col 1 <(bawk '$7 ~ "LMX_BASALE" {{print $1}}' {input.meda}) >> {output.lmx}
+            cat {input.cris} | bawk 'NR==1' > {output.lmo}
+            cat {input.cris} | sed 1d | filter_1col 1 <(bawk '$7 ~ "LMO_BASALE" {{print $1}}' {input.meda}) >> {output.lmo}
+        """
+
+rule lmh:
+    input: cris="cris_{metric}_prediction_result_nc_basali.tsv", meda=METASAFE
+    output: lmh="cris_{metric}_prediction_result_nc_lmh.tsv"
+    shell:
+        """
+            cat {input.cris} | bawk 'NR==1' > {output.lmh}
+            cat {input.cris} | sed 1d | filter_1col 1 <(bawk '$7 ~ "LMH" {{print $1}}' {input.meda}) >> {output.lmh}
+            """
+rule prh:
+    input: cris="cris_{metric}_prediction_result_nc_basali.tsv", meda=METASAFE
+    output: lmh="cris_{metric}_prediction_result_nc_prh.tsv"
+    shell:
+        """
+            cat {input.cris} | bawk 'NR==1' > {output.lmh}
+            cat {input.cris} | sed 1d | filter_1col 1 <(bawk '$7 ~ "PRH" {{print $1}}' {input.meda}) >> {output.lmh}
+            """
+
+# rule cris_classes_nc collapsed, we want to collapse at smodel for population freqs, at arm for comparisons vs old cris for example and Simo's pairs
+rule cris_classes_with_nc:
+    input: tsv="cris_{metric}_prediction_result_nc_{xo}.tsv"
+    output: tsv="cris_{metric}_{xo}_nc_{collapselevel}.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        #sample.names    predict.label2  dist.to.template        dist.to.cls1.rank       nominal.p       BH.FDR  Bonferroni.p
+        d = pd.read_table(input.tsv, sep="\t", index_col=False)
+        d.rename(columns={"predict.label2": "cris", "BH.FDR": "fdr","sample.names": "genealogy"}, inplace=True)
+        if wildcards.collapselevel == "arm":
+            d['genealogy'] = [x[0:12] for x in d['genealogy'].values]
+        elif wildcards.collapselevel == "smodel":
+            d['genealogy'] = [x[0:7] for x in d['genealogy'].values]
+        else:
+            raise ValueError('Do not know how to collapse at ' + wildcards.collapselevel + ':[arm, smodel] are possible values')
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique)
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "HET"
+        res = pd.DataFrame(dp)
+        res.to_csv(output.tsv, sep="\t")
+
+rule cris_classes:
+    input: tsv="cris_{metric}_prediction_result.tsv"
+    output: tsv="cris_{metric}_{thr}_classes.tsv"
+    run: 
+        import pandas as pd
+        import numpy as np
+        #sample.names    predict.label2  dist.to.template        dist.to.cls1.rank       nominal.p       BH.FDR  Bonferroni.p
+        d = pd.read_table(input.tsv, sep="\t", index_col=False)
+        d.rename(columns={"predict.label2": "cris", "BH.FDR": "fdr","sample.names": "genealogy"}, inplace=True)
+        thr = float(wildcards.thr)
+        d = d[d['fdr'] < thr]
+        dp = pd.pivot_table(d, values='cris', index=['genealogy'], aggfunc=np.unique) # here pivoting is not necessary, we are working on long genealogy
+        dp.loc[[type(x) is not str for x in dp['cris'].values],'cris'] = "NS"
+        res = pd.DataFrame(dp)
+        res.to_csv(output.tsv, sep="\t")
+
+# needed input:
+#LMX_lineage     prediction_LMX  BH_FDR_LMX      LMO_lineage     prediction_LMO  BH_FDR_LMO      switched        switch_type     pval_switch_sign
+#CRC0066LMX0A    CRIS-C  0.001055823318095       CRC0066LMO0A    CRIS-D  0.136031953914561       yes     CRIS-C > CRIS-D no
+HEADER='"LMX_lineage\\tprediction_LMX\\tBH_FDR_LMX\\tLMO_lineage\\tprediction_LMO\\tBH_FDR_LMO\\tswitched\\tswitch_type\\tpval_switch_sign"'
+rule cris_sankey:
+    input: m1="cris_{m1}_0.2_classes.tsv", m2="cris_{m2}_0.2_classes.tsv"
+    params: tool=BIN_DIR+"/sankey", header=HEADER
+    output: sankey="{m1}_{m2}_sankey_diagram_PDX-PDO_CRISswitch.html", classes="{m1}_{m2}_classes_freq_in_samples.png", switch="{m1}_{m2}_switch_numbers.png", switched="{m1}_{m2}_switching_CRIS_withBARs.png", cohen="cohen_{m1}_{m2}.txt"
+    shell:
+        """
+            echo -e {params.header} > {output.sankey}.tmp
+            join -t$'\\t' {input.m1} {input.m2} | sed 1d | bawk '$3!=$2{{print $1,$2,"NA",$1,$3,"NA","yes", $2" > "$3,"NA"}} $3==$2 {{print $1,$2,"NA",$1,$3,"NA","no", $2,"NA"}}'  >> {output.sankey}.tmp
+            {params.tool} -i {output.sankey}.tmp -s {output.sankey} -c {output.classes} -w {output.switch} -o {output.switched} -t {wildcards.m1}-{wildcards.m2} -k {output.cohen}
+            rm {output.sankey}.tmp
+        """
+
+
+### regola per calcolo score
+
+def definput(wildcards):
+    if (wildcards.expr == "fpkm"):
+        return {'expr': "fpkm.tsv.gz"}
+    else:
+        return {'expr': "tmm.tsv.gz"}
+
+rule score:
+   input: unpack(definput), genes=MARKER
+   params: tool=BIN_DIR+"/lymphoma_score"
+   output: "{expr}_lymphoma_scores.tsv.gz"
+   shell:
+       """
+           {params.tool} -e {input.expr} -g {input.genes} -o {output}
+       """
+
+# rule score_m:
+#    input: expr="../Biodiversa_up5_starOK_M/fpkm_M.tsv.gz", genes=M_MARKER
+#    params: tool=BIN_DIR+"/lymphoma_score"
+#    output: "../Biodiversa_up5_starOK_M/M_lymphoma_scores.tsv.gz"
+#    shell:
+#        """
+#            {params.tool} -e {input.expr} -g {input.genes} -o {output}
+#        """
+
+#### end remove in V2 ####
+
+# GO
+rule go_input:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv"
+    params: lfc=LFC, thr=PVAL, specie=SPECIES
+    shell:
+        """
+            sed 1d {input} | bawk '$7 < {params.thr} && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\t{params.specie}_(.+)/\\t$1/g' > {output}
+        """
+
+rule go_universe:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    params: specie=SPECIES
+    shell:
+        """
+            sed 1d {input} | cut -f 1 | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output}
+        """
+
+rule go:
+    input: classes="{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv", universe="{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+    params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
+    script: SRC_DIR+"/go.R"
+
+
+rule go_sign:
+    input: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+    output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.significant.tsv"
+    shell:
+        """
+                zcat {input} | bawk '$9 !="NA" && $9 < 0.05' | sort  -t $'\\t' -k9,9 -g  > {output}
+        """
+
+#### Dot plots and selection of genes annoted
+rule sign:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+    shell:
+        """
+            bawk '$7<0.05' {input} | bawk 'NR==1{{print "gene",$0}}NR!=1{{print $0}}'  | cut -f 1,2,3,4,7  | sed s'/H_//1'  > {output}
+        """
+
+rule select_annote:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign_genedesc.tsv"
+    params: tool=BIN_DIR+"/add_description"
+    shell:
+        """
+            {params.tool} -d -i {input} -o {output} -t GENENAME -f SYMBOL -n 1
+        """
+
+def defwhat(wildcards):
+    if (wildcards.what == "de"):
+        return {'wanted': BASE}
+    else:
+        return {'wanted': BASE_DATA+'/'+wildcards.what}
+
+rule striplots:
+    input: unpack(defwhat), dds="dds.Rdata"
+    output: directory("{what}_plots_{class}")
+    params: tool=BIN_DIR+"/striplots"
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} {wildcards.class}
+        """
+
+### GSEA
+rule gsea_input:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.tsv"
+    params: lfc=LFC, thr=PVAL, specie=SPECIES, name=NAME
+    shell:
+        """
+            echo -e "geneid\\tname\\tsort" > {output}
+            sed 1d {input} | bawk '{{print $1,"{params.name}",$3}}' | perl -pane 's/{params.specie}_(.+)/$1/g' >> {output}
+        """
+
+rule gsea:
+    input: tsv="{what}_cutoff0.05-{nom}.vs.{den}.gseain.tsv", pathways=GSEA_PATHWAYS
+    output: outdir=directory("{what}_gsea_{nom}vs{den}"), outtable="{what}_{nom}.vs.{den}.significant_NES_gsea", outtableall="{what}_{nom}.vs.{den}.all_NES_gsea"
+    params: save="gsea_{what}_{nom}.vs.{den}.Rdata", cores=CORES, debug="no"
+    script: GSEA
+
+
+rule gsea_not_hallmark:
+    input: tsv="{what}_cutoff0.05-{nom}.vs.{den}.gseain.tsv", pathways=GSEA_PATHWAYS_NOTHALL
+    output: outdir=directory("{what}_gseanh_{nom}vs{den}"), outtable="{what}_{nom}.vs.{den}.significant_NES_gseanh", outtableall="{what}_{nom}.vs.{den}.all_NES_gseanh"
+    params: save="gseanh_{what}_{nom}.vs.{den}.Rdata", cores=CORES, debug="no"
+    script: GSEA
+
+rule gsea_rnk:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain.rnk"
+    shell:
+        """
+            cut -f 1,3 {input} | sed 1d | sort | uniq > {output}
+        """
+
+#### from now on can be removed
+#
+# heatmap given a list of genes (e.g. of a given pathway, from pipeline or manual) annotates them in the list of all DEG
+# ../../local/share/data/gsea/h.all.v7.2.symbols.gmt mut_cutoff0.05-MUT.vs.WT.deseq2_sign_genedesc.tsv
+# stricter thr? tmm.tsv.gz
+rule gsva:
+    input: expr='tmm_H.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/CSC_hs_symbol.rds'
+    output: 'CSC-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+rule gsva_yap:
+    input: expr='tmm_H.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/allCSC_hs_symbol.rds'
+    output: 'YAP-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+rule gsva_msigdb:
+    input: expr='tmm_H.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
+    output: '{class}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+rule gsva_alberto:
+    input: expr='tmm_H.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/coll_genes_pop_{sample}.rds'
+    output: 'Alberto_{sample}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+### cris on averaged vsd
+### cris on averaged vsd
+# pper avere le medie nella stessa cartella puoi anche spostarti in biobanca se ti trovi più comoda!
+rule cris_v2_vsd:
+    input: expr="{metric}_mean_gene_genealogyall.tsv.gz"
+    params: prefix="vsd_cris_{metric}"
+    output: "vsd_cris_{metric}_prediction_result.xls"
+    script: SRC_DIR+"/cris_classify_V2_avgvsd.R"
+
+### with the script prepare_lmh_cris I prepared the expr file starting from vsd, maybe rule to have it modified if needed
+
+rule cris_v2_vsd_lmh:
+    input: expr="{metric}_gene_genealogyall.tsv"
+    params: prefix="vsd_cris_{metric}"
+    output: "vsd_cris_{metric}_prediction_result.xls"
+    script: SRC_DIR+"/cris_classify_V2_vsdlmh.R"
+
+rule wipe_up_after_cris_vsd:
+    input: "vsd_cris_{metric}_prediction_result.xls"
+    output: tsv="vsd_cris_{metric}_prediction_result.tsv", png="vsd_cris_{metric}_prediction_result.png"
+    shell:
+        """
+            mv {input} {output.tsv}
+            mv vsd_cris_{wildcards.metric}_heatmp.png {output.png}
+            rm vsd_cris_{wildcards.metric}_sample_info.txt vsd_cris_{wildcards.metric}_sorted.dataset.gct vsd_cris_{wildcards.metric}_predicted*sorted.cls vsd_cris_{wildcards.metric}_FDR*png vsd_cris_{wildcards.metric}_*legend.png  vsd_cris_{wildcards.metric}_features.xls
+            rm vsd_cris_{wildcards.metric}.tmp
+        """
+
+rule highlight_NC_vsd:
+    input: tsv="vsd_cris_{metric}_prediction_result.tsv"
+    output: "vsd_cris_{metric}_prediction_result_nc.tsv"
+    shell:
+        """
+            cat {input.tsv} | bawk 'NR==1' > {output}
+            cat {input.tsv} | sed 1d | bawk '$6>0.2 {{$2="NC"}}1' >> {output}
+        """
+
+###
+
+
+rule gsea_input_2:
+    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    params: lfc=LFC, thr=PVAL, specie=SPECIES
+    shell:
+        """
+            echo -e "gene\\tFreq" > {output}
+            sed 1d {input} | bawk '{{print $1, $3}}' | perl -pane 's/^{params.specie}_(.+)/$1/g' >> {output}
+        """
+
+rule gsea_analysis_plot:
+    input: gene_res_freq = "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    output: GSEA_r = "GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
+    script: SRC_DIR+'/GSEA_analysis.R'
+
+
