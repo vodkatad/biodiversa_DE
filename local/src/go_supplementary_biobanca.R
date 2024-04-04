@@ -20,25 +20,32 @@ write.xlsx(ohdown, file="GO_results_supplementary.xlsx", sheetName="LMO.vs.LMH_d
 write.xlsx(xhup, file="GO_results_supplementary.xlsx", sheetName="LMX.vs.LMH_up", append=TRUE, row.names=FALSE)
 write.xlsx(xhdown, file="GO_results_supplementary.xlsx", sheetName="LMX.vs.LMH_down", append=TRUE, row.names=FALSE)
 
-
+xoup <- xoup[order(xoup$pvalue),]
+xodown <- xodown[order(xodown$pvalue),]
+ohup <- ohup[order(ohup$pvalue),]
+ohdown <- ohdown[order(ohdown$pvalue),]
+xhup <- xhup[order(xhup$pvalue),]
+xhdown <- xhdown[order(xhdown$pvalue),]
+  
+  
 # Create a blank workbook
 OUT <- createWorkbook()
 
 # Add some sheets to the workbook
-addWorksheet(OUT, "PDXT.vs.PDX_up")
-addWorksheet(OUT, "PDXT.vs.PDX_down")
-addWorksheet(OUT, "PDXT.vs.LMH_up")
-addWorksheet(OUT, "PDXT.vs.LMH_down")
-addWorksheet(OUT, "PDX.vs.LMH_up")
-addWorksheet(OUT, "PDX.vs.LMH_down")
+addWorksheet(OUT, "PDXTs.vs.PDXs_up")
+addWorksheet(OUT, "PDXTs.vs.PDXs_down")
+addWorksheet(OUT, "PDXTs.vs.HLMs_up")
+addWorksheet(OUT, "PDXTs.vs.HLMs_down")
+addWorksheet(OUT, "PDXs.vs.HLMs_up")
+addWorksheet(OUT, "PDXs.vs.HLMs_down")
 
 # Write the data to the sheets
-writeData(OUT, sheet = "PDXT.vs.PDX_up", x = xoup)
-writeData(OUT, sheet = "PDXT.vs.PDX_down", x = xodown)
-writeData(OUT, sheet = "PDXT.vs.LMH_up", x = ohup)
-writeData(OUT, sheet = "PDXT.vs.LMH_down", x = ohdown)
-writeData(OUT, sheet = "PDX.vs.LMH_up", x = xhup)
-writeData(OUT, sheet = "PDX.vs.LMH_down", x = xhdown)
+writeData(OUT, sheet = "PDXTs.vs.PDXs_up", x = xoup)
+writeData(OUT, sheet = "PDXTs.vs.PDXs_down", x = xodown)
+writeData(OUT, sheet = "PDXTs.vs.HLMs_up", x = ohup)
+writeData(OUT, sheet = "PDXTs.vs.HLMs_down", x = ohdown)
+writeData(OUT, sheet = "PDXs.vs.HLMs_up", x = xhup)
+writeData(OUT, sheet = "PDXs.vs.HLMs_down", x = xhdown)
 
 # Export the file
 saveWorkbook(OUT, "/scratch/trcanmed/DE_RNASeq/dataset/Class_comparison_biobanca/Clustering_Cutoff0.05_LFC0.584_ok/GO_results_supplementary.xlsx")

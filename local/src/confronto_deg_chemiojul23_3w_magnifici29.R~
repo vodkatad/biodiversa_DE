@@ -206,9 +206,9 @@ c6_w3 <- read.table(c6_w3_f, quote = "", sep = "\t", header = TRUE, stringsAsFac
 #c6_m29_f <- "/scratch/trcanmed/DE_RNASeq/dataset/magnifici29/GSEA_results_C6_type_cutoff0.05-resistant.vs.sensitive.tsv"
 c6_m29 <- read.table(c6_m29_f, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 
-#c6_w3 <- c6_w3 %>% filter(p.adjust < 0.05)
+c6_w3 <- c6_w3 %>% filter(p.adjust < 0.05)
  
-#c6_m29 <- c6_m29 %>% filter(p.adjust < 0.05)
+c6_m29 <- c6_m29 %>% filter(p.adjust < 0.05)
 ws <- c("LEF1_UP.V1_UP","LEF1_UP.V1_DN","BCAT.100_UP.V1_UP")
  
 c6_w3 <- c6_w3 %>% filter(ID %in% ws)
