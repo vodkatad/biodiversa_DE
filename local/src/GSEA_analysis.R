@@ -25,7 +25,7 @@ m_t2g <- msigdbr(species = "Homo sapiens", category = type) %>%
 
 em <- GSEA(geneList, TERM2GENE = m_t2g, pvalueCutoff = 1)
 
-#save.image("gsea_results_c6.R")
+save.image("gsea_results_c5.R")
 
 #GSEA_r <- write.table(em@result, quote = FALSE, row.names = TRUE, col.names = TRUE)
 
