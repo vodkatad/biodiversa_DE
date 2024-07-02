@@ -296,9 +296,16 @@ rule pc_batch_summarizedtype:
 
 rule pca_grid:
     input: pca = "pc_manual_plots.Rdata", leuco = "/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/leuco_score.Rdata"
-    output: fig = "figure_d_supplementary.pdf"
+    output: fig = "figure_d_supplementary.pdf", sda="SOURCE_DATA_Suppl_Fig_16_A.tsv", sdb="SOURCE_DATA_Suppl_Fig_16_B.tsv", sdc="SOURCE_DATA_Suppl_Fig_16_C.tsv"
     script: SRC_DIR+"/grid_pca_leuco.R"
 
+rule source_data_sf16:
+    input: sda="SOURCE_DATA_Suppl_Fig_16_A.tsv", sdb="SOURCE_DATA_Suppl_Fig_16_B.tsv", sdc="SOURCE_DATA_Suppl_Fig_16_C.tsv"
+    output: "SOURCE_DATA_Suppl_Fig_16.xlsx"
+    shell:
+        """
+            tsv_to_xls -i {input.sda},{input.sdb},{input.sdc} -o {output} -s 'Suppl. Fig. 16A, Suppl. Fig. 16B, Suppl. Fig. 16C'
+        """
 ### gsva scores on single groups
 rule gsva_msigdb_single_type:
     input: expr='{type}-tmm.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
