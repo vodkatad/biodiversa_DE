@@ -16,14 +16,12 @@ if (is.null(opt$signature) || is.null(opt$expression) || is.null(opt$outfile) ||
     stop(usage)
 }
 
-save.image("provagsea.R")
 expr_file <- opt$expression
 rds_sign <- opt$signature
 
 geneset <- readRDS(rds_sign)
 expr_data <- read.table(gzfile(expr_file), sep="\t", header=TRUE, row.names=1)
-expr_data <- log(expr_data+1, base=2)
-
+rownames(expr_data) <- gsub("H_", "", rownames(expr_data))
 #ssgsea.norm
 #Barbie  et  al.   (2009)  normalizing  the  scores  by  the  absolute  difference
 #between the minimum and the maximum,  as described in their paper.   Whenssgsea.norm=FALSEthis last normalization step is skipped

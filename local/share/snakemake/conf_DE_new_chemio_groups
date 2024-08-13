@@ -59,9 +59,9 @@ BASE_DATA=PRJ_ROOT+"/local/share/data"
 ## viene usato sample_names_folfiri.R per deg_folfiri_new
 
 rule samples_data:
-    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", folfiri = "../../local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv"
+    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", folfiri = "../../local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv", caseremove="removefromDEG.tsv"
     output: sample="samples_data"
-    script: SRC_DIR+"/samples_data_chemio_july23.R"
+    script: SRC_DIR+"/samples_data_chemio_groups.R"
 
 LFC=0.5849625 # 1.5 FC
 CORES=6
@@ -212,24 +212,3 @@ CORES=6
 PVAL=0.05
 
 DEBUG="yes"
-
-## per fare c6 che ha un nome diverso dagli altri utilizzare c6.all.v2022.1.Hs.symbols.gmt
-
-rule load_signatures_symbol:
-    input: "/mnt/trcanmed/snaketree/prj/scRNA/local/share/data/msigdb/{sign}.all.v7.4.symbols.gmt"
-    output: '{sign}.symbol.rds'
-    params: tool=BIN_DIR+'/getGseaSignatures'
-    shell:
-        """
-            {params.tool} -g {input} -o {output} -c {wildcards.sign}
-        """
-
-rule gsva_msigdb:
-    input: expr='tmm.tsv.gz', sign="{class}.symbol.rds"
-    output: '{class}-scores.tsv'
-    params: tool=BIN_DIR+'/gsva'
-    shell:
-        """
-            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
-        """
-

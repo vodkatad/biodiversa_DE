@@ -1,10 +1,11 @@
-## deg chemio july23
+## deg chemio aug24 removal groups
 
 library(tidyverse)
 
 
 metadata_o_f <- snakemake@input[["metadata"]] 
 casi_f <- snakemake@input[["folfiri"]]
+remove_f <- snakemake@input[["caseremove"]]
 meta <- snakemake@output[["sample"]]
 
 
@@ -28,6 +29,12 @@ casi$quartile <- NA
 casi$quartile <- ifelse(casi$X3WKS < quarti[1], 1, ifelse(casi$X3WKS > quarti[2], 3, 2))                
 
 casi <- casi %>% filter(quartile == 1 | quartile == 3)
+
+#remove_f <- "/scratch/trcanmed/DE_RNASeq/dataset/new_chemio_groups/removefromDEG.tsv"
+remove <- read.table(remove_f, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+remove <- rownames(remove)
+
+casi <- casi %>% filter(!CASE %in% remove)
 
 save.image('pippo.Rdata')
 
