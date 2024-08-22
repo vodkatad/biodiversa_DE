@@ -102,7 +102,7 @@ SELECTED2=""
 MEDA_BASALI=""
 METASAFE=""
 
-CHOSEN='CRC0327,CRC0069,CRC0322,CRC0542,CRC0059'
+CHOSEN='CRC0327,CRC0069,CRC0322,CRC0542,CRC0116,CRC0743'
 rule striplots_chosen:
     input: wanted=BASE_DATA+'/{what}', dds="dds.Rdata"
     output: directory("{what}_lineplots_{class}")
@@ -128,4 +128,20 @@ rule de_shrink:
     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff_shrink.R"
+
+def defwhat(wildcards):
+    if (wildcards.what == "de"):
+        return {'wanted': BASE}
+    else:
+        return {'wanted': BASE_DATA+'/'+wildcards.what}
+
+rule lineplots:
+    input: unpack(defwhat), dds="dds.Rdata"
+    output: directory("{what}_replots_{class}")
+    params: tool=BIN_DIR+"/striplots_single_sample_mirated"
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} {wildcards.class} all
+        """
 

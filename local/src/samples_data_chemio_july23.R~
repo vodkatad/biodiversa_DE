@@ -29,8 +29,6 @@ casi$quartile <- ifelse(casi$X3WKS < quarti[1], 1, ifelse(casi$X3WKS > quarti[2]
 
 casi <- casi %>% filter(quartile == 1 | quartile == 3)
 
-save.image('pippo.Rdata')
-
 #metadata_o_f <- "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
 meda_f <- read.table(metadata_o_f, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 

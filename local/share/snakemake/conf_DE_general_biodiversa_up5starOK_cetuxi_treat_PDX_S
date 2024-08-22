@@ -83,3 +83,8 @@ rule striplots_chosen:
             {params.tool} {input.wanted} {input.dds} {output} {wildcards.class} {params.chosen}
         """
 
+SELECTED=""
+SELECTED2=""
+MEDA_BASALI=""
+METASAFE=""
+ROOT="/mnt/trcanmed/snaketree/"

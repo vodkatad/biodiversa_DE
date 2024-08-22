@@ -1,19 +1,23 @@
+### Copia di ../../local/share/snakerule/Snakefile_DE_general_godot perché c'è un FIXMETODO in de e non volevo toccare e pacioccare
+
 include: "conf.sk"
 import os
 
+rule all_de:
+    input: expand("{cris}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", zip, cris=CRIS,what="cluster",alpha=0.05,nom=CRIS2,den="All")
+
 rule plots:
-    input: counts=COUNTS, metadata="samples_data"
-    output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
+    input: counts=COUNTS, metadata="{cris}vsAll/{cris}vsAll_samples_data"
+    output: "{cris}vsAll/dds.Rdata", "{cris}vsAll/fpkm.tsv.gz", "{cris}vsAll/tmm.tsv.gz", "{cris}vsAll/vsd.tsv.gz"
     params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
     shell:
         """
             {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
         """
 
-#treat_cutoff0.05-cetuxi.vs.NT.deseq2.tsv
 rule de:
-    input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    input: "{cris}vsAll/dds.Rdata"
+    output: tsv="{cris}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{cris}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff.R"
 

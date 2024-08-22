@@ -1,5 +1,3 @@
-## deg chemio july23
-
 library(tidyverse)
 
 
@@ -11,25 +9,25 @@ meta <- snakemake@output[["sample"]]
 #casi_f <- "/scratch/trcanmed/DE_RNASeq/local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv"
 casi <- read.table(casi_f, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 casi$ff30 <- NULL
-casi <- casi[order(casi$X3WKS, decreasing = TRUE),]
-casi$ntile <- ntile(casi$X3WKS, 4)
-casi$ntile3 <- ntile(casi$X3WKS, 3)
+# casi <- casi[order(casi$X3WKS, decreasing = TRUE),]
+# casi$ntile <- ntile(casi$X3WKS, 4)
+# casi$ntile3 <- ntile(casi$X3WKS, 3)
+# 
+# ggplot(casi, aes(x = reorder(CASE, -X3WKS), y = X3WKS, fill = as.factor(ntile))) + geom_bar(stat = "identity")+
+#   theme(axis.text.x = element_text(angle = 90, size = 5))
+# 
+# ggplot(casi, aes(x = reorder(CASE, -X3WKS), y = X3WKS, fill = ntile3)) + geom_bar(stat = "identity")+
+#   theme(axis.text.x = element_text(angle = 90, size = 5))
 
-ggplot(casi, aes(x = reorder(CASE, -X3WKS), y = X3WKS, fill = as.factor(ntile))) + geom_bar(stat = "identity")+
-  theme(axis.text.x = element_text(angle = 90, size = 5))
+casi_no_NA <- na.omit(casi)
+casi_no_NA <- casi_no_NA[order(casi_no_NA$X6WKS, decreasing = TRUE),]
+quarti <- quantile(casi_no_NA$X6WKS, c(1/3, 2/3))
 
-ggplot(casi, aes(x = reorder(CASE, -X3WKS), y = X3WKS, fill = ntile3)) + geom_bar(stat = "identity")+
-  theme(axis.text.x = element_text(angle = 90, size = 5))
+casi_no_NA$quartile <- NA
 
-quarti <- quantile(casi$X3WKS, c(1/3, 2/3))
+casi_no_NA$quartile <- ifelse(casi_no_NA$X6WKS < quarti[1], 1, ifelse(casi_no_NA$X6WKS > quarti[2], 3, 2))                
 
-casi$quartile <- NA
-
-casi$quartile <- ifelse(casi$X3WKS < quarti[1], 1, ifelse(casi$X3WKS > quarti[2], 3, 2))                
-
-casi <- casi %>% filter(quartile == 1 | quartile == 3)
-
-save.image('pippo.Rdata')
+casi_no_NA <- casi_no_NA %>% filter(quartile == 1 | quartile == 3)
 
 #metadata_o_f <- "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
 meda_f <- read.table(metadata_o_f, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
@@ -46,8 +44,8 @@ meda_f$CASE <- substr(meda_f$sample_id_R, 1,7)
 meda_f <- meda_f %>% mutate(type = gsub(".1", "", type))
 meda_f <- meda_f %>% mutate(sample_id_R = gsub("-2", ".2", sample_id_R))
 
-merged <- merge(casi, meda_f, by = "CASE")
-res <- as.data.frame(merged[, c(1, 8, 9, 10)])
+merged <- merge(casi_no_NA, meda_f, by = "CASE")
+res <- as.data.frame(merged[, c(1, 6, 7, 8)])
 rownames(res) <- res$sample_id_R
 res$sample_id_R <- NULL
 names(res)[names(res) == "CASE"] <- "sample"

@@ -66,6 +66,7 @@ rule cls:
 #             sed 1d {input} | bawk '$7 < {params.thr} && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\t{params.specie}_(.+)/\\t$1/g' > {output}
 #         """
 
+## !!!! CONTROLLARE ci sia il - davanti a < params per i godown
 rule go_input_up_down:
     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
     output: up = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_up.tsv", down = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_down.tsv"

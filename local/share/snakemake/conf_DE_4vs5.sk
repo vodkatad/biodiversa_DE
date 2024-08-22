@@ -1,4 +1,6 @@
 import os
+import pandas as pd
+import numpy as np
 ROOT=os.environ.get('SNAKE_ROOT')
 SCRATCH_ROOT=os.getenv('SCRATCH_ROOT')
 
@@ -22,16 +24,15 @@ NAME="Biodiversa_up5"
 DATA=PRJ_ROOT+"/local/share/data/"+NAME
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
+METHY="../../../pdx_methylation"
 
 CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
 BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
-# DATA_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data/'
-#BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020'
 
 COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
-DESIGN="~type"
+DESIGN="~cluster"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -55,13 +56,36 @@ SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
 SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
 #SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 rule samples_data:
-    input: meta=BIT_DIR+"/selected_metadata", keep=SELECTED
+    input: meta=METHY+"/dataset/v4/limma/samples_info_final_4vs5_2023.tsv", keep=SELECTED
+    params: what="cluster"
     output: "samples_data"
-    shell:
-        """
-			echo -e "id\\tbatch\\ttype\\tcetuxi\\tirino" > {output}
-			cat {input.meta} | filter_1col 1 <(sed 1d {input.keep} | cut -f1) | perl -pane 's/(CRC[\d\w]+)-(\d)/$1.$2/' >> {output}
-        """
+    run:
+        col = params.what
+        info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None, usecols=["mouse", col])
+        keep = pd.read_csv(input.keep, sep='\t', header=0, index_col=None, usecols=["sample_id_R", "type"])
+
+        contains = ["LMX_BASALE", "PRX_BASALE", "LMX_BASALE.1", "PRX_BASALE.1"]
+        keep = keep.loc[keep['type'].isin(contains),]
+        keep['sample_id_R'] = keep['sample_id_R'].str[:12]
+
+        info['model'] = info['mouse'].str[:7]
+        info['mouse'] = info['mouse'].str[:12]
+        info = info[['mouse','model','cluster']]
+
+        info = info.loc[info['mouse'].isin(keep['sample_id_R']),]
+        # info = info.loc[info['model'].isin(keep['sample_id_R'].str[:7]),]
+        ### mouse now is up to XA/XB: I think a good "half way", from 490, we have 386 samples left
+        ### if we go with the model, we keep 467.
+        
+        info.to_csv(output[0], header=True, index=None, sep='\t')
+
+### to remember de rule wildcards:
+### "response_cutoff0.05-ORSD.vs.PD.deseq2.tsv"
+### {what} is the column
+### {alpha} is the pvalue
+### {nom} is the first parameter for the contrast
+### {den} is the second parameter for the contrast
+
 
 LFC=0.5849625 # 1.5 FC
 CORES=6
@@ -296,16 +320,9 @@ rule pc_batch_summarizedtype:
 
 rule pca_grid:
     input: pca = "pc_manual_plots.Rdata", leuco = "/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/leuco_score.Rdata"
-    output: fig = "figure_d_supplementary.pdf", sda="SOURCE_DATA_Suppl_Fig_16_A.tsv", sdb="SOURCE_DATA_Suppl_Fig_16_B.tsv", sdc="SOURCE_DATA_Suppl_Fig_16_C.tsv"
+    output: fig = "figure_d_supplementary.pdf"
     script: SRC_DIR+"/grid_pca_leuco.R"
 
-rule source_data_sf16:
-    input: sda="SOURCE_DATA_Suppl_Fig_16_A.tsv", sdb="SOURCE_DATA_Suppl_Fig_16_B.tsv", sdc="SOURCE_DATA_Suppl_Fig_16_C.tsv"
-    output: "SOURCE_DATA_Suppl_Fig_16.xlsx"
-    shell:
-        """
-            tsv_to_xls -i {input.sda},{input.sdb},{input.sdc} -o {output} -s 'Suppl. Fig. 16A, Suppl. Fig. 16B, Suppl. Fig. 16C'
-        """
 ### gsva scores on single groups
 rule gsva_msigdb_single_type:
     input: expr='{type}-tmm.tsv.gz', sign=ROOT+'/prj/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
