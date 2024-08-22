@@ -1,0 +1,76 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+BROOT=os.getenv('BIOINFO_ROOT')                                                    
+NAME="322_vs_327"
+DATA=PRJ_ROOT+"/local/share/data/322_vs_327"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/Ire_paneth_ko_2023'
+
+#COUNTS_PRE=BIT_DIR+"/GEP.count.gz"
+COUNTS="counts.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+PREMETA=DATA+'/ss_322_vs_327.txt'
+##META="meta.txt"
+###
+DESIGN="~model+batch"
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+#FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+# rule ss:
+#     input: PREMETA
+#     output: META
+#     shell:
+#         """
+#             echo -e "old_id\\tnew_id" > {output}
+#             bawk '{{print $2,$2}}' {input} >> {output}
+#         """
+
+#rule rename_cols:
+#    input: matrix=COUNTS_PRE, meta=PREMETA
+#    output: hmat=COUNTS
+#    script: SRC_DIR+'/rename_columns_ko_atoh1.R'
+
+# rule samples_data:
+#     input: meta=PREMETA
+#     output: tsv="samples_data"
+#     script: SRC_DIR+"/samples_data_ko_atoh1.R"
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""
+
+#rule samples_data_noko:
+#    input: meta=PREMETA
+#    output: tsv="samples_data"
+#    script: SRC_DIR+"/samples_data_ko_atoh1_samples.R"
+
+rule samples_data_322vs327:
+    input: meta=PREMETA
+    output: tsv="samples_data"
+    script: SRC_DIR+"/samples_data_322vs327.R"
+
