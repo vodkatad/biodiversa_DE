@@ -1,3 +1,6 @@
+library(ggplot2)
+library(viridis)
+setwd('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/MA_evil/delta_expr')
 data <- read.table('/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/MA_evil/vsd.tsv.gz', sep="\t", header=TRUE)
 TOP <- 0.1
 
@@ -27,15 +30,71 @@ ggplot(data=desd, aes(x=CRC1502_09_0, y=CRC1502_09C_2_1))+geom_point()+geom_smoo
 cor.test(desd$CRC1502_09_0, desd$CRC1502_09C_2_1)
 
 jump_percentile <- function(d, s1, s2) {
-  
+  n1 <- gsub('_', '-', s1, fixed=TRUE)
+  n2 <- gsub('_', '-', s2, fixed=TRUE)
   df <- data.frame(s1=d[,s1], s2=d[,s2], row.names=row.names(d))
   df$p1 <- cut(df$s1, quantile(df$s1, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
   df$p2 <- cut(df$s2, quantile(df$s2, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
   df$delta <- abs(df$p2-df$p1)
+  write.table(df, file=paste0(n2,'_',n1,'.delta.tsv'), sep="\t", quote=F)
   #ggplot(data=df, aes(x=delta))+geom_histogram()+theme_bw(base_size=20)
   print(ggplot(data=df, aes(x=s1, y=s2, color=delta))+geom_point()+scale_color_viridis(discrete = FALSE)+theme_bw(base_size=20))
   return(nrow(df[df$delta>2,]))
 }
+
+begin <- c('CRC1502_03_0', 'CRC1502_09_0', 'CRC1502_10_0', 'CRC1502_09_1_C', 'CRC1502_09_1_C', 'CRC1502_09_1_C','CRC1502_10_1_B','CRC1502_10_1_B','CRC1502_10_1_B')
+end <- c('CRC1502_03_1_A', 'CRC1502_09_1_C', 'CRC1502_10_1_B', 'CRC1502_09C_2_1', 'CRC1502_09C_2_2', 'CRC1502_09C_2_3', 'CRC1502_10B_2_3', 'CRC1502_10B_2_5', 'CRC1502_10B_2_6')
+
+mapply(function(x,y) {jump_percentile(desd, x, y)}, begin, end)
+
+prom_mut_rank_delta <- function(d, s1, s2) {
+  n1 <- gsub('_', '-', s1, fixed=TRUE)
+  n2 <- gsub('_', '-', s2, fixed=TRUE)
+  df <- data.frame(s1=d[,s1], s2=d[,s2], row.names=row.names(d))
+  df$p1 <- cut(df$s1, quantile(df$s1, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
+  df$p2 <- cut(df$s2, quantile(df$s2, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
+  df$delta <- abs(df$p2-df$p1)
+  prom <- read.table(paste0(n2, "_", n1, ".n_gained_prom.tsv"), sep="\t", header=F)
+  length(intersect(prom$V1, rownames(df[df$delta >2,])))
+}
+mapply(function(x,y) {prom_mut_rank_delta(desd, x, y)}, begin, end)
+
+
+prom_mut_rank_delta_2 <- function(d, s1, s2) {
+  n1 <- gsub('_', '-', s1, fixed=TRUE)
+  n2 <- gsub('_', '-', s2, fixed=TRUE)
+  df <- data.frame(s1=d[,s1], s2=d[,s2], row.names=row.names(d))
+  df$p1 <- cut(df$s1, quantile(df$s1, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
+  df$p2 <- cut(df$s2, quantile(df$s2, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
+  df$delta <- abs(df$p2-df$p1)
+  prom <- read.table(paste0(n2, "_", n1, ".n_gained_prom.tsv"), sep="\t", header=F)
+  df$delta2 <- abs(df$s1 - df$s2)
+  df <- df[order(-df$delta2),]
+  df$rank <- seq(1, nrow(df))
+  m <- merge(df, prom, by.x="row.names", by.y="V1")
+  if (nrow(m) >= 1) {
+    #return(c(nrow(m), mean(m$rank) / nrow(df)))
+    return(c(nrow(m), max(m$rank) / nrow(df)))
+  } else {
+    return(0)
+  }
+}
+rr <- mapply(function(x,y) {prom_mut_rank_delta_2(desd, x, y)}, begin, end)
+
+myplot <- function(d, s1, s2) {
+  n1 <- gsub('_', '-', s1, fixed=TRUE)
+  n2 <- gsub('_', '-', s2, fixed=TRUE)
+  df <- data.frame(s1=d[,s1], s2=d[,s2], row.names=row.names(d))
+  df$p1 <- cut(df$s1, quantile(df$s1, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
+  df$p2 <- cut(df$s2, quantile(df$s2, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
+  df$delta <- abs(df$p2-df$p1)
+  prom <- read.table(paste0(n2, "_", n1, ".n_gained_prom.tsv"), sep="\t", header=F)
+  m <- merge(df, prom, by.x="row.names", by.y="V1")
+  df$hasGained <- ifelse(rownames(df) %in% m$Row.names, 'yes', 'no')
+  print(ggplot(data=df, aes(x=s1, y=s2, color=hasGained))+geom_point(alpha=0.7)+scale_color_manual(values=c('grey', 'red'))+theme_bw(base_size=20)+ggtitle(paste0(n2, "_", n1)) + theme(legend.position="none")+geom_abline(slope=1, intercept=0))
+}
+
+mapply(function(x,y) {myplot(desd, x, y)}, begin, end)
 
 jump_percentile(desd, 'CRC1502_03_0', 'CRC1502_03_1_A')
 jump_percentile(desd, 'CRC1502_09_0', 'CRC1502_09C_2_1')
