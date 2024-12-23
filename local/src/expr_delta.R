@@ -64,22 +64,60 @@ prom_mut_rank_delta_2 <- function(d, s1, s2) {
   n1 <- gsub('_', '-', s1, fixed=TRUE)
   n2 <- gsub('_', '-', s2, fixed=TRUE)
   df <- data.frame(s1=d[,s1], s2=d[,s2], row.names=row.names(d))
-  df$p1 <- cut(df$s1, quantile(df$s1, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
-  df$p2 <- cut(df$s2, quantile(df$s2, probs=seq(0, 1, by=0.1)), include.lowest=T, labels=F)
-  df$delta <- abs(df$p2-df$p1)
   prom <- read.table(paste0(n2, "_", n1, ".n_gained_prom.tsv"), sep="\t", header=F)
   df$delta2 <- abs(df$s1 - df$s2)
+  #df$delta2 <- log2(ifelse(df$s1 > df$s2,  df$s1/df$s2, df$s2/df$s1))
   df <- df[order(-df$delta2),]
   df$rank <- seq(1, nrow(df))
   m <- merge(df, prom, by.x="row.names", by.y="V1")
   if (nrow(m) >= 1) {
     #return(c(nrow(m), mean(m$rank) / nrow(df)))
-    return(c(nrow(m), max(m$rank) / nrow(df)))
+    #return(c(nrow(m), (min(m$rank) / nrow(df))))
+    return(min(m$rank) / nrow(df))
   } else {
     return(0)
   }
 }
-rr <- mapply(function(x,y) {prom_mut_rank_delta_2(desd, x, y)}, begin, end)
+#rr <- mapply(function(x,y) {prom_mut_rank_delta_2(desd, x, y)}, begin, end)
+rr_fc <- mapply(function(x,y) {prom_mut_rank_delta_2(desd, x, y)}, begin, end)
+
+# randomize expr pairs
+prom_mut_rank_delta_2_rand <- function(d, s1, s2, ss, ee) {
+  n1 <- gsub('_', '-', s1, fixed=TRUE)
+  n2 <- gsub('_', '-', s2, fixed=TRUE)
+  df <- data.frame(s1=d[,ee], s2=d[,ss], row.names=row.names(d))
+  prom <- read.table(paste0(n2, "_", n1, ".n_gained_prom.tsv"), sep="\t", header=F)
+  df$delta2 <- abs(df$s1 - df$s2)
+  #df$delta2 <- log2(ifelse(df$s1 > df$s2,  df$s1/df$s2, df$s2/df$s1))
+  df <- df[order(-df$delta2),]
+  df$rank <- seq(1, nrow(df))
+  m <- merge(df, prom, by.x="row.names", by.y="V1")
+  if (nrow(m) >= 1) {
+    #return(c(nrow(m), mean(m$rank) / nrow(df)))
+    #return(c(nrow(m), (min(m$rank) / nrow(df))))
+    return(min(m$rank) / nrow(df))
+  } else {
+    return(0)
+  }
+}
+
+set.seed(42)
+call_mapply_rand <- function(mybegin, myend) {
+  myend_shuf <- sample(myend, length(myend), replace=TRUE)
+  mybegin_shuf <- sample(mybegin, length(mybegin), replace=TRUE)
+  mapply(function(x,y,z,k) {prom_mut_rank_delta_2_rand(desd, x, y, z, k)}, mybegin, myend, myend_shuf, mybegin_shuf)
+}
+
+rand_fc <- replicate(1000, call_mapply_rand(begin, end))
+
+islarger <- apply(rand_fc, 2, function(x) {x-rr_fc})
+apply(islarger, 1, mean)
+apply(islarger, 1, function(x){sum(x>0)})
+
+for (i in seq(1, nrow(rand_fc))) {
+  pd <- data.frame(x=as.vector(rand_fc[i,]))
+  print(ggplot(data=pd, aes(x=x))+geom_histogram()+theme_bw(base_size=20)+geom_vline(xintercept=rr_fc[i], color='red'))
+}
 
 myplot <- function(d, s1, s2) {
   n1 <- gsub('_', '-', s1, fixed=TRUE)
