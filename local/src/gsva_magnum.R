@@ -21,8 +21,7 @@ rds_sign <- opt$signature
 
 geneset <- readRDS(rds_sign)
 expr_data <- read.table(gzfile(expr_file), sep="\t", header=TRUE, row.names=1)
-rownames(expr_data) <- gsub("H_", "", rownames(expr_data))
-#expr_data <- log(expr_data+1, base=2) # train test cesta has run with this also CMP
+expr_data <- log(expr_data+1, base=2) # train test cesta has run with this also CMP
 #ssgsea.norm
 #Barbie  et  al.   (2009)  normalizing  the  scores  by  the  absolute  difference
 #between the minimum and the maximum,  as described in their paper.   Whenssgsea.norm=FALSEthis last normalization step is skipped

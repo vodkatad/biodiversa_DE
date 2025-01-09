@@ -105,3 +105,13 @@ rule xlsx_gsea:
     input: H="GSEA_results_H_response_cutoff0.05-ORSD.vs.PD.tsv", C2="GSEA_results_C2_response_cutoff0.05-ORSD.vs.PD.tsv"
     output: "Suppl_table_XXX2_gsea.xlsx"
     shell: "tsv_to_xls -i {input.H},{input.C2} -s Hallmarks,C2 -o {output}"
+
+rule gsva_msigdb:
+    input: expr='tmm.tsv.gz', sign="/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/{class}.symbol.rds"
+    output: '{class}-scores_tot.tsv'
+    params: tool=BIN_DIR+'/gsva'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+

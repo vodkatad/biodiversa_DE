@@ -28,6 +28,16 @@ rule select_wanted_counts:
             rm {output.counts}.tmp
         """ 
 
+#cut -f1 test_genealogy train_genealogy  > traintest
+rule select_wanted_counts_M:
+    input: counts=CMATRIX, traintest="traintest"
+    output: counts="selected_matrix_counts_IRCC.tsv"
+    shell:
+        """	
+            zcat {input.counts} | transpose | filter_1col 1 <(cat {input.traintest} <(echo Geneid)) | transpose > {output.counts}
+        """ 
+
+
 rule train_test_tmm:
     input: tmm="../tmm_H.tsv.gz", test="test_genealogy", train="train_genealogy"
     output: test="test_tmm.tsv.gz", train="train_tmm.tsv.gz"
@@ -40,10 +50,11 @@ rule train_test_tmm:
             filter_1col 1 {output.train}.tmp2 {output.test}.tmp | transpose | gzip > {output.train}
         """
 
+# #expr_data <- log(expr_data+1, base=2) # train test cesta has run with this
 rule gsva_msigdb:
     input: expr='{group}_tmm.tsv.gz', sign=ROOT+'/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
     output: '{group}_{class}-scores.tsv'
-    params: tool=BIN_DIR+'/gsva'
+    params: tool=BIN_DIR+'/gsva_magnum'
     shell:
         """
             {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
@@ -111,10 +122,11 @@ rule cmp_tt:
             rm {output.test}.tmp*
         """
     
+# #expr_data <- log(expr_data+1, base=2) # train test cesta has run with this
 rule cmp_gsva_msigdb:
     input: expr='cmp_{type}.tsv.gz', sign=ROOT+'/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
     output: 'CMP_{type}_{class}-scores.tsv'
-    params: tool=BIN_DIR+'/gsva'
+    params: tool=BIN_DIR+'/gsva_magnum'
     shell:
         """
             {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
@@ -141,11 +153,12 @@ rule xeno_10x:
             filter_1col 1 {output.train}.tmp2 < {output.test}.tmp | transpose | gzip > {output.train}
             rm {output.test}.tmp* {output.train}.tmp*
         """
-    
+   
+# not checked if these run with or without log2 pc1
 rule folds_gsva_msigdb:
     input: expr='{fold}_LMXfirstlevel_{type}.tsv.gz', sign=MDATA+'/{class}.symbol.rds'
     output: '{fold}_LMXfirstlevel_{type}_{class}-scores.tsv'
-    params: tool=BIN_DIR+'/gsva'
+    params: tool=BIN_DIR+'/gsva_magnum'
     shell:
         """
             {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva

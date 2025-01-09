@@ -30,7 +30,9 @@ library(edgeR)
 save.image("pippo.Rdata")
 
 data <- read.table(gzfile(counts), header=T, sep="\t", row=1)
-
+### ad hoc for methy samples cause I dont have full genealogy (Marco april 13th 23)\
+colnames(data) <- substr(colnames(data),1,12)
+###
 if (prefix != "all") {
   data <- data[grep(paste0("^", prefix, "_"), rownames(data)),]
 }
@@ -43,9 +45,6 @@ if ('batch' %in% colnames(metadata)) {
 fdesign <- as.formula(design)
 print(terms(fdesign)[[2]])
 
-# this was needed for ad hoc biodiversa stuff/strunz
-#rownames(metadata) <- gsub("-", ".", rownames(metadata), fixed=TRUE)
-###  colnames(data) <- gsub(".2", "", colnames(data), fixed=TRUE)
 if (length(intersect(rownames(metadata), colnames(data))) != nrow(metadata)) {
     stop('No correspondence between metadata and counts!')
 }
