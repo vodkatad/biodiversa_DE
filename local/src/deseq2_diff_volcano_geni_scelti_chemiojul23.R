@@ -61,7 +61,8 @@ resnona <- res[!is.na(res$pvalue) & !is.na(res$padj),]
 resnona_df <- as.data.frame(resnona[order(resnona$padj),])
 title <- trimws(strsplit(elementMetadata(res)[2,2], ":")[[1]][2])
 
-geni <- c("LCN2","DMBT1","ITLN1","NOS2","SERPINE1","VIM","COL6A1","COL7A1","LAMA5", "STAG3", "SPINK4", "FCGBP", "AL354836.1")
+#geni <- c("LCN2","DMBT1","ITLN1","NOS2","SERPINE1","VIM","COL6A1","COL7A1","LAMA5", "STAG3", "SPINK4", "FCGBP", "AL354836.1")
+geni <- c("VIM", "COL7A1", "COL6A1", "SERPINE1", "LAMA5", "LCN2", "DMBT1", "ITLN1", "NOS2", "CAPN9", "SPINK4", "FCGBP", "MFAP4", "VGLL3", "SPON2", "OLFML2A", "EMP3", "STAG3")
 genes_or <- rownames(resnona_df)
 rownames(resnona_df) <- NULL
 resnona_df <- cbind(genes_or,resnona_df)

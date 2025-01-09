@@ -20,7 +20,8 @@ unmute_theme <- theme(
 )
 
 
-dds <- "/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/dds.Rdata"
+#dds <- "/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/dds.Rdata"
+dds <- "/scratch/trcanmed/DE_RNASeq/dataset/chemio_3w_nooutl_POLD1/dds.Rdata"
 load(dds)
 what <- "type"
 
@@ -28,4 +29,4 @@ data<-plotCounts(dds, "H_POLD1", intgroup=what, returnData=T)
 data <- data[order(data$count),]
 e2 <- ggplot(data, aes_string(x = what, y = "count"))
 e3 <- e2 + geom_jitter(aes_string(shape = what, color = what),   position = position_jitter(0.2),size = 3) + stat_summary( aes_string(color = what), fun.data="mean_sdl",  fun.args = list(mult=1),  geom = "pointrange",  size = 0.4, color="darkgreen")+theme_bw()+scale_y_continuous(trans='log10')+labs(color = "Xeno", x="Xeno", shape="Xeno", y="Log10(nreads)")+ggtitle("POLD1")+unmute_theme
-ggsave(paste0("POLD1.eps"), width = 150, height = 100, units = "mm")
+ggsave(paste0("/scratch/trcanmed/DE_RNASeq/dataset/chemio_3w_nooutl_POLD1/POLD1.eps"), width = 150, height = 100, units = "mm")

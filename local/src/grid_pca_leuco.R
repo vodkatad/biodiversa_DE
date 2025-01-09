@@ -98,7 +98,7 @@ p6$Genealogy <- rownames(p6)
 l <- list(p2, p3, p4, p5, p6)
 
 sdb <- purrr::reduce(.x = l, merge, by = 'Genealogy')
-sdb <- sdb[, c('Genealogy', paste0('PC', seq(1,9)), 'group')]
+sdb <- sdb[, c('Genealogy', paste0('PC', seq(1,10)), 'group')]
 
 write.table(sdb, file=sdb_f, sep="\t", quote=FALSE, row.names=FALSE)
 

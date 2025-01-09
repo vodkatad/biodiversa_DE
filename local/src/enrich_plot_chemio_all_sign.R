@@ -215,9 +215,11 @@ verdi_s_n <- snakemake@output[["verdisn"]]
 verdi_m_n <- snakemake@output[["verdimn"]]
 tsv_f <- snakemake@output[["tsv"]]
 #load("/home/mferri/totale_GSEA.Rdata")
+load("/scratch/trcanmed/DE_RNASeq/dataset/like_chemio_jul23_but_PDO/totale_GSEA.Rdata")
 load(rdata)
 
 #tot <- read.table("/home/mferri/prova_risultati_gsea_totali.tsv", quote = "",sep = "\t", header = TRUE)
+data_f <- "/scratch/trcanmed/DE_RNASeq/dataset/like_chemio_jul23_but_PDO/risultati_gsea_totali.tsv"
 tot <- read.table(data_f, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 
 blu <- c("HALLMARK_INTERFERON_ALPHA_RESPONSE", 
@@ -282,8 +284,12 @@ ggsave(p, file=grigio_m, width=200, height=89, units="mm", device="pdf", dpi=300
 
 verdi1 <- c("HALLMARK_KRAS_SIGNALING_UP", "LIN_APC_TARGETS", "KIM_MYC_AMPLIFICATION_TARGETS_DN",
             "SANSOM_APC_TARGETS_DN", "LEF1_UP.V1_UP", "LEF1_UP.V1_DN", "BCAT.100_UP.V1_UP")
+## tolgo KRAS alla luce delle incostistenze tra 6w e POLD1/RAD51 alti bassi
+
+verdi1 <- c("LIN_APC_TARGETS", "KIM_MYC_AMPLIFICATION_TARGETS_DN",
+            "SANSOM_APC_TARGETS_DN", "LEF1_UP.V1_UP", "LEF1_UP.V1_DN", "BCAT.100_UP.V1_UP")
 verdi1check <- tot %>% filter(ID %in% verdi1)
-verdi1check <- verdi1check %>% filter(pvalue < 0.05)
+#verdi1check <- verdi1check %>% filter(pvalue < 0.05)
 res <- rbind(res, verdi1check[c(1,4,5,6,8)])
 
 verdipos <- verdi1check %>% filter(enrichmentScore > 0)
@@ -317,9 +323,9 @@ for (w in verdineg) {
 }
 
 ## cambiare palette sul verde
-p <- gseaplot2(em, geneSetID=wi, color = c("#74C476", "#41AB5D", "#238B45", "#006D2C"), subplots = 1:2)
+p <- gseaplot2(em, geneSetID=wi, color = c("#74C476", "#41AB5D", "#238B45"), subplots = 1:2)
 ggsave(p, file=verdi_s_n, width=200, height=89, units="mm", device="jpeg", dpi=300)
-p <- mygseaplot(em, geneSetID=wi, color = c("#74C476", "#41AB5D", "#238B45", "#006D2C"), subplots = 1:2)
+p <- mygseaplot(em, geneSetID=wi, color = c("#74C476", "#41AB5D", "#238B45"), subplots = 1:2)
 ggsave(p, file=verdi_m_n, width=200, height=89, units="mm", device="jpeg", dpi=300)
 
 write.table(res, file=tsv_f, sep = "\t", quote = FALSE, col.names = TRUE, row.names = FALSE)
