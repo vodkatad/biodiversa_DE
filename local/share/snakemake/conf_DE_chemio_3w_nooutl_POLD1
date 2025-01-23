@@ -58,10 +58,15 @@ BASE_DATA=PRJ_ROOT+"/local/share/data"
 #SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 ## viene usato sample_names_folfiri.R per deg_folfiri_new
 
+# rule samples_data:
+#     input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", folfiri = "../../local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv"
+#     output: sample="samples_data"
+#     script: SRC_DIR+"/samples_data_chemio_july23.R"
+
 rule samples_data:
-    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", folfiri = "../../local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv"
+    input: samples_3w = "../chemio_jul23/samples_data", dds_originale = "../chemio_jul23/dds.Rdata"
     output: sample="samples_data"
-    script: SRC_DIR+"/samples_data_chemio_july23.R"
+    script: SRC_DIR+"/samples_data_chemio_3w_nooutl_POLD1.R"
 
 LFC=0.5849625 # 1.5 FC
 CORES=6
@@ -73,11 +78,11 @@ DEBUG="yes"
 MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
 MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
 
-rule de_geni_scelti:
-    input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.svg"
-    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
-    script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_chemiojul23.R"
+# rule de_geni_scelti:
+#     input: "dds.Rdata"
+#     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.svg"
+#     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+#     script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_chemiojul23.R"
 
 
 ### script per tutte le figure del paper chemio

@@ -1,0 +1,233 @@
+import os
+ROOT=os.environ.get('SNAKE_ROOT')
+SCRATCH_ROOT=os.getenv('SCRATCH_ROOT')
+
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+if ROOT != "/scratch/trcanmed":
+    NEED_PRJ = "/prj"
+else:
+    NEED_PRJ = ""
+
+PRJ_ROOT=find_prj_root()
+                                                    
+NAME="Biodiversa_up5"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
+BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+# DATA_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data/'
+#BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020'
+
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+DESIGN="~batch+type"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/bp_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+BASE_DATA=PRJ_ROOT+"/local/share/data"
+
+
+# for biodiversa change - in . in metadata
+#SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
+#SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
+#SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
+## viene usato sample_names_folfiri.R per deg_folfiri_new
+
+# rule samples_data:
+#     input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", folfiri = "../../local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv", caseremove="removefromDEG.tsv"
+#     output: sample="samples_data"
+#     script: SRC_DIR+"/samples_data_chemio_groups.R"
+
+## fare regola dove tiro fuori i remove
+
+rule remove_from_deg:
+    input: rad51_basal_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_RAD51_NT.tsv", rad51_irino_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_RAD51_irino.tsv",
+            pold1_basal_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_POLD1.tsv", luraghi_df="/mnt/trcanmed/snaketree/prj/strata/local/share/data/luraghi",
+            H2AX_basal_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_H2AX_NT.tsv", H2AX_irino_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_H2AX_irino.tsv",
+            w3_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/w3_waterfall.tsv"
+    output: res="removefromDEG.tsv"
+    script: SRC_DIR+"/IHC_cors_MF.R"
+
+rule samples_data:
+    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", caseremove = "../m29_new_chemio_groups/removefromDEG.tsv"
+    output: meta="samples_data"
+    script: SRC_DIR+"/complementare_m29_grigi.R"
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+
+### rule score -
+MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
+
+# rule de_geni_scelti:
+#     input: "dds.Rdata"
+#     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.svg"
+#     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+#     script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_chemiojul23.R"
+
+
+### script per tutte le figure del paper chemio
+rule perle:
+    input: '{qualunque}.svg'
+    output: 'perlati/{qualunque}.svg'
+    shell:
+        """
+            mkdir -p perlati
+            perl -pne "s/textLength='.+px'//; " < {input} > {output}
+        """
+
+# ## cris per chemio
+# rule cris_per_chemio:
+#     input: cris_f="../../../biobanca/dataset/V1/trans_sign/cris/vsd_cris_LMX_BASALE_nc_smodel.tsv", samples_f="samples_data"
+#     output: pdf="distribution_cris_responder_non_responder.pdf"
+#     log: log="cris_fisher_info.log"
+#     script: SRC_DIR+"/cris_chemiojul23.R"
+
+# ## correlazione deg 3w 6w e consistenza gsea (rigirato 18/12/23 per aggiunta titoli al log)
+# rule cor_degs_gsea:
+#     input: deg_3="type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv", deg_6="../chemio_jul23_6w/type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv", 
+#             gsea_h_w3="GSEA_results_H_type_cutoff0.05-non_responder_3Q.vs.responder_1Q.tsv", gsea_h_w6="../chemio_jul23_6w/GSEA_results_H_type_cutoff0.05-non_responder_3Q.vs.responder_1Q.tsv",
+#             gsea_c2_w3="GSEA_results_C2_type_cutoff0.05-non_responder_3Q.vs.responder_1Q.tsv", gsea_c2_w6="../chemio_jul23_6w/GSEA_results_C2_type_cutoff0.05-non_responder_3Q.vs.responder_1Q.tsv",
+#             gsea_c6_w3="GSEA_results_C6_type_cutoff0.05-non_responder_3Q.vs.responder_1Q.tsv", gsea_c6_w6="../chemio_jul23_6w/GSEA_results_C6_type_cutoff0.05-non_responder_3Q.vs.responder_1Q.tsv",
+#     output: png="plot_correlazione_deg_3w_6w.png", eps="plot_correlazione_deg_3w_6w.eps", cor_h_tsv="gsea_cor_hallmark.tsv", cor_c2_tsv="gsea_cor_c2.tsv", cor_c6_tsv="gsea_cor_c6.tsv"
+#     log: log="correlazioni_gsea_deg_3w_6w.log"
+#     script: SRC_DIR+"/confronto_deg_chemiojul23_3w_6w.R"
+
+# ## plot enrich gsea
+# rule gsea_all:
+#     input: gene_res_freq = "type_cutoff0.05-non_responder_3Q.vs.responder_1Q.gseain_2.tsv"
+#     output: rdata="totale_GSEA.Rdata", tsv="risultati_gsea_totali.tsv"
+#     script: SRC_DIR+"/gsea_chemio_all_sign.R"
+
+# rule plot_enrich:
+#     input:  imagine="totale_GSEA.Rdata", data="risultati_gsea_totali.tsv"
+#     output: blus="blu_chemiojul23_scritte.jpeg",
+#             blum="blu_chemiojul23_muto.jpeg",
+#             giallos="gialli_chemiojul23_scritte.jpeg",
+#             giallom="gialli_chemiojul23_muto.jpeg",
+#             grigios="grigio_chemiojul23_scritte.pdf",
+#             grigiom="grigio_chemiojul23_muto.pdf",
+#             verdisp="verdi_positive_chemiojul23_scritte.jpeg",
+#             verdimp="verdi_positive_chemiojul23_muto.jpeg",
+#             verdisn="verdi_negative_chemiojul23_scritte.jpeg",
+#             verdimn="verdi_negative_chemiojul23_muto.jpeg",
+#             tsv="statistical_info_plot_enrich.tsv"
+#     script: SRC_DIR+"/enrich_plot_chemio_all_sign.R"
+
+# # ## heatmap geni enzimi 
+
+# # rule heatmap_geni_livio:
+# #     input: data="fpkm.tsv.gz", samples_data="samples_data"
+# #     output: heatmap="heatmap_espressioni_geni_RAD51.pdf"
+# #     script: SRC_DIR+"/heatmap_fpkm_geni_scelti_chemiojul23.R"
+
+# ##table HR
+# rule HR_genes:
+#     input: data="type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv", genes_data="../../local/share/data/HRgenes_all.txt"
+#     output: tsv="HRgenes_chemio.tsv", tsv_filter="HRgenes_chemio_pvalue_sign.tsv"
+#     script: SRC_DIR+"/HRgenes_livio.R"
+
+# ## correlazione deg 3w e magnifici 29 (rigirato 18/12/23 per aggiunta titoli al log)
+
+# rule cor_degs_gsea_3w_m29:
+#     input: deg_3="type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv", deg_m29="../magnifici29/type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv", 
+#             gsea_h_w3="GSEA_results_H_type_cutoff0.05-non_responder_3Q.vs.responder_1Q.tsv", gsea_h_m29="../magnifici29/GSEA_results_H_type_cutoff0.05-resistant.vs.sensitive.tsv",
+#             gsea_c2_w3="GSEA_results_C2_type_cutoff0.05-non_responder_3Q.vs.responder_1Q.tsv", gsea_c2_m29="../magnifici29/GSEA_results_C2_type_cutoff0.05-resistant.vs.sensitive.tsv",
+#             gsea_c6_w3="GSEA_results_C6_type_cutoff0.05-non_responder_3Q.vs.responder_1Q.tsv", gsea_c6_m29="../magnifici29/GSEA_results_C6_type_cutoff0.05-resistant.vs.sensitive.tsv",
+#     output: png="plot_correlazione_deg_3w_m29.png", eps="plot_correlazione_deg_3w_m29.eps", cor_h_tsv="gsea_cor_hallmark_3w_m29.tsv", cor_c2_tsv="gsea_cor_c2_3w_m29.tsv", cor_c6_tsv="gsea_cor_c6_3w_m29.tsv"
+#     log: log="correlazioni_gsea_deg_3w_m29.log"
+#     script: SRC_DIR+"/confronto_deg_chemiojul23_3w_magnifici29.R"
+
+# ## plotCounts RAD51 associated genes
+
+# rule plotcounts:
+#     input: dds="type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv_DESeq.Rdata", deseq="type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv"
+#     output: plotcounts="plotcounts_RAD51_associated_scritte.eps", plotcounts_mute="plotcounts_RAD51_associated_mute.eps", tsv="pvalues_genes_associated_RAD51.tsv"
+#     script: SRC_DIR+"/plotCounts_allgenes_chemiojul23.R"
+
+# ## il circos per ora lo faccio a mano e appunto qui tutti gli scipt e cosa generano
+# ## ../../local/src/chemiojul23_clinical_data_for_circos.R produce chemiojul23_clinical_data_for_circos
+# ## ../../local/src/chemiojul23_circos.R produce circos_for_chemio.pdf e legend_circos_for_chemio.pdf
+
+# rule HR_genes_expr_mut_analysis:
+#     input: geni_hr="/mnt/trcanmed/snaketree/prj/strata/local/share/data/targeted_homologous.tsv", casi="/mnt/trcanmed/snaketree/prj/strata/local/share/data/appello_mut.tsv", expr="../Biodiversa_up5_starOK_selected/vsd.tsv.gz"
+#     output: result="expression_HR_genes_in_mutational_analysis.tsv"
+#     log: log="casi_mancanti_rna_biobanca_per_expr_HR.log"
+#     script: SRC_DIR+"/HR_genes_mutational_analysis_st4_chemiojul23.R"
+
+# rule top10biobanca:
+#     input: merged="/scratch/trcanmed/snakegatk/dataset/biobanca_targeted_pdx/mutect/merged_longformat_wtiers.tsv"
+#     output: result="mutmat_bin.tsv", vaf_result="mutmat_vaf_top10.tsv", prot_result="mutmat_protein_top10.tsv"
+#     script: SRC_DIR+"/top10_biobanca_mutations_mutmat_chemiojul23.R"
+
+# rule recuperocasi:
+#     input: odiati11="/mnt/trcanmed/snaketree/prj/strata/local/share/data/casi_da_recuperare_vWES_11odiati.tsv", wes_txt="/scratch/trcanmed/pdxopedia/local/share/data/old_seq/DTB_WESdata_CompleteStudy_muts_manualfixes.txt",
+#             odiati27="/mnt/trcanmed/snaketree/prj/strata/local/share/data/casi_da_recuperare_sanger_27odiati.tsv", sanger_tsv="/scratch/trcanmed/pdxopedia/dataset/sanger_targeted_v2_genealogy/driver_muts_all.tsv"
+#     output: result_wes="mutmat_bin_wes.tsv", vaf_result_wes="mutmat_vaf_top10_wes.tsv", prot_result_wes="mutmat_protein_top10_wes.tsv",
+#             result_san="mutmat_bin_sanger.tsv", vaf_result_san="mutmat_vaf_top10_sanger.tsv", prot_result_san="mutmat_protein_top10_sanger.tsv"
+#     script: SRC_DIR+"/recupero_casi_w_wes_sanger_chemiojul23.R"
+
+# rule getmatrix:
+#     input: result_wes="mutmat_bin_wes.tsv", vaf_result_wes="mutmat_vaf_top10_wes.tsv", prot_result_wes="mutmat_protein_top10_wes.tsv",
+#             result_san="mutmat_bin_sanger.tsv", vaf_result_san="mutmat_vaf_top10_sanger.tsv", prot_result_san="mutmat_protein_top10_sanger.tsv",
+#             result="mutmat_bin.tsv", vaf_result="mutmat_vaf_top10.tsv", prot_result="mutmat_protein_top10.tsv", casi_df="../../local/share/data/chemio_def_jul23/chemiojul23_Extended_Data_Table.xlsx"
+#     output: matrix_bin_mut_tsv="mutmat_bin_all_top10.tsv", matrix_bin_mut_excel="mutmat_bin_all_top10.xlsx", mvaf="mutmat_vaf_all_top10.xlsx", mprot="mutmat_prot_all_top10.xlsx"
+#     script: SRC_DIR+"/matrix_top10_all_cases_chemiojul23.R"
+
+# ## questa no, perché è colorata, è stata scelta la nera
+# rule coerenza_deg_w3_w6_w3_m29:
+#     input: week3="type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv", week6="../chemio_jul23_6w/type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv", magn29="../magnifici29/type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv"
+#     output: jpg="correlazione_logFC_week3_week6.jpg", eps="correlazione_logFC_week3_week6.eps",  m29_jpg="correlazione_logFC_week3_m29.jpg", m29_eps="correlazione_logFC_week3_m29.eps"
+#     log: log="correlazioni_logFC_w3_w6_and_w3_m29.log"
+#     script: SRC_DIR+"/correlazione_deg_w3_w6orm29.R"
+
+# # /local/src/POLD1_likeprism_chemiojul23.R produces manually POLD1.eps
+
+# rule geo_samples_chemio:
+#     input: week3="samples_data", week6="../chemio_jul23_6w/samples_data", magnifici="../magnifici29/samples_data", metilazione="/mnt/trcanmed/snaketree/prj/methylomic/dataset/HR/list/list-selected_sample_info.tsv"
+#     output: tsv="geo_samples_for_chemio.xlsx"
+#     script: SRC_DIR+"/excel_filtro_geo_chemiojul23.R"
+
+# rule samples_data_domande:
+#     input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", folfiri = "../../local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv"
+#     output: sample="samples_data_aiuto"
+#     script: SRC_DIR+"/samples_data_chemio_july23_aiutodomande.R"
+
+## fare correlazione con i magnifici 29 e update tabella
+
+
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"

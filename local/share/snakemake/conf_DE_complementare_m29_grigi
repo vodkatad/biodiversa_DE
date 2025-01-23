@@ -59,9 +59,9 @@ BASE_DATA=PRJ_ROOT+"/local/share/data"
 ## viene usato sample_names_folfiri.R per deg_folfiri_new
 
 rule samples_data:
-    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", folfiri = "../../local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv"
+    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", folfiri = "../../local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv", caseremove="../m29_new_chemio_groups/removefromDEG.tsv"
     output: sample="samples_data"
-    script: SRC_DIR+"/samples_data_chemio_july23.R"
+    script: SRC_DIR+"/complementare_m29_grigi.R"
 
 LFC=0.5849625 # 1.5 FC
 CORES=6
@@ -73,11 +73,11 @@ DEBUG="yes"
 MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
 MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
 
-rule de_geni_scelti:
-    input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.svg"
-    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
-    script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_chemiojul23.R"
+# rule de_geni_scelti:
+#     input: "dds.Rdata"
+#     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.svg"
+#     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+#     script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_chemiojul23.R"
 
 
 ### script per tutte le figure del paper chemio
@@ -212,33 +212,3 @@ CORES=6
 PVAL=0.05
 
 DEBUG="yes"
-
-## per fare c6 che ha un nome diverso dagli altri utilizzare c6.all.v2022.1.Hs.symbols.gmt
-## per avere i totali utilzzare tmm_fake e _tot come risultato
-
-rule load_signatures_symbol:
-    input: "/mnt/trcanmed/snaketree/prj/scRNA/local/share/data/msigdb/{sign}.all.v7.4.symbols.gmt"
-    output: '{sign}.symbol.rds'
-    params: tool=BIN_DIR+'/getGseaSignatures'
-    shell:
-        """
-            {params.tool} -g {input} -o {output} -c {wildcards.sign}
-        """
-
-rule gsva_msigdb:
-    input: expr='fpkm_fake.tsv.gz', sign="{class}.symbol.rds"
-    output: '{class}-scores_tot_fpkm.tsv'
-    params: tool=BIN_DIR+'/gsva'
-    shell:
-        """
-            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
-        """
-
-## fare un fake samples data con tutti i dati di chemio e fare un finto deg
-## cercare un gsea che ha il padjs significativo e vedere se torna con il suo ssgsea
-
-rule samples_data_fake:
-    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", folfiri = "../../local/share/data/chemio_def_jul23/CHEMIO_WATERFALL_PLOT_Eugy_Luglio2023.tsv"
-    output: sample="samples_data_fake"
-    script: SRC_DIR+"/samples_data_forssgsea_chemiojul23.R"
-
