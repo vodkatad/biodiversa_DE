@@ -162,13 +162,47 @@ rule pcs:
     script: SRC_DIR+"/pcs.R"
 
 # GO
-rule go_input:
+# rule go_input:
+#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv"
+#     params: lfc=LFC, thr=PVAL, specie=SPECIES
+#     shell:
+#         """
+#             sed 1d {input} | bawk '$7 < {params.thr} && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\t{params.specie}_(.+)/\\t$1/g' > {output}
+#         """
+
+# rule go_universe:
+#     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+#     output: "{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+#     params: specie=SPECIES
+#     shell:
+#         """
+#             sed 1d {input} | cut -f 1 | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output}
+#         """
+
+# rule go:
+#     input: classes="{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv", universe="{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+#     output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+#     params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
+#     script: SRC_DIR+"/go.R"
+
+
+# rule go_sign:
+#     input: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
+#     output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.significant.tsv"
+#     shell:
+#         """
+#             zcat {input} | bawk '$9 !="NA" && $9 < 0.05' | sort  -t $'\\t' -k9,9 -g  > {output}
+#         """
+
+rule go_input_up_down:
     input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv"
-    params: lfc=LFC, thr=PVAL, specie=SPECIES
+    output: up = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_up.tsv", down = "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_down.tsv"
+    params: thr=PVAL, specie=SPECIES, lfc=LFC
     shell:
         """
-            sed 1d {input} | bawk '$7 < {params.thr} && $3 > {params.lfc} {{print "up",$1}} $7 < 0.05 && $3 < -{params.lfc} {{print "down",$1}}' | perl -pane 's/\\t{params.specie}_(.+)/\\t$1/g' > {output}
+            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 > {params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.up}
+            sed 1d {input} | bawk '$7 < {params.thr} &&  $3 < -{params.lfc} {{print $1}} ' | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
         """
 
 rule go_universe:
@@ -180,20 +214,12 @@ rule go_universe:
             sed 1d {input} | cut -f 1 | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output}
         """
 
-rule go:
-    input: classes="{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit.tsv", universe="{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
-    output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
-    params: ids="symbol", onto=['BP','MF','CC'], debug="yes"
-    script: SRC_DIR+"/go.R"
+rule go_analysis_plot:
+    input: gene_list= "{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_{direction}.tsv", gene_univ = "{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    output: GO_r = "GO_results_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}.tsv", out_dir=directory('barplot_go_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}')
+    script: SRC_DIR+'/GO_analysis.R'    
 
 
-rule go_sign:
-    input: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv.gz"
-    output: "go_{what}_cutoff{alpha}-{nom}.vs.{den}.significant.tsv"
-    shell:
-        """
-            zcat {input} | bawk '$9 !="NA" && $9 < 0.05' | sort  -t $'\\t' -k9,9 -g  > {output}
-        """
 
 #### Dot plots and selection of genes annoted
 rule sign:
@@ -354,7 +380,7 @@ rule gsea_input_2:
 
 rule gsea_analysis_plot:
     input: gene_res_freq = "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
-    output: GSEA_r = "GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
+    output: GSEA_r = "GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv",
+            GSEA_ridgeplot = "gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf",
+            rdata = "GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.Rdata"
     script: SRC_DIR+'/GSEA_analysis.R'
-
-

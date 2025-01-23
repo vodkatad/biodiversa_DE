@@ -397,3 +397,11 @@ rule gsva_msigdb_single_type:
 #dd <- cbind(d, df)
 #write.table(dd, file='log2tmm_pc1_filled.csv', sep=",", quote=F)
 #history()
+
+
+rule plot_enrich:
+    input:  imagine="GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.Rdata",
+            data="GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv"
+    output: blus="GSEAplots/GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}_enrichplot_blu.jpeg",
+            tsv="GSEAplots/GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}_stat-info.tsv"
+    script: SRC_DIR+"/enrich_plot_chemio_all_sign_mv.R"
