@@ -58,12 +58,13 @@ SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
 #SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 
 CLUSTER=[1,2,3,4,5]
+NOM_CLUSTER=["One", "Two", "Three", "Four", "Five"]
 rule all_samples:
-    input: expand("{what}vsAll/samples_data_{what}vsAll", what=CLUSTER)
+    input: expand("{k}vsAll/samples_data_{k}vsAll", k=CLUSTER)
 rule samples_data:
-    input: meta=METHY+"/dataset/v4/limma/samples_info_final_{what}vsAll_2023.tsv", keep=SELECTED
+    input: meta=METHY+"/dataset/v4/limma/samples_info_final_{k}vsAll_2023.tsv", keep=SELECTED2
     params: what="cluster"
-    output: "{what}vsAll/samples_data_{what}vsAll"
+    output: "{k}vsAll/samples_data_{k}vsAll"
     run:
         col = params.what
         info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None, usecols=["mouse", col])
@@ -78,10 +79,7 @@ rule samples_data:
         info = info[['mouse','model','cluster']]
 
         info = info.loc[info['mouse'].isin(keep['sample_id_R']),]
-        # info = info.loc[info['model'].isin(keep['sample_id_R'].str[:7]),]
-        ### mouse now is up to XA/XB: I think a good "half way", from 490, we have 386 samples left
-        ### if we go with the model, we keep 467.
-        
+
         info.to_csv(output[0], header=True, index=None, sep='\t')
 
 ### to remember de rule wildcards:

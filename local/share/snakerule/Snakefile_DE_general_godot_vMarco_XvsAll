@@ -1,15 +1,12 @@
 ### Copia di ../../local/share/snakerule/Snakefile_DE_general_godot perché c'è un FIXMETODO in de e non volevo toccare e pacioccare
-
-### nella cartella backup_firstround ci sono i file del primo giro fatto tempo fa
-
 include: "conf.sk"
 
-# rule all_de:
-    # input: expand("{cris}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", zip, cris=CRIS,what="cluster",alpha=0.05,nom=CRIS2,den="All")
+rule all_de:
+    input: expand("{k}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", zip, k=CLUSTER, what=["cluster"]*len(CLUSTER), alpha=[0.05]*len(CLUSTER), nom=NOM_CLUSTER, den=["All"]*len(CLUSTER))
 
 rule plots:
-    input: counts=COUNTS, metadata="samples_data"
-    output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
+    input: counts=COUNTS, metadata="{k}vsAll/samples_data_{k}vsAll"
+    output: "{k}vsAll/dds.Rdata", "{k}vsAll/fpkm.tsv.gz", "{k}vsAll/tmm.tsv.gz", "{k}vsAll/vsd.tsv.gz"
     params: tool=BIN_DIR+"/deseq2_qc_methy", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
     shell:
         """
@@ -17,18 +14,16 @@ rule plots:
         """
 
 rule de:
-    input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", 
-            volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    input: "{k}vsAll/dds.Rdata"
+    output: tsv="{k}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", 
+            volcano="{k}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff.R"
 
-## correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
-
 ## rule that removes H_ / M_ and filters only one kind of genes from metric.tsv.gz files
 rule s:
-    input: "{metric}.tsv.gz"
-    output: "{metric}_"+SPECIES+".tsv.gz"
+    input: "{k}vsAll/{metric}.tsv.gz"
+    output: "{k}vsAll/{metric}_"+SPECIES+".tsv.gz"
     params: specie=SPECIES
     shell:
         """
@@ -40,7 +35,7 @@ rule s:
 
 #### begin remove in V2 ####
 rule my_beloved:
-    input: "{metric}_"+SPECIES+".tsv.gz"
+    input: "{k}vsAll/{metric}_"+SPECIES+".tsv.gz"
     output: temp("{gene, \w+}_{metric}.tsv")
     shell:
         """
@@ -222,17 +217,19 @@ rule go_analysis_plot:
 
 
 #### Dot plots and selection of genes annoted
+rule all_sign:
+    input: expand("{k}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv", zip, k=CLUSTER, what=["cluster"]*len(CLUSTER), alpha=[0.05]*len(CLUSTER), nom=NOM_CLUSTER, den=["All"]*len(CLUSTER))
 rule sign:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+    input: "{k}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: "{k}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
     shell:
         """
             bawk '$7<0.05' {input} | bawk 'NR==1{{print "gene",$0}}NR!=1{{print $0}}'  | cut -f 1,2,3,4,7  | sed s'/H_//1'  > {output}
         """
 
 rule select_annote:
-    input: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
-    output: "{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign_genedesc.tsv"
+    input: "{k}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign.tsv"
+    output: "{k}vsAll/{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_sign_genedesc.tsv"
     params: tool=BIN_DIR+"/add_description"
     shell:
         """
