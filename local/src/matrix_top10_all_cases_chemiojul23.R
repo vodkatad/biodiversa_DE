@@ -117,7 +117,7 @@ for (i in seq(1, nrow(res_vaf))) {
       for (v in all) {
         vafs <- c(vafs, as.character(round(as.numeric(v), digits=3)))
       }
-      res_vaf2[i,j] <- paste0(vafs, collapse=',')
+      res_vaf2[i,j] <- paste0(vafs, collapse=', ')
     } else if (as.numeric(charij)==0) {
       res_vaf2[i,j] <- ''
     } else {
@@ -151,7 +151,7 @@ res_protein <- as.data.frame(t(res_protein), stringsAsFactors= FALSE)
 #CRC0152 per APC è Splice site donor, 
 #CRC0121 per APC è ess_splice
 #diventano 'Splicing altering'
-res_protein['CRC0152','APC'] <- 'Splicing'
+res_protein['CRC0252','APC'] <- 'Splicing'
 res_protein['CRC0121','APC'] <- 'Q1338*, Splicing'
 
 write.xlsx(res_protein, file=prot, rowNames = TRUE)
