@@ -1,13 +1,13 @@
 ##Read files named
-filenames <- list.files(path="/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/TCF7L2_2nd/TCF7L2_DEG/GSEA_C2/",
+filenames <- list.files(path="/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/TCF7L2_2nd/GSEA_H_b2/",
                         pattern="*.tsv")
 
 ##Create list of data frame names without the extra part 
-names <-substr(filenames,14,20)
+names <-substr(filenames,17,23)
 
 ###Load all files
 for(i in names){
-  filepath <- file.path("/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/TCF7L2_2nd/TCF7L2_DEG/GSEA_C2/",paste("GSEA_results_", i,"_C2_geno_cutoff0.05-NE.vs.N2.tsv",sep=""))
+  filepath <- file.path("/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/TCF7L2_2nd/GSEA_H_b2",paste("GSEA_results_sh_", i,"_H_geno_cutoff0.05-scr.vs.b2.tsv",sep=""))
   assign(i, read.table(filepath, quote="", sep = "\t", header = TRUE, stringsAsFactors = FALSE))
 }  
 
@@ -64,7 +64,7 @@ order_dep$CRC0743 <- NULL
 order_dep$CRC0080 <- NULL
 order_dep <- as.data.frame(t(order_dep))
 
-pheatmap(cast_combined, cluster_rows = TRUE, cluster_cols = TRUE, show_rownames = FALSE, annotation_col = order_dep)
+pheatmap(cast_combined, cluster_rows = TRUE, cluster_cols = TRUE, show_rownames = TRUE, annotation_col = order_dep, fontsize_row = 5)
 
 minv <- min(cast_combined)
 maxv <- max(cast_combined)
@@ -95,6 +95,12 @@ selected_sign <- selected_sign %>% filter(signature %in% selected)
 selected_sign$signature <- NULL
 selected_sign <- as.data.frame(selected_sign)
 
-pheatmap(selected_sign, cluster_rows = TRUE, cluster_cols = FALSE, show_rownames = TRUE, annotation_col = order_dep)
+orderdepcol <- order_dep
+orderdepcol$casi <- rownames(order_dep)
 
-write.table(analysis, file = "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/TCF7L2_2nd/signature_quartili1.2.tsv", quote = FALSE, sep = "\t", col.names = TRUE, row.names = TRUE)
+desired_order <- orderdepcol$casi
+selected_sign_reordered <- selected_sign[, match(desired_order, colnames(selected_sign))]
+
+pheatmap(selected_sign_reordered, cluster_rows = FALSE, cluster_cols = FALSE, show_rownames = TRUE, annotation_col = order_dep)
+
+#write.table(analysis, file = "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/TCF7L2_2nd/signature_quartili1.2.tsv", quote = FALSE, sep = "\t", col.names = TRUE, row.names = TRUE)

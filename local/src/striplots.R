@@ -27,6 +27,6 @@ striplots <- function(gene, dds) {
 #run on philae, (rnaseq) /home/grassi/RNAseq_biodiversa/dataset/DESeq
 
 list <- read.table(input, header=F, sep="\t")
-list$V1 <- paste0("H_", list$V1)
+#list$V1 <- paste0("H_", list$V1)
 setwd(outputplotdir)
 garbage <- lapply(list$V1, striplots, dds)

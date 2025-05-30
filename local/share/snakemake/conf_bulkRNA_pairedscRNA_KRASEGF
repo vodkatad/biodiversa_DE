@@ -12,20 +12,21 @@ def find_prj_root(path=os.getcwd()):
 PRJ_ROOT=find_prj_root()
 ROOT=os.getenv('SNAKE_ROOT')                                                    
 BROOT=os.getenv('BIOINFO_ROOT')                                                    
-NAME="Ire_ko_2025"
-DATA=PRJ_ROOT+"/local/share/data/Ire_ko_2025"
+NAME="bulkRNA_pairedscRNA_KRASEGF"
+DATA=PRJ_ROOT+"/local/share/data/bulkRNA_pairedscRNA_KRASEGF"
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
 
-BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/Ire_ko_2025'
+BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/bulkRNA_pairedscRNA_KRASEGF'
+
 
 COUNTS_PRE=BIT_DIR+"/GEP.count.gz"
-COUNTS=COUNTS_PRE
+COUNTS="counts.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
-#PREMETA=DATA+'/ss_ko_atoh1.txt'
+PREMETA=DATA+'/metadata_bulkRNA_pairedscRNA_KRASEGF.txt'
 ##META="meta.txt"
 ###
-DESIGN="~trattamento+replica"
+DESIGN="~model"
 SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -35,7 +36,6 @@ MINSAMPLES=2
 GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
 GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
 GSEA=PRJ_ROOT+"/local/src/gsea.R"
-SAMPLES_GENERAL="general/samples_data"
 
 # rule ss:
 #     input: PREMETA
@@ -46,10 +46,10 @@ SAMPLES_GENERAL="general/samples_data"
 #             bawk '{{print $2,$2}}' {input} >> {output}
 #         """
 
-#rule rename_cols:
-#    input: matrix=COUNTS_PRE, meta=PREMETA
-#    output: hmat=COUNTS
-#    script: SRC_DIR+'/rename_columns_ko_atoh1.R'
+rule rename_cols:
+    input: matrix=COUNTS_PRE, meta=PREMETA
+    output: hmat=COUNTS
+    script: SRC_DIR+'/rename_columns_ko_atoh1.R'
 
 # rule samples_data:
 #     input: meta=PREMETA
@@ -64,16 +64,14 @@ DEBUG="yes"
 MARKER=""
 MEDA_DIR=""
 SELECTED=""
-SAMPLES_GENERAL="general/samples_data"
 
+#rule samples_data_noko:
+#    input: meta=PREMETA
+#    output: tsv="samples_data"
+#    script: SRC_DIR+"/samples_data_ko_atoh1_samples.R"
 
 rule samples_data:
-    input: samples_data=SAMPLES_GENERAL
+    input: meta=PREMETA
     output: tsv="samples_data"
-    script: SRC_DIR+"/samples_data_cloni_2.R"
-PATH_liste_geni='liste_geni/down/'
-rule GO_liste:
-	input: geni=PATH_liste_geni+'322_intersection_down.tsv', universo='general/fpkm.tsv.gz'
-	output: plot_out=PATH_liste_geni+'GO_liste_down_intersection.pdf', tab_out=PATH_liste_geni+'GO_res_down_intersection.tsv'
-	script: SRC_DIR+"/GO_liste.R"
+    script: SRC_DIR+"/ss_bulkRNA_pairedscRNA_KRASEGF.R"
 

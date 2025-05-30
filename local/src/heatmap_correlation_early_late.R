@@ -6,10 +6,10 @@ samples_f <- snakemake@input[["samples_file"]]
 pdf <- snakemake@output[["res_pdf"]]
 res_tsv <- snakemake@output[["result"]]
 
-#vsd_f <- "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/early_late/vsd_with_CRC1961.tsv.gz"
+#vsd_f <- "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/early_late/vsd.tsv.gz"
 vsd <- read.table(vsd_f, sep='\t', quote="", header=TRUE, stringsAsFactors = FALSE)
 
-#samples_f <- "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/early_late/samples_data_with_CRC1961"
+#samples_f <- "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/early_late/samples_data"
 samples <- read.table(samples_f, quote = "", sep = "\t",header = TRUE, stringsAsFactors = FALSE)
 
 #vsd <- as.data.frame(t(vsd))
@@ -49,9 +49,8 @@ rownames(new) <- new$model_passage
 new$model_passage <- NULL
 new <- as.data.frame(t(new))
 
-early <- new[grepl('early', names(new),, fixed=TRUE)]
-late <- new[grepl('late', names(new),, fixed=TRUE)]
-
+early <- new[grepl('early', names(new), , fixed=TRUE)]
+late <- new[grepl('late', names(new), , fixed=TRUE)]
 
 
 colnames(early) <- substr(colnames(early),0,7)
@@ -68,9 +67,23 @@ if (all(colnames(cearly)!=colnames(clate)) & all(rownames(cearly)!=rownames(clat
   stop('Brutto llama!')
 }
 
+colnames(cearly) <- paste0(colnames(cearly), "_early")
+colnames(clate) <- paste0(colnames(clate), "_late")
+
 res <- cor(cearly, clate)
 
 pdf(file=pdf)
 pheatmap(res, cluster_rows = FALSE, cluster_cols = FALSE)
 dev.off()
 write.table(res, file=res_tsv, sep='\t', quote=FALSE, row.names=TRUE, col.names=TRUE)
+
+diagonal_values <- diag(res)
+#quantile(diagonal_values)
+
+non_diagonal_values <- res[lower.tri(res) | upper.tri(res)]
+#quantile(non_diagonal_values)
+
+print("diag")
+quantile(diagonal_values)
+print("non_diag")
+quantile(non_diagonal_values)
