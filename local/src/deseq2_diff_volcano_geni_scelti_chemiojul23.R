@@ -4,6 +4,7 @@ library(ggplot2)
 library(ggrepel)
 library(tidyverse)
 library(showtext)
+library(ggrastr)
 size <- 8
 
 #font_add(family = "myriad", regular = snakemake@input[['myriad']])
@@ -18,7 +19,7 @@ textSize <- size * death_conversion_dpi96
 largerSize <- (size) * death_conversion_dpi96
 
 unmute_theme <- theme(
-  text = element_text(size = textSize, family='Arial'),
+  text = element_text(size = textSize),#, family='Arial'),
   axis.title = element_text(size = largerSize),
   axis.text.x = element_text(size = textSize, color="black"),#, angle = 90, vjust = 0.5, hjust=1)
   axis.text.y = element_text(size = textSize, color="black"),
@@ -79,7 +80,7 @@ plot_volcano <- function(resnona, alpha, lfc, outfile, title) {
   resnona$sign <- factor(resnona$sig, levels=c("LFC", "padj", "both", "NS"))
   resnona[resnona$padj ==0,"padj"] <- .Machine$double.xmin
   p <- ggplot(resnona, aes(log2FoldChange, -log10(padj))) +
-    geom_point(aes(col = sign),size=1) + theme_bw() +
+    rasterise(geom_point(aes(col = sign),size=1), dpi=300) + theme_bw() +
     scale_color_manual(values = c("#E69F00", "#56B4E9", "#009E73", "#999999"), drop=FALSE) + # red orange green black -> orange blue green gray 
     ggtitle(title)+unmute_theme
   
@@ -91,7 +92,15 @@ plot_volcano <- function(resnona, alpha, lfc, outfile, title) {
   # }
   resnona$scelti <- ifelse(rownames(resnona)%in%geni, "YES", "NO")
   resnona$scelti <- factor(resnona$scelti, levels=c("YES", "NO"))
-  p + geom_text_repel(data=resnona[resnona$scelti=="YES",], aes(label=rownames(resnona[resnona$scelti=="YES",])))
+  
+  selected_points <- resnona[resnona$scelti == "YES",]
+
+# Add arrows from points to labels
+  p + geom_segment(data = selected_points, aes(x = log2FoldChange, y = -log10(padj), 
+                   xend = log2FoldChange, yend = -log10(padj) + 1),  # Adjust label position
+               color = "black", linetype = "dashed") +  # Dashed lines
+  geom_text_repel(data = selected_points, aes(label = rownames(selected_points)), nudge_y = 1.5)
+  #p + geom_text_repel(data=resnona[resnona$scelti=="YES",], aes(label=rownames(resnona[resnona$scelti=="YES",])))
   ggsave(outfile, width=89*(death_conversion_dpi96), height=89*(death_conversion_dpi96), units="mm")
 }
 

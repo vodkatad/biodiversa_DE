@@ -147,5 +147,9 @@ rule plotcounts:
     output: plotcounts="plotcounts_RAD51_associated_m29_scritte.eps", plotcounts_mute="plotcounts_RAD51_associated_m29_mute.eps", tsv="pvalues_genes_associated_RAD51_m29.tsv"
     script: SRC_DIR+"/plotCounts_allgenes_chemiojul23.R"
 
+rule gsea_all:
+    input: gene_res_freq = "type_cutoff0.05-resistant.vs.sensitive.gseain_2.tsv"
+    output: rdata="totale_GSEA.Rdata", tsv="risultati_gsea_totali.tsv"
+    script: SRC_DIR+"/gsea_chemio_all_sign.R"
 
 

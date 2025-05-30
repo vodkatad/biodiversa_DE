@@ -1,3 +1,37 @@
+#load('/scratch/trcanmed/AF_spectra/dataset_Figures_Tables/theme_5.Rdata')
+size <- 8
+
+#font_add(family = "myriad", regular = snakemake@input[['myriad']])
+#showtext_auto()
+
+# Da Marti e https://www.christophenicault.com/post/understand_size_dimension_ggplot2/
+# showtext_opts(dpi = 300) 
+# since we are not changing fonts in the end cause myriad end up not being text object I'm not sure it's needed
+# showtext_auto(enable = TRUE)
+
+#textSize <- textSize * (96/72) # these conversion were needed because the default dpi for text was 96?
+# in the svg the number passed to theme was reported as size = ..px.. rather than pt (?)
+#largerSize <- largerSize * (96/72) 
+death_conversion_dpi96 = 96/72
+
+textSize <- size * death_conversion_dpi96
+largerSize <- size* death_conversion_dpi96
+
+unmute_theme <- theme(
+  text = element_text(size = textSize, family='Arial'),
+  axis.title = element_text(size = largerSize),
+  axis.text.x = element_text(size = textSize, color="black"),#, angle = 90, vjust = 0.5, hjust=1)
+  axis.text.y = element_text(size = textSize, color="black"),
+  plot.title = element_text(size = largerSize, hjust = 0.5),
+  legend.title = element_text(size=largerSize, hjust = 0.5),
+  legend.text = element_text(size=textSize),
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  axis.line = element_line(colour = "black", size=0.508/0.564), # origin of this ratio is honestly not known, empirical
+  axis.ticks = element_line(color = "black", size=0.508/0.564),
+  axis.ticks.length= unit(1.905*death_conversion_dpi96, "mm"),
+  panel.background = element_blank()
+)
+
 old <- "/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv"
 old <- read.table(old, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 old <- old %>% filter(padj < 0.05 & abs(log2FoldChange) > 0.5849625)
@@ -113,14 +147,15 @@ for (i in rownames(results_down)) {
   }
 }
 
-ggplot(results_up, aes(x=estimate))+geom_histogram()
-ggplot(results_down, aes(x=estimate))+geom_histogram()
-
+p <- ggplot(results_up, aes(x=estimate))+geom_histogram()
+saveRDS(p, "Corr_up_folfiri_3wks.rds")
+p <- ggplot(results_down, aes(x=estimate))+geom_histogram()
+saveRDS(p, "Corr_down_folfiri_3wks.rds")
 res <- rbind(results_up, results_down)
 res$name <- factor(res$name, levels = res$name[order(-res$estimate)])
-
-ggplot(res, aes(x=name, y=estimate, color=color))+ geom_jitter(height=0, shape=18)+scale_color_manual(values =c("black", "red"))+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
+pdf("/home/mferri/corplot_espressione_folfiri_chemiojul23.pdf")
+ggplot(res, aes(x=name, y=estimate, color=color))+ geom_jitter(height=0, width = 0, shape=18, size=4)+scale_color_manual(values =c("black", "red"))+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+unmute_theme
+dev.off()
 ggplot(results_up, aes(x=name, y=estimate, color=color))+ geom_jitter(height=0, shape=18)+scale_color_manual(values =c("black", "red"))+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ggplot(results_down, aes(x=name, y=estimate, color=color))+geom_jitter(height = 0, shape=18)+scale_color_manual(values = c("black", "red"))+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 

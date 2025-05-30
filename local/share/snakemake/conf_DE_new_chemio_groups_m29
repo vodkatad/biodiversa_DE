@@ -231,3 +231,20 @@ CORES=6
 PVAL=0.05
 
 DEBUG="yes"
+
+# rule gsea_all:
+#     input: gene_res_freq = "type_cutoff0.05-resistant.vs.sensitive.gseain_2.tsv"
+#     output: rdata="totale_GSEA.Rdata", tsv="risultati_gsea_totali.tsv"
+#     script: SRC_DIR+"/gsea_chemio_all_sign.R"
+
+# rule de_geni_scelti:
+#     input: "dds.Rdata"
+#     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.pdf"
+#     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+#     script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_grigi_chemiojul23.R"
+
+rule cor_degs_gsea_m29_grigi:
+    input:  magnifici="/scratch/trcanmed/DE_RNASeq/dataset/magnifici29/type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv", grey="type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv"
+    output: pdf="scatter_m29_grigi_snake.pdf"
+    log: log="correlazioni_deg_m29_grigi.log"
+    script: SRC_DIR+"/scatter_m29_grigi_chemiojul23.R"
