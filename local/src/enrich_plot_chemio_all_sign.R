@@ -215,7 +215,7 @@ verdi_s_n <- snakemake@output[["verdisn"]]
 verdi_m_n <- snakemake@output[["verdimn"]]
 tsv_f <- snakemake@output[["tsv"]]
 #load("/home/mferri/totale_GSEA.Rdata")
-load("/scratch/trcanmed/DE_RNASeq/dataset/like_chemio_jul23_but_PDO/totale_GSEA.Rdata")
+#load("/scratch/trcanmed/DE_RNASeq/dataset/like_chemio_jul23_but_PDO/totale_GSEA.Rdata")
 load(rdata)
 
 #tot <- read.table("/home/mferri/prova_risultati_gsea_totali.tsv", quote = "",sep = "\t", header = TRUE)

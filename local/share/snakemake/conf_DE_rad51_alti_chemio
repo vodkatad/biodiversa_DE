@@ -65,18 +65,18 @@ BASE_DATA=PRJ_ROOT+"/local/share/data"
 
 ## fare regola dove tiro fuori i remove
 
-rule remove_from_deg:
+rule keep_for_deg:
     input: rad51_basal_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_RAD51_NT.tsv", rad51_irino_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_RAD51_irino.tsv",
             pold1_basal_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_POLD1.tsv", luraghi_df="/mnt/trcanmed/snaketree/prj/strata/local/share/data/luraghi",
             H2AX_basal_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_H2AX_NT.tsv", H2AX_irino_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/avgall_H2AX_irino.tsv",
             w3_df="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/w3_waterfall.tsv"
-    output: res="removefromDEG.tsv"
-    script: SRC_DIR+"/IHC_cors_MF.R"
+    output: res="onlyfordeg.tsv"
+    script: SRC_DIR+"/IHC_cors_rad51_alti_MF.R"
 
 rule samples_data:
-    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier"
+    input: metadata = "/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier", casekeep = "onlyfordeg.tsv"
     output: meta="samples_data"
-    script: SRC_DIR+"/magnifici29_lmx_new_groups.R"
+    script: SRC_DIR+"/samples_rad51_alti_chemio.R"
 
 LFC=0.5849625 # 1.5 FC
 CORES=6
@@ -231,20 +231,3 @@ CORES=6
 PVAL=0.05
 
 DEBUG="yes"
-
-# rule gsea_all:
-#     input: gene_res_freq = "type_cutoff0.05-resistant.vs.sensitive.gseain_2.tsv"
-#     output: rdata="totale_GSEA.Rdata", tsv="risultati_gsea_totali.tsv"
-#     script: SRC_DIR+"/gsea_chemio_all_sign.R"
-
-# rule de_geni_scelti:
-#     input: "dds.Rdata"
-#     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.pdf"
-#     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
-#     script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_grigi_chemiojul23.R"
-
-rule cor_degs_gsea_m29_grigi:
-    input:  magnifici="/scratch/trcanmed/DE_RNASeq/dataset/magnifici29/type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv", grey="type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv"
-    output: pdf="scatter_m29_grigi_snake.pdf"
-    log: log="correlazioni_deg_m29_grigi.log"
-    script: SRC_DIR+"/scatter_m29_grigi_chemiojul23.R"

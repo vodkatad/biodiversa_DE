@@ -1,0 +1,222 @@
+ROOT="/mnt/trcanmed/snaketree/prj"
+MATRIX="../vsd.tsv.gz"
+CMATRIX='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/merged_hs_mm.tsv.gz'
+SCR_DIR="../../../local/src"
+METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
+BIN_DIR="../../../local/bin"
+BADBOYS=ROOT+"/pdxopedia/local/share/data/badboys"
+
+rule wanted_class:
+    input: METADATA
+    output: "wanted_class"
+    shell: 
+     """
+        sed 1d {input} | cut -f 7 | grep LMO_cetuxi | sort | uniq > {output}
+     """
+
+rule select_wanted:
+    input: metadata=METADATA, counts=MATRIX, types="wanted_class", bad=BADBOYS
+    output: counts="selected_matrix_vsd.tsv.gz", metadata="selected_metadata.tsv"
+    shell:
+        """
+            head -n 1 {input.metadata} | cut -f 1,6,7 > {output.metadata}
+            sed 1d {input.metadata} | filter_1col 7 {input.types} | grep -v -f {input.bad} | cut -f 1,6,7 >> {output.metadata}
+            cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """ 
+
+rule select_wanted_counts:
+    input: metadata='selected_metadata.tsv', counts=CMATRIX
+    output: counts="selected_matrix_counts.tsv.gz"
+    shell:
+        """
+            cat <(echo Geneid) <(cut -f 1 {input.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | transpose | filter_1col 1 {output.counts}.tmp | transpose | egrep -v "^M_" | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """ 
+
+#cut -f1 test_genealogy t
+rule select_wanted_counts_M:
+    input: counts=CMATRIX, traintest="traintest"
+    output: counts="selected_matrix_counts_IRCC.tsv"
+    shell:
+        """	
+            zcat {input.counts} | transpose | filter_1col 1 <(cat {input.traintest} <(echo Geneid)) | transpose > {output.counts}
+        """ 
+
+
+rule train_test_tmm:
+    input: tmm="../tmm_H.tsv.gz", test="test_genealogy", train="train_genealogy"
+    output: test="test_tmm.tsv.gz", train="train_tmm.tsv.gz"
+    shell:
+        """
+            zcat {input.tmm} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose > {output.test}.tmp            
+	        cat <(echo 'Geneid') <(cut -f 1 {input.test}) > {output.test}.tmp2
+	        cat <(echo 'Geneid') <(cut -f 1 {input.train}) > {output.train}.tmp2
+	        filter_1col 1 {output.test}.tmp2 {output.test}.tmp | transpose | gzip > {output.test}
+            filter_1col 1 {output.train}.tmp2 {output.test}.tmp | transpose | gzip > {output.train}
+        """
+
+# #expr_data <- log(expr_data+1, base=2) # train test cesta has run with this
+rule gsva_msigdb:
+    input: expr='{group}_tmm.tsv.gz', sign=ROOT+'/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
+    output: '{group}_{class}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva_magnum'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+rule gsva_msigdb_allexpr:
+    input: train_tmm = "train_tmm.tsv.gz", test_tmm = "test_tmm.tsv.gz", rds = "../../../../scRNA/dataset/CRC0327_pseudobulks/c2.symbol.rds"
+    output: gsva_res = "all_matrix_reactome_scores.tsv"
+    script: SCR_DIR+"/gsea_c2_reactome_umberto.R"
+
+rule gsva_msigdb_allexpr_h:
+    input: train_tmm = "train_tmm.tsv.gz", test_tmm = "test_tmm.tsv.gz", rds = "../../../../scRNA/dataset/CRC0327_pseudobulks/h.symbol.rds"
+    output: gsva_res = "all_matrix_h_scores.tsv"
+    script: SCR_DIR+"/gsea_hallmarks_umberto.R"
+
+rule train_test_smodel:
+    input: tt=ROOT+'/DE_RNASeq/local/share/data/magnum/DrugResponse_LMXfirslevel_trainTest.csv'
+    output: test="test_smodel", train="train_smodel"
+    shell:
+        """
+	        bawk '$10=="True"{{print substr($2,0,7)}}' {input.tt} > {output.test}
+	        bawk '$10!="True"{{print substr($2,0,7)}}' {input.tt} > {output.train}
+        """
+
+rule train_test_genealogy:
+    input: test="test_smodel", train="train_smodel", metadata="selected_metadata.tsv"
+    output: test="test_genealogy", train="train_genealogy"
+    shell:
+        """
+		    grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.train} > {output.train}
+	        grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.test} > {output.test}
+        """
+
+
+## TODO check that selected_matrix.tsv.gz is == to the one on drive (recalculated on godot the 30th of july)
+
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/magnum$ bawk '{print substr($1,0,7)}' train_genealogy | filter_1col 1 <(bawk '{print substr($1,0,7)}' test_genealogy ) | wc -l
+#0
+
+
+## rule CMP
+#double septin4 we drop all of them right now
+CMP=ROOT+"/DE_RNASeq/local/share/data/cmp/CMP+GDSC_expr_CRCcetuximab_all.tsv"
+CMP_TT=ROOT+"/DE_RNASeq/local/share/data/cmp/DrugResponse_CMP+GDSC_CRCcetuximab_trainTest.csv"
+
+rule t_whole:
+    input: CMP
+    output: "cmp_whole.tsv.gz"
+    shell:
+        """
+            bawk 'NR==1 {{print "GeneID", $0}} NR!=1 {{print $0}}' {input} | sed 's/GeneID\\t\\t/GeneID\\t/1' | transpose | grep -v -w SEPTIN4 | gzip > {output}
+        """
+
+rule cmp_tt:
+    input: cmp=CMP, tt=CMP_TT
+    output: test="cmp_test.tsv.gz", train="cmp_train.tsv.gz"
+    shell:
+        """
+            bawk '$9=="False" {{ print $1 }}' {input.tt} > {output.test}.tmp
+            echo "GeneID" >> {output.test}.tmp
+            bawk '$9=="True" {{ print $1 }}' {input.tt} > {output.test}.tmp2
+            echo "GeneID" >> {output.test}.tmp2
+            cat {input.cmp} | bawk 'NR==1 {{print "GeneID", $0}} NR!=1 {{print $0}}' | filter_1col 1 {output.test}.tmp | sed 's/GeneID\\t\\t/GeneID\\t/1' | transpose | grep -v -w SEPTIN4 | gzip > {output.train}
+            cat {input.cmp} | bawk 'NR==1 {{print "GeneID", $0}} NR!=1 {{print $0}}' | filter_1col 1 {output.test}.tmp2 | sed 's/GeneID\\t\\t/GeneID\\t/1' | transpose | grep -v -w SEPTIN4 | gzip > {output.test}
+            rm {output.test}.tmp*
+        """
+    
+# #expr_data <- log(expr_data+1, base=2) # train test cesta has run with this
+rule cmp_gsva_msigdb:
+    input: expr='cmp_{type}.tsv.gz', sign=ROOT+'/scRNA/dataset/CRC0327_pseudobulks/{class}.symbol.rds'
+    output: 'CMP_{type}_{class}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva_magnum'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+rule all_CMP:
+    input: expand("CMP_{ttype}_{gclass}-scores.tsv", ttype=['test','train','whole'], gclass=['c2','h'])
+
+
+## 10x train/test
+#https://drive.google.com/drive/u/1/folders/1F6s5HBdLHIQWRc-38qkNaQTL-_x3aZax
+# run on scratch with new paths
+MDATA='../../../local/share/data/magnum'
+
+rule xeno_10x:
+    input: test="test_genealogy_{fold}", train="train_genealogy_{fold}", tmm="../tmm_H.tsv.gz"
+    output: test="{fold}_LMXfirstlevel_test.tsv.gz", train="{fold}_LMXfirstlevel_train.tsv.gz"
+    shell:
+        """
+            zcat {input.tmm} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose > {output.test}.tmp           
+	        cat <(echo 'Geneid') <(cut -f 1 {input.test}) > {output.test}.tmp2
+	        cat <(echo 'Geneid') <(cut -f 1 {input.train}) > {output.train}.tmp2
+	        filter_1col 1 {output.test}.tmp2 < {output.test}.tmp | transpose | gzip > {output.test}
+            filter_1col 1 {output.train}.tmp2 < {output.test}.tmp | transpose | gzip > {output.train}
+            rm {output.test}.tmp* {output.train}.tmp*
+        """
+   
+# not checked if these run with or without log2 pc1
+rule folds_gsva_msigdb:
+    input: expr='{fold}_LMXfirstlevel_{type}.tsv.gz', sign=MDATA+'/{class}.symbol.rds'
+    output: '{fold}_LMXfirstlevel_{type}_{class}-scores.tsv'
+    params: tool=BIN_DIR+'/gsva_magnum'
+    shell:
+        """
+            {params.tool} -s {input.sign} -o {output} -e {input.expr} -m gsva
+        """
+
+rule all_10x:
+    input: expand("{fold}_LMXfirstlevel_{ttype}_{gclass}-scores.tsv", ttype=['test','train'], gclass=['c2','h'], fold=range(0,10))
+
+
+# he split DNA aliquots, so I need to go back to genalogy:
+# TODO fixme
+rule train_test_smodel_10x:
+    input: tt=MDATA+'/DrugResponse_LMXfirslevel_trainTest{fold}.tsv'
+    output: test="test_smodel_{fold}", train="train_smodel_{fold}"
+    shell:
+        """
+	        bawk '$10=="True"{{print substr($2,0,7)}}' {input.tt} > {output.test}
+	        bawk '$10!="True"{{print substr($2,0,7)}}' {input.tt} > {output.train}
+        """
+
+rule train_test_genealogy_10x:
+    input: test="test_smodel_{fold}", train="train_smodel_{fold}", metadata="selected_metadata.tsv"
+    output: test="test_genealogy_{fold}", train="train_genealogy_{fold}"
+    shell:
+        """
+		    grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.train} > {output.train}
+	        grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.test} > {output.test}
+        """
+
+### 30 fold
+rule all_30x:
+    input: expand("30-{fold}_LMXfirstlevel_{ttype}_{gclass}-scores.tsv", ttype=['test','train'], gclass=['c2','h'], fold=range(0,30))
+
+
+# he split DNA aliquots, so I need to go back to genalogy:
+# TODO fixme
+rule train_test_smodel_30x:
+    input: tt=MDATA+'/30fold/30fold/DrugResponse_LMXfirslevel_trainTest{fold}.tsv'
+    output: test="30_test_smodel_{fold}", train="30_train_smodel_{fold}"
+    shell:
+        """
+	        bawk '$10=="True"{{print substr($2,0,7)}}' {input.tt} > {output.test}
+	        bawk '$10!="True"{{print substr($2,0,7)}}' {input.tt} > {output.train}
+        """
+
+rule train_test_genealogy_30x:
+    input: test="30_test_smodel_{fold}", train="30_train_smodel_{fold}", metadata="selected_metadata.tsv"
+    output: test="test_genealogy_30-{fold}", train="train_genealogy_30-{fold}"
+    shell:
+        """
+		    grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.train} > {output.train}
+	        grep LMX {input.metadata} | bawk '{{print $1, substr($1,0,7)}}' | filter_1col 2 {input.test} > {output.test}
+        """

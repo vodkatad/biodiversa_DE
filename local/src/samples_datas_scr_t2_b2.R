@@ -20,5 +20,5 @@ samples$sample <- NULL
 samples$`tube name` <- NULL
 samples$REPLICATES <- NULL
 
-samples <- samples %>% filter(model == case)
+#samples <- samples %>% filter(model == case)
 write.table(samples, file=meta, quote = FALSE, sep = "\t", col.names = TRUE, row.names = FALSE)

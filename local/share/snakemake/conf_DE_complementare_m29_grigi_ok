@@ -231,3 +231,9 @@ CORES=6
 PVAL=0.05
 
 DEBUG="yes"
+
+rule gsea_all:
+    input: gene_res_freq = "type_cutoff0.05-resistant.vs.sensitive.gseain_2.tsv"
+    output: rdata="totale_GSEA.Rdata", tsv="risultati_gsea_totali.tsv"
+    script: SRC_DIR+"/gsea_chemio_all_sign.R"
+

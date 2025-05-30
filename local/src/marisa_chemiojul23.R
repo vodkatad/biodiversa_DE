@@ -47,6 +47,21 @@ res <- res %>% filter(!type == "no_deg")
 res <- res %>% filter(!citccmst.confidence == "OUTLIER")
 ggplot(res, aes(x = citccmst.core, fill = type)) +
   geom_bar(position = "dodge")+scale_fill_manual(values = c("red", "blue"))
+res$model <- substr(res$genealogy, 1, 7)
+
+res2 <- res %>%
+  group_by(model) %>%
+  summarise(
+    genealogy_diff = if_else(n_distinct(genealogy) > 1, "Different", "Same"),  
+    citccmst.core = paste(unique(citccmst.core), collapse = ", ")
+  )
+
+res2 <- merge(res, res2, by="model")
+res2 <- res2[!duplicated(res2$model),]
+res <- res2
+names(res)[names(res) == "citccmst.core.y"] <- "citccmst.core"
+res$model <- NULL
+res$citccmst.core.x <- NULL
 
 df_aggregato <- res %>%
   group_by(citccmst.core, type) %>%
@@ -64,9 +79,10 @@ ggplot(df_proporzioni, aes(x = "", y = prop, fill = type)) +
   facet_wrap(~citccmst.core) + 
   theme_void() + 
   theme(legend.position = "bottom") 
-rownames(res) <- res$genealogy
+
 #core_gruppo <- "C1"
 #df <- res
+rownames(res) <- res$genealogy
 fisher_test_per_gruppo <- function(core_gruppo) {
   for (i in rownames(df)) {
     if (df[i, "citccmst.core"]==core_gruppo) {
@@ -101,7 +117,9 @@ df_tot <- as.data.frame(df_tot)
 df_tot$gruppo <- rownames(df_tot)
 df_tot <- merge(df_tot, risultati_fisher, by="gruppo")
 
-write.xlsx(df_tot, file="/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/risultati_fisher_marisa.xlsx")
+#write.xlsx(df_tot, file="/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/risultati_fisher_marisa.xlsx")
+write.xlsx(df_tot, file="/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/risultati_fisher_marisa_collassomodello.xlsx")
+
 #SD+PD -> PD
 #perc < -50 is "PR"
 #perc > 35 is "PD"

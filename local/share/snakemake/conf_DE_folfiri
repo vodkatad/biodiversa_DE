@@ -75,7 +75,7 @@ MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
 
 rule de_geni_scelti:
     input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.svg"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.pdf"
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_chemiojul23.R"
 
@@ -181,6 +181,7 @@ rule recuperocasi:
             result_san="mutmat_bin_sanger.tsv", vaf_result_san="mutmat_vaf_top10_sanger.tsv", prot_result_san="mutmat_protein_top10_sanger.tsv"
     script: SRC_DIR+"/recupero_casi_w_wes_sanger_chemiojul23.R"
 
+# rerun the 27/05/25 to put empty cells and not 0 for WT in the vaf matrix
 rule getmatrix:
     input: result_wes="mutmat_bin_wes.tsv", vaf_result_wes="mutmat_vaf_top10_wes.tsv", prot_result_wes="mutmat_protein_top10_wes.tsv",
             result_san="mutmat_bin_sanger.tsv", vaf_result_san="mutmat_vaf_top10_sanger.tsv", prot_result_san="mutmat_protein_top10_sanger.tsv",
@@ -214,7 +215,7 @@ PVAL=0.05
 DEBUG="yes"
 
 ## per fare c6 che ha un nome diverso dagli altri utilizzare c6.all.v2022.1.Hs.symbols.gmt
-## per avere i totali utilzzare tmm_fake e _tot come risultato
+## per avere i totali utilzzare fpkm_fake e _tot come risultato
 
 rule load_signatures_symbol:
     input: "/mnt/trcanmed/snaketree/prj/scRNA/local/share/data/msigdb/{sign}.all.v7.4.symbols.gmt"

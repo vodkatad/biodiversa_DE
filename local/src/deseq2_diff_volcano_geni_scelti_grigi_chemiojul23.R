@@ -36,9 +36,9 @@ register(MulticoreParam(as.numeric(snakemake@params[["threads"]])))
 threads <- as.numeric(snakemake@params[["threads"]])
 parallel <- FALSE
 if (threads > 1) {
-    library("BiocParallel")
-    register(MulticoreParam(threads))
-    parallel <- TRUE
+  library("BiocParallel")
+  register(MulticoreParam(threads))
+  parallel <- TRUE
 }
 alpha <- as.numeric(snakemake@params[["alpha"]])
 lfc <- as.numeric(snakemake@params[["lfc"]]) # used only for volcano plots, the tsv printed lists all non NA results!
@@ -63,7 +63,10 @@ resnona_df <- as.data.frame(resnona[order(resnona$padj),])
 title <- trimws(strsplit(elementMetadata(res)[2,2], ":")[[1]][2])
 
 #geni <- c("LCN2","DMBT1","ITLN1","NOS2","SERPINE1","VIM","COL6A1","COL7A1","LAMA5", "STAG3", "SPINK4", "FCGBP", "AL354836.1")
-geni <- c("VIM", "COL7A1", "COL6A1", "SERPINE1", "LAMA5", "LCN2", "DMBT1", "ITLN1", "NOS2", "CAPN9", "SPINK4", "FCGBP", "MFAP4", "VGLL3", "SPON2", "OLFML2A", "EMP3", "STAG3")
+#geni <- c("VIM", "COL7A1", "COL6A1", "SERPINE1", "LAMA5", "LCN2", "DMBT1", "ITLN1", "NOS2", "CAPN9", "SPINK4", "FCGBP", "MFAP4", "VGLL3", "SPON2", "OLFML2A", "EMP3", "STAG3")
+geni <- c("LYZ", "SOCS2", "BIRC3", "TTC7B", "NMNAT2", "NFIX",
+          "ZNF114","PDX1", "ATG9A","APOL4", "KLF9", "NCKAP5",
+          "CAPS2", "LYZ", "SLFN12", "SLFN11", "FRY", "WDR78")
 genes_or <- rownames(resnona_df)
 rownames(resnona_df) <- NULL
 resnona_df <- cbind(genes_or,resnona_df)
@@ -94,12 +97,12 @@ plot_volcano <- function(resnona, alpha, lfc, outfile, title) {
   resnona$scelti <- factor(resnona$scelti, levels=c("YES", "NO"))
   
   selected_points <- resnona[resnona$scelti == "YES",]
-
-# Add arrows from points to labels
+  
+  # Add arrows from points to labels
   p + geom_segment(data = selected_points, aes(x = log2FoldChange, y = -log10(padj), 
-                   xend = log2FoldChange, yend = -log10(padj) + 1),  # Adjust label position
-               color = "black", linetype = "dashed") +  # Dashed lines
-  geom_text_repel(data = selected_points, aes(label = rownames(selected_points)), nudge_y = 1.5)
+                                               xend = log2FoldChange, yend = -log10(padj) + 1),  # Adjust label position
+                   color = "black", linetype = "dashed") +  # Dashed lines
+    geom_text_repel(data = selected_points, aes(label = rownames(selected_points)), nudge_y = 1.5)
   #p + geom_text_repel(data=resnona[resnona$scelti=="YES",], aes(label=rownames(resnona[resnona$scelti=="YES",])))
   ggsave(outfile, width=89*(death_conversion_dpi96), height=89*(death_conversion_dpi96), units="mm")
 }

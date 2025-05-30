@@ -97,11 +97,36 @@ vwes <- as.data.frame(t(vwes))
 
 res_vaf <- rbind(vbiob, vsan)
 ## adding "CRC1472" with all 0
-res_vaf <- as.data.frame(t(res_vaf))
+res_vaf <- as.data.frame(t(res_vaf), stringAsFactors=FALSE)
 res_vaf$CRC1472 <- 0
-res_vaf <- as.data.frame(t(res_vaf))
+res_vaf <- as.data.frame(t(res_vaf), stringAsFactors=FALSE)
 
-write.xlsx(res_vaf, file=vaf, rowNames = TRUE)
+#res_vaf[res_vaf == 0] <- '' # to be in line with HR and put empty cells for WT in the VAF table
+# not doable for the ones with , and for factors in my balls
+save.image('minVAF_check.Rdata')
+
+res_vaf2 <- data.frame(matrix('', nrow=nrow(res_vaf), ncol=ncol(res_vaf)), stringsAsFactors = FALSE)
+rownames(res_vaf2) <- rownames(res_vaf)
+colnames(res_vaf2) <- colnames(res_vaf)
+for (i in seq(1, nrow(res_vaf))) {
+  for (j in seq(1, ncol(res_vaf))) {
+    charij <- as.character(res_vaf[i,j])
+    if (grepl(',', charij, fixed=TRUE)) { # we keep split in case of future needs
+      all <- strsplit(charij, ',')
+      vafs <- c()
+      for (v in all) {
+        vafs <- c(vafs, as.character(round(as.numeric(v), digits=3)))
+      }
+      res_vaf2[i,j] <- paste0(vafs, collapse=', ')
+    } else if (as.numeric(charij)==0) {
+      res_vaf2[i,j] <- ''
+    } else {
+      res_vaf2[i,j] <- as.character(round(as.numeric(charij), digits=3))
+    }
+  }
+}
+
+write.xlsx(res_vaf2, file=vaf, rowNames = TRUE)
 #pbiob_f <- "/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/mutmat_protein_top10.tsv"
 pbiob <- read.table(pbiob_f, quote = "", sep = "\t", header = TRUE, stringsAsFactors = F)
 pbiob <- as.data.frame(t(pbiob))
@@ -119,8 +144,14 @@ pwes <- as.data.frame(t(pwes))
 
 res_protein <- rbind(pbiob, psan)
 ## adding "CRC1472" with all WT
-res_protein <- as.data.frame(t(res_protein))
+res_protein <- as.data.frame(t(res_protein), stringsAsFactors= FALSE)
 res_protein$CRC1472 <- "WT"
-res_protein <- as.data.frame(t(res_protein))
+res_protein <- as.data.frame(t(res_protein), stringsAsFactors= FALSE)
+
+#CRC0152 per APC è Splice site donor, 
+#CRC0121 per APC è ess_splice
+#diventano 'Splicing altering'
+res_protein['CRC0252','APC'] <- 'Splicing'
+res_protein['CRC0121','APC'] <- 'Q1338*, Splicing'
 
 write.xlsx(res_protein, file=prot, rowNames = TRUE)
