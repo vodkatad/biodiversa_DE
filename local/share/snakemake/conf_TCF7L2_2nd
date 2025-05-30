@@ -27,7 +27,7 @@ GENE_LEN=BIT_DIR+"/gene_len"
 #PREMETA=DATA+'/ss_tcf7l2.txt'
 #META="meta.txt"
 ###
-DESIGN="~geno" #CAMBIA APPENA CAPISCI COME FARE
+DESIGN="~model+geno_chip" #CAMBIA APPENA CAPISCI COME FARE
 SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -106,8 +106,38 @@ rule tables_data:
     output: meta="table_cases.tsv"
     script: SRC_DIR+"/samples_datas_scr_t2_b2.R"
 
-rule samples_data:
-    input: samples_or = SAMPLES
-    output: meta="{smodel}_samples_data"
-    script: SRC_DIR+"/samples_datas_scr_t2_b2.R"
+#samples <- samples %>% filter(model == case) da commentare scommentare aggiungendo {smodel}_ davanti a tutti gli 
+# output e input
 
+# rule samples_data:
+#     input: samples_or = SAMPLES
+#     output: meta="samples_data"
+#     script: SRC_DIR+"/samples_datas_scr_t2_b2.R"
+
+# rule samples_data_mut_wt:
+#     input: samples_or = SAMPLES
+#     output: meta="{mutwt}_samples_data"
+#     script: SRC_DIR+"/samples_data_TCF7L2_2nd_mut_ne_n2.R"
+
+
+rule lazy_striplots:
+     input: dds="WT_dds.Rdata"
+     output: directory("CYP")
+     params: tool=BIN_DIR+"/striplots"
+     shell:
+         """
+	     echo CYP2A13 > /tmp/p
+             mkdir -p {output}
+             {params.tool} /tmp/p {input.dds} {output} geno
+	     rm /tmp/p
+         """
+
+rule samples_data_mut_wt_bcat:
+    input: samples_or = "b2_general/samples_data"
+    output: meta="bcat_{tipo}_samples_data"
+    script: SRC_DIR+"/samples_data_TCF7L2_2nd_mutwt_bcat.R"
+
+rule samples_data_chip:
+    input: samples = "TCF7L2_DEG/general/table_cases.tsv"
+    output: meta="samples_data"
+    script: SRC_DIR+"/samples_deg_like_chip.R"

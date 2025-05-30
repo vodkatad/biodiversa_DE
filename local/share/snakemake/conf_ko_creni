@@ -19,13 +19,13 @@ SRC_DIR=PRJ_ROOT+"/local/src"
 
 BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/Ire_Creni'
 
-#COUNTS=BIT_DIR+"/GEP.count.gz"
-COUNTS="counts.tsv.gz"
+COUNTS=BIT_DIR+"/GEP.count.gz"
+#COUNTS="counts.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 PREMETA=BIT_DIR+'/usable_reads'
 META="samples_data"
 ###
-DESIGN="~trattamento"
+DESIGN="~model+trattamento"
 SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -36,22 +36,18 @@ GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
 GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
 GSEA=PRJ_ROOT+"/local/src/gsea.R"
 
-#rule ss:
-#    input: PREMETA
-#    output: META
-#    shell:
-#        """
-#            echo -e "model\\trep\\ttrattamento" > {output}
-#            sed 1d {input} | cut -f 1 |  sed 's/-/_/1' | sed 's/_/\\t/1' | sed 's/_/\\t/1'  > {output}.tmp
-#            sed 1d {input} | cut -f 1 | sed 's/-/./1' > {output}.tmp2
-#            paste {output}.tmp2 {output}.tmp >> {output}
-#	    rm {output}.tmp*
-#        """
 rule ss:
-    input: meta='general/samples_data_general'
-    output: tsv=META
-    script:SRC_DIR+'/samples_data_Ire_Creni.R'
-        
+    input: PREMETA
+    output: META
+    shell:
+        """
+            echo -e "model\\trep\\ttrattamento" > {output}
+            sed 1d {input} | cut -f 1 |  sed 's/-/_/1' | sed 's/_/\\t/1' | sed 's/_/\\t/1'  > {output}.tmp
+            sed 1d {input} | cut -f 1 | sed 's/-/./1' > {output}.tmp2
+            paste {output}.tmp2 {output}.tmp >> {output}
+	    rm {output}.tmp*
+        """
+
 
 LFC=0.5849625 # 1.5 FC
 CORES=6
@@ -62,7 +58,3 @@ MARKER=""
 MEDA_DIR=""
 SELECTED=""
 
-rule gsea_enrichplot:
-	input: imagine='GSEA.Rdata'
-	output: out="GSEA_enrichplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
-	script: SRC_DIR+'/plot_ES.R'

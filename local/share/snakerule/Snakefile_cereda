@@ -1,0 +1,40 @@
+ROOT="/mnt/trcanmed/snaketree/prj"
+MATRIX="../vsd.tsv.gz"
+CMATRIX='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/merged_hs_mm.tsv.gz'
+SCR_DIR="../../../local/src"
+METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
+WANTEDT=ROOT+"/RNASeq_biod_metadata/local/share/data/xeno_basali"
+BIN_DIR="../../../local/bin"
+
+rule select_wanted:
+    input: metadata=METADATA, counts=MATRIX, types=WANTEDT
+    output: counts="selected_matrix.tsv.gz", metadata="selected_metadata.tsv"
+    shell:
+        """
+            head -n 1 {input.metadata} | cut -f 1,6,7 > {output.metadata}
+            sed 1d {input.metadata} | filter_1col 7 {input.types} | cut -f 1,6,7 >> {output.metadata}
+            cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """ 
+
+rule select_wanted_counts:
+    input: metadata='selected_metadata.tsv', counts=CMATRIX
+    output: counts="selected_matrix_counts.tsv.gz"
+    shell:
+        """
+            cat <(echo Geneid) <(cut -f 1 {input.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | transpose | filter_1col 1 {output.counts}.tmp | transpose | egrep -v "^M_" | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """ 
+
+#cut -f1 test_genealogy train_genealogy  > traintest
+rule select_wanted_counts_M:
+    input: counts=CMATRIX, traintest="traintest"
+    output: counts="selected_matrix_counts_IRCC.tsv"
+    shell:
+        """	
+            zcat {input.counts} | transpose | filter_1col 1 <(cat {input.traintest} <(echo Geneid)) | transpose > {output.counts}
+        """ 
+
+
