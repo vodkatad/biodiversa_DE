@@ -27,7 +27,7 @@ casi$quartile <- NA
 
 casi$quartile <- ifelse(casi$X3WKS < quarti[1], 1, ifelse(casi$X3WKS > quarti[2], 3, 2))                
 
-casi <- casi %>% filter(quartile == 1 | quartile == 3)
+#casi <- casi %>% filter(quartile == 1 | quartile == 3)
 
 save.image('pippo.Rdata')
 

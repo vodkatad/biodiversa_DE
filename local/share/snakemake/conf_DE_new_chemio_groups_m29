@@ -237,11 +237,11 @@ DEBUG="yes"
 #     output: rdata="totale_GSEA.Rdata", tsv="risultati_gsea_totali.tsv"
 #     script: SRC_DIR+"/gsea_chemio_all_sign.R"
 
-# rule de_geni_scelti:
-#     input: "dds.Rdata"
-#     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.pdf"
-#     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
-#     script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_grigi_chemiojul23.R"
+rule de_geni_scelti:
+    input: "dds.Rdata", chemio="/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/type_cutoff0.05-non_responder_3Q.vs.responder_1Q.deseq2.tsv", magnifici="/scratch/trcanmed/DE_RNASeq/dataset/magnifici29/type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2_geni_scelti.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff_volcano_geni_scelti_grigi_chemiojul23_new.R"
 
 rule cor_degs_gsea_m29_grigi:
     input:  magnifici="/scratch/trcanmed/DE_RNASeq/dataset/magnifici29/type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv", grey="type_cutoff0.05-resistant.vs.sensitive.deseq2.tsv"

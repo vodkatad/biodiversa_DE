@@ -4,7 +4,7 @@
 # TODO switch to getopt
 args <- commandArgs(trailingOnly=TRUE)
 counts <- '/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/merged_hs_mm.tsv.gz'
-metadataf <- 'samples_data_fake'
+metadataf <- '/scratch/trcanmed/DE_RNASeq/dataset/chemio_jul23/samples_data_fake'
 design <- args[[3]]
 prefix <- args[[4]] # if all do not filter, otherwise keep ^prefix_ only genes. 
 #useful for xeno mice-man counts matrices made by Ivan's pipeline.
@@ -25,6 +25,12 @@ casi$ntile <- ntile(casi$X3WKS, 4)
 casi$ntile3 <- ntile(casi$X3WKS, 3)
 
 outprefix <- 'qc'
+
+quarti <- quantile(casi$X3WKS, c(1/3, 2/3))
+
+casi$quartile <- NA
+
+casi$quartile <- ifelse(casi$X3WKS < quarti[1], 1, ifelse(casi$X3WKS > quarti[2], 3, 2))
 
 save.image(image)
 library("BiocParallel")
@@ -78,7 +84,7 @@ efilterGenes <- rowSums(new_data > minc) < minsamples
 edata <- new_data[!efilterGenes,]
 e_new_data <- edata[,match(rownames(metadata), colnames(edata))]
 
-casi <- casi[,c(1,7)]
+casi <- casi[,c(1,8)]
 colnames(casi) <- c("sample", "tertile")
 metadata <- merge(metadata, casi, by="sample")
 metadata$tertile <- paste0(metadata$tertile, "_Q")

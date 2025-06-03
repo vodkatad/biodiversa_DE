@@ -12,11 +12,11 @@ rule plots:
 
 ## dds.Rdata rigirato il 29/11 per necessità di ottenre vsd per il calcolo del proliferative index
 
-rule de:
-    input: "dds.Rdata"
-    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
-    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
-    script: SRC_DIR+"/deseq2_diff.R"
+# rule de:
+#     input: "dds.Rdata"
+#     output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+#     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+#     script: SRC_DIR+"/deseq2_diff.R"
 
 ## correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
 
