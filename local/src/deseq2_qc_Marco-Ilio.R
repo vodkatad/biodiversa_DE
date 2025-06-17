@@ -140,9 +140,11 @@ save.image("wth.Rdata")
 if (! all(lens$Geneid == order)) {
     stop('something wrong with lengths and mcols genes')
 }
-dds <- dds[common_genes, ]
-mcols(dds)$basepairs  <- lens$length
-fpkm_d <- fpkm(dds)
+### suggerimento by Ele: https://turboidi.atlassian.net/browse/MIS-4?focusedCommentId=10479
+### in modo da lasciare dds intonso per le analisi di DEG/GO/GSEA
+dds_forFPKM <- dds[common_genes, ]
+mcols(dds_forFPKM)$basepairs  <- lens$length
+fpkm_d <- fpkm(dds_forFPKM)
 write.table(fpkm_d, gzfile(fpkmf), quote=F, row.names=T, col.names=T, sep="\t")
 
 save.image(image)
