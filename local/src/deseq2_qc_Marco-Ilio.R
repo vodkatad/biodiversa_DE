@@ -53,7 +53,6 @@ new_data <- data[,match(rownames(metadata), colnames(data))]
 if (!all(rownames(metadata)==colnames(new_data))) {
     stop('match issues...')
 }
-save.image('paperoga.Rdata')
 ## TMM from edgeR without filtering expression ###
 #group <- as.factor(metadataf$terms(fdesign)[[2]])
 #manca filtro idiota!
@@ -129,12 +128,19 @@ res <- data.frame(highg=highgenes, highsdgenes=highsdgenes)
 write.table(res, file=paste0(outprefix, "_high.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
 
 lens <- read.table(len, sep="\t", header=TRUE)
+lens <- lens[!grepl("^M_", lens$Geneid),]
+lens$Geneid <- gsub("^H_","",lens$Geneid)
 order <- rownames(mcols(dds))
+### i dont have all the genes in the lens file, so i need a double filter, one onto the other and viceversa
+common_genes <- intersect(order, lens$Geneid)
+lens <- lens[lens$Geneid %in% common_genes, ]
+order <- common_genes
 lens <- lens[match(order, lens$Geneid), ]
 save.image("wth.Rdata")
 if (! all(lens$Geneid == order)) {
     stop('something wrong with lengths and mcols genes')
 }
+dds <- dds[common_genes, ]
 mcols(dds)$basepairs  <- lens$length
 fpkm_d <- fpkm(dds)
 write.table(fpkm_d, gzfile(fpkmf), quote=F, row.names=T, col.names=T, sep="\t")
