@@ -1,6 +1,7 @@
 include: "conf.sk"
 import os
 
+### _Marco-Ilio per lo script..effettivamente dovrei fare uno Snakefile apposta, ma mi pare un po' too much per uno script diverso..poi vediamo
 rule plots:
     input: counts=COUNTS, metadata="samples_data"
     output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
@@ -17,9 +18,9 @@ rule de:
     params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
     script: SRC_DIR+"/deseq2_diff.R"
 
-## correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
+# correct with limma/voom removing batch effects -> not great satisfaction therefore going back to DESeq2 covariates when possible and...nothing otherwise?
 
-## rule that removes H_ / M_ and filters only one kind of genes from metric.tsv.gz files
+# rule that removes H_ / M_ and filters only one kind of genes from metric.tsv.gz files
 rule s:
     input: "{metric}.tsv.gz"
     output: "{metric}_"+SPECIES+".tsv.gz"
@@ -32,7 +33,7 @@ rule s:
             rm {output}.tmp
         """
 
-#### begin remove in V2 ####
+### begin remove in V2 ####
 rule my_beloved:
     input: "{metric}_"+SPECIES+".tsv.gz"
     output: temp("{gene, \w+}_{metric}.tsv")
@@ -497,9 +498,13 @@ rule gsea_input_2:
             sed 1d {input} | bawk '{{print $1, $3}}' | perl -pane 's/^{params.specie}_(.+)/$1/g' >> {output}
         """
 
+##### ATTENZIONE!!! MV 17/06/25 #####
 rule gsea_analysis_plot:
     input: gene_res_freq = "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
-    output: GSEA_r = "GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
+    output: GSEA_r = "GSEA_results_{msign}-{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}-{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
     script: SRC_DIR+'/GSEA_analysis.R'
+### ho dovuto modificare il nome degli output perché avevo il what con _ e questo creava problemi con l'interpretazione delle due wc msign e what
+### scusate la pigrizia del non far rigirare tutto senza _ nel nome, ma magari potrebbe servire anche ad altri in futuro in ogni caso :)
+##### #####
 
 
