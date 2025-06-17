@@ -29,10 +29,10 @@ WGD=ROOT+"/prj/whatever/dataset/ilio_wgd"
 CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
 BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
 
-COUNTS=ROOT+"/prj/whatever/dataset/ilio_wgd/TCGA_COAD-READ_counts_v3.tsv.gz"
+COUNTS=ROOT+"/prj/whatever/dataset/ilio_wgd/TCGA_COAD-READ_counts_v4.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
-DESIGN="~WGD_Status"
+DESIGN="~WGD_Status+MSI_Status" # we saw that MSI-H are strongly associated with WGD-, but MSI-L seems not, so we add it as covariate
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
@@ -56,7 +56,7 @@ SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
 SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
 #SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 rule samples_data:
-    input: meta=WGD+"/TCGA_COAD-READ_annotation_wgd_msi_v3.tsv"
+    input: meta=WGD+"/TCGA_COAD-READ_annotation_wgd_msi_v4.tsv"
     params: what=["Type", "Genome_doublings", "WGD_Status", "MSI_Status"]
     output: "samples_data"
     run:
