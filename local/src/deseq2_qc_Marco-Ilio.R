@@ -136,7 +136,7 @@ common_genes <- intersect(order, lens$Geneid)
 lens <- lens[lens$Geneid %in% common_genes, ]
 order <- common_genes
 lens <- lens[match(order, lens$Geneid), ]
-save.image("wth.Rdata")
+
 if (! all(lens$Geneid == order)) {
     stop('something wrong with lengths and mcols genes')
 }
