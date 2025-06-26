@@ -1,0 +1,117 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT= os.getenv('SNAKE_ROOT')
+                                                    
+NAME="Biodiversa_up5starOK_cetuxi_treat_PDO_all2025"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+BASE_DATA=PRJ_ROOT+"/local/share/data"
+#BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK'
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+DESIGN="~batch+cetuxi"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data # WTF :(
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+PDO_CETUXI=PRJ_ROOT+'/local/share/data/pdo_cetuxi'
+
+# for biodiversa change - in . in metadata
+rule wanted:
+	output: "wanted"
+	shell:
+		"""
+		 echo -e "LMO_BASALE\\nLMO_BASALE.1\\nLMO_BASALE.2" > {output}
+		"""
+
+
+# checks:
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5starOK_cetuxi_treat_PDO_all2025$ sed 1d samples_data  | cut -f 2 |sort | uniq | wc -l
+#16
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5starOK_cetuxi_treat_PDO_all2025$ grep -f /mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/badboys samples_data 
+#egrassi@godot:/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5starOK_cetuxi_treat_PDO_all2025$ 
+
+rule samples_data:
+    input: meta=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe", wanted="wanted", 
+        cetuxi="/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/treats/last_march2024/last_cet_march2024.txt",
+        bad="/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/badboys"
+    output: "samples_data"
+    shell:
+        """
+			echo -e "id\\tsample\\tbatch\\tcetuxi" > {output}
+			cat {input.meta} | cut -f 1,6,7 | filter_1col 3 {input.wanted} | tr "_" "\\t" | \\
+			bawk '{{print $1, substr($1,0,7), $2}}' | translate -a -k <(sed 1d {input.cetuxi} | cut -f 1,2) 2 | \\
+            bawk '$3 < 0.35 {{print $1,$2,$4,"sens"}} $3 >= 0.35 {{print $1,$2,$4,"res"}}' | \\
+            filter_1col -v 2 {input.bad} >> {output}
+        """
+
+LFC=0.5849625 # 1.5 FC
+#LFC=0
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+
+
+MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
+H_MARKER=""
+M_MARKER=""
+SELECTED=""
+SELECTED2=""
+MEDA_BASALI=""
+METASAFE=""
+
+CHOSEN='CRC0327,CRC0069,CRC0322,CRC0542,CRC0059'
+rule striplots_chosen:
+    input: wanted=BASE_DATA+'/{what}', dds="dds.Rdata"
+    output: directory("{what}_lineplots_{class}")
+    params: tool=BIN_DIR+"/striplots_single_sample_mirated", chosen=CHOSEN
+    shell:
+        """
+            mkdir -p {output}
+            {params.tool} {input.wanted} {input.dds} {output} {wildcards.class} {params.chosen}
+        """
+
+
+rule plots_shrink:
+    input: counts=COUNTS, metadata="samples_data"
+    output: "dds_nobeta.Rdata", "fpkm_nobeta.tsv.gz", "tmm_nobeta.tsv.gz", "vsd_nobeta.tsv.gz"
+    params: tool=BIN_DIR+"/deseq2_qc_nobeta", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    shell:
+        """
+            {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
+        """
+
+rule de_shrink:
+    input: "dds_nobeta.Rdata"
+    output: tsv="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.tsv", volcano="{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2-shrink-{type}.pdf"
+    params: threads=CORES, alpha="{alpha}", factor="{what}", nom="{nom}", den="{den}", lfc=LFC
+    script: SRC_DIR+"/deseq2_diff_shrink.R"
+
