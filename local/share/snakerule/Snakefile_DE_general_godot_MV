@@ -498,7 +498,13 @@ rule gsea_input_2:
             sed 1d {input} | bawk '{{print $1, $3}}' | perl -pane 's/^{params.specie}_(.+)/$1/g' >> {output}
         """
 
+##### ATTENZIONE!!! MV 17/06/25 #####
 rule gsea_analysis_plot:
     input: gene_res_freq = "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
-    output: GSEA_r = "GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
+    output: GSEA_r = "GSEA_results_{msign}-{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}-{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
     script: SRC_DIR+'/GSEA_analysis.R'
+### ho dovuto modificare il nome degli output perché avevo il what con _ e questo creava problemi con l'interpretazione delle due wc msign e what
+### scusate la pigrizia del non far rigirare tutto senza _ nel nome, ma magari potrebbe servire anche ad altri in futuro in ogni caso :)
+##### #####
+
+
