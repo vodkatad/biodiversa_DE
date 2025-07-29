@@ -1,6 +1,7 @@
 ### Copia di ../../local/share/snakerule/Snakefile_DE_general_godot perché c'è un FIXMETODO in de e non volevo toccare e pacioccare
 
 ### nella cartella backup_firstround ci sono i file del primo giro fatto tempo fa
+### nella cartella backup_perpapero ci sono i file del giro fatto prima del papero (duh) con anche KRAS mut e PRX
 
 include: "conf.sk"
 
