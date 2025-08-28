@@ -1,0 +1,100 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+BROOT=os.getenv('BIOINFO_ROOT')                                                    
+NAME="chemio_collection"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+DATA="/mnt/cold1/bioinfotree/prj/ngs_standard_processing/dataset/Iper_chemio"
+BIT_DIR=DATA
+GENE_LEN=BIT_DIR+"/gene_len"
+
+W3="/mnt/trcanmed/snaketree/prj/strata/dataset/figures/w3_waterfall.tsv"
+NEW_COUNTS="../Iper_chemio/counts.tsv.gz"
+NEW_SS="../Iper_chemio/meta.tsv"
+
+OLD_SS='/mnt/trcanmed/snaketree/prj/DE_RNASeq/dataset/Biodiversa_up5_starOK_selected/samples_data'
+OLD_COUNTS='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/merged_hs_mm.tsv.gz'
+
+rule get_old_samples:
+    input: wf=W3, ss=OLD_SS
+    output: "old_samples.tsv"
+    shell:
+        """
+            grep LMX_BASALE {input.ss} | grep -f <(cut -f 1 {input.wf}) | bawk '{{print substr($1,0,7), $1}}' > {output}
+        """
+
+rule get_old_counts:
+    input: counts=OLD_COUNTS, wanted="old_samples.tsv"
+    output: matrix="old_counts.tsv.gz"
+    run:
+        import pandas as pd
+        counts = pd.read_csv(input.counts, sep="\t", index_col=0, compression='gzip')
+        wanted = pd.read_csv(input.wanted, sep="\t", index_col=1, header=None)
+        counts = counts[wanted.index.tolist()]       
+        counts.to_csv(output.matrix, sep="\t", compression='gzip', header=True)
+
+
+# assemble metadata
+META='samples_data'
+rule metadata:
+    input: wf=W3, old_ss='old_samples.tsv', new_ss=NEW_SS
+    output: META
+    shell:
+        """
+            echo -e "id\\tmodel\\tirino\\tbatch" > {output}
+            bawk '{{print $2,$1,"old"}}' {input.old_ss} | translate -a {input.wf} 2 | bawk '$3 < -50{{print $1,$2,"OR",$4}} $3 > 35 {{print $1,$2,"PD",$4}} $3 >= -50 && $3 <= 35 {{print $1,$2,"SD",$4}}' >> {output}
+            sed 1d {input.new_ss} | bawk '{{print $2,$2,"new"}}' | translate -a {input.wf} 2 | bawk '$3 < -50 {{print $1,$2,"OR",$4}} $3 > 35 {{print $1,$2,"PD",$4}} $3 >= -50 && $3 <= 35 {{print $1,$2,"SD",$4}}' >> {output}
+        """
+
+
+# merge counts
+#(bit_rnaseq_2.8_noref) egrassi@ulisse:/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/chemio_collection$ zcat ../Iper_chemio/counts.tsv.gz  | sed 1d | cut -f1 > oo
+#(bit_rnaseq_2.8_noref) egrassi@ulisse:/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/chemio_collection$ zcat old_counts.tsv.gz  | sed 1d | cut -f1 > o
+#(bit_rnaseq_2.8_noref) egrassi@ulisse:/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/chemio_collection$ diff -q o oo; echo $?
+#0
+COUNTS="counts.tsv.gz"
+rule merge_counts:
+    input: old="old_counts.tsv.gz", new=NEW_COUNTS
+    output: COUNTS
+    shell:
+        """
+            paste <(zcat {input.old} | head -n1) <(zcat {input.new} | head -n1) > {output}.tmp
+            paste <(zcat {input.old} | sed 1d ) <(zcat {input.new} | sed 1d | cut -f 1 --complement) >> {output}.tmp
+            gzip -c {output}.tmp > {output}
+            rm {output}.tmp
+        """
+
+
+#egrassi@ulisse:/mnt/cold2/gcorti/Biodiversa_agosto_2025$ bawk '{print $2,$1}' conversion_names.txt | sed 's/_RNA//1' > /mnt/cold1/bioinfotree/prj/ngs_standard_processing/dataset/Iper_chemio/ss.tsv
+###
+DESIGN="~batch+irino"
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+#FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""

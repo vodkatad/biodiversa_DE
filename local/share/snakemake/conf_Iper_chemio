@@ -1,0 +1,87 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+BROOT=os.getenv('BIOINFO_ROOT')                                                    
+NAME="iper_chemio"
+DATA="/mnt/cold1/bioinfotree/prj/ngs_standard_processing/dataset/Iper_chemio"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR=DATA
+
+COUNTS_PRE=BIT_DIR+"/GEP.count.gz"
+COUNTS="counts.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+#egrassi@ulisse:/mnt/cold2/gcorti/Biodiversa_agosto_2025$ bawk '{print $2,$1}' conversion_names.txt | sed 's/_RNA//1' > /mnt/cold1/bioinfotree/prj/ngs_standard_processing/dataset/Iper_chemio/ss.tsv
+PREMETA=DATA+'/ss.tsv'
+META='meta.tsv'
+###
+DESIGN="~geno"
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+#FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+rule ss:
+    input: PREMETA
+    output: META
+    shell:
+        """
+            echo -e "old_id\\tnew_id" > {output}
+            bawk '{{print $1,$2}}' {input} >> {output}
+        """
+
+rule rename_cols:
+    input: matrix=COUNTS_PRE, meta=META
+    output: hmat=COUNTS
+    script: SRC_DIR+'/rename_columns_iper.R'
+
+rule usable_reads:
+    input: us=DATA+'/usable_reads', meta=META
+    output:  "usable_reads.tsv"
+    shell:
+        """
+            head -n1 {input.us} > {output}
+            sed 1d {input.us} | sed 's/_/\\t/1' | cut -f 2 --complement | translate <(sed 1d {input.meta}) 1 >> {output}
+        """
+
+rule n_reads:
+    input: COUNTS, 'usable_reads.tsv'
+    output: matrix='reads_info.tsv.gz'
+    run:
+        import pandas as pd
+        counts = pd.read_csv(input[0], sep="\t", index_col=0)
+        # gather total mouse and human reads
+        h_counts = counts.filter(regex="^H_", axis=0).sum(axis=0)
+        m_counts = counts.filter(regex="^M_", axis=0).sum(axis=0)
+        count_res = pd.DataFrame(data={'h_tot':h_counts, 'm_tot':m_counts, 'frac_h' : h_counts/(m_counts+h_counts)})
+        usable_reads_res = pd.DataFrame()
+        usable_reads = pd.read_csv(input[1], sep="\t", index_col=0, usecols=['sample', 'tot','Assigned'])
+        usable_reads['frac_assigned'] = usable_reads['Assigned']/usable_reads['tot']
+        usable_reads_res = usable_reads_res.append(usable_reads)
+        res = pd.concat([count_res, usable_reads_res], axis=1, sort=True)
+        res.to_csv(output.matrix, sep="\t", compression='gzip', header=True)
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""
