@@ -1,12 +1,12 @@
 library(stringr)
 
 
-gep <- snakemake@input[["samples_data"]]
+gep <- snakemake@input[["meta"]]
 
 res <- snakemake@output[["tsv"]]
 
 data <- read.table(gzfile(gep), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-data<-data[grepl("CETUX",data$trattamento),]
-data<-data[!grepl("3",data$replica),]
-data$geno<-ifelse(grepl('CL',data$geno), "CL", "cas9")
+combo<-data[grepl("Combo_72h",data$trattamento),]
+cet<-data[grepl("Cetux_72h",data$trattamento),]
+data <- rbind(combo, cet)
 write.table(data, file=res, quote = FALSE, sep = "\t", col.names = TRUE, row.names = TRUE)

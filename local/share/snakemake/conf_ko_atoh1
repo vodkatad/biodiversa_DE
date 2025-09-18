@@ -25,7 +25,7 @@ GENE_LEN=BIT_DIR+"/gene_len"
 #PREMETA=DATA+'/ss_ko_atoh1.txt'
 ##META="meta.txt"
 ###
-DESIGN="~trattamento+replica"
+DESIGN="~geno"
 SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2

@@ -137,7 +137,12 @@ rule samples_data_mut_wt_bcat:
     output: meta="bcat_{tipo}_samples_data"
     script: SRC_DIR+"/samples_data_TCF7L2_2nd_mutwt_bcat.R"
 
-rule samples_data_chip:
-    input: samples = "TCF7L2_DEG/general/table_cases.tsv"
+# rule samples_data_chip:
+#     input: samples = "TCF7L2_DEG/general/table_cases.tsv"
+#     output: meta="samples_data"
+#     script: SRC_DIR+"/samples_deg_like_chip.R"
+
+rule samples_data_assays_but_tcf:
+    input: samples = "TCF7L2_DEG/general/table_cases.tsv", assays="b2_general/samples_data"
     output: meta="samples_data"
-    script: SRC_DIR+"/samples_deg_like_chip.R"
+    script: SRC_DIR+"/samples_data_assays_but_tcf.R"
