@@ -2,9 +2,10 @@ library(tidyverse)
 
 samples_f <- snakemake@input[["samples_or"]] 
 meta <- snakemake@output[["meta"]]
-type <- snakemake@wildcards[['tipo']]
+type <- snakemake@wildcards[['mutwt']]
 
-d <- "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/TCF7L2_2nd/b2_general/samples_data"
+#d <- "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/TCF7L2_2nd/b2_general/samples_data"
+d <- samples_f
 d <- read.table(d, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 d <- d %>% filter(!geno == "t2")
 

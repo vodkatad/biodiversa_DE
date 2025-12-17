@@ -27,7 +27,10 @@ m_t2g <- msigdbr(species = "Homo sapiens", category = type) %>%
 em <- GSEA(geneList, TERM2GENE = m_t2g, pvalueCutoff = 1)
 
 # save.image("gsea_results_c5.R") ### commentato da mv 23/01/25 per deg 5vs4
+<<<<<<< Updated upstream
 #save.image("gsea_results_c5.R")
+=======
+>>>>>>> Stashed changes
 
 #GSEA_r <- write.table(em@result, quote = FALSE, row.names = TRUE, col.names = TRUE)
 
@@ -37,7 +40,11 @@ write.table(em@result, file = GSEA_r, quote = FALSE, sep = "\t", row.names = TRU
 ridgeplot(em, showCategory = 20)
 ggsave(GSEA_ridgeplot, width = 300, height = 107, useDingbats=FALSE, units = "mm")
 
+<<<<<<< Updated upstream
 ##save.image(rdata) ### scommentato da mv 23/01/25 per deg 5vs4
 
 
 save.image('GSEA.Rdata')
+=======
+save.image('GSEA.Rdata')
+>>>>>>> Stashed changes

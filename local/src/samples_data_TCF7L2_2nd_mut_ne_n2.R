@@ -43,4 +43,6 @@ samples$mut <- NULL
 samples$id <- NULL
 
 #samples <- samples %>% filter(model == case)
+## for wrong fingerprint
+samples <- samples %>% filter(!model == "CRC0152")
 write.table(samples, file=meta, quote = FALSE, sep = "\t", col.names = TRUE, row.names = TRUE)
