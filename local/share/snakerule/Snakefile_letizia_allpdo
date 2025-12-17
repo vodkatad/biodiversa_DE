@@ -1,0 +1,30 @@
+ROOT="/mnt/trcanmed/snaketree/prj"
+MATRIX="../fpkm.tsv.gz"
+CMATRIX='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK/merged_hs_mm.tsv.gz'
+SCR_DIR="../../../local/src"
+METADATA=ROOT+"/RNASeq_biod_metadata/dataset/july2020_starOK/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
+WANTEDT="../../../local/share/data/pdo_basali"
+BAD="/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/badboys"
+BIN_DIR="../../../local/bin"
+
+rule select_wanted:
+    input: metadata=METADATA, counts=MATRIX, types=WANTEDT, bad=BAD
+    output: counts="selected_matrix.tsv.gz", metadata="selected_metadata.tsv"
+    shell:
+        """
+            head -n 1 {input.metadata} | cut -f 1,6,7 > {output.metadata}
+            sed 1d {input.metadata} | filter_1col 7 {input.types} | cut -f 1,6,7 | bawk '{{print $1, substr($1,0,7), $2, $3}}' | filter_1col -v 2 {input.bad} | cut -f 1,3,4 >> {output.metadata}
+            cat <(echo Geneid) <(cut -f 1 {output.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | bawk 'NR==1{{print "Geneid",$0}} NR!=1{{print $0}}'| transpose | filter_1col 1 {output.counts}.tmp | transpose | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """ 
+
+rule select_wanted_counts:
+    input: metadata='selected_metadata.tsv', counts=CMATRIX
+    output: counts="selected_matrix_counts.tsv.gz"
+    shell:
+        """
+            cat <(echo Geneid) <(cut -f 1 {input.metadata}) > {output.counts}.tmp
+            zcat {input.counts} | transpose | filter_1col 1 {output.counts}.tmp | transpose | egrep -v "^M_" | sed 's/H_//1' | gzip > {output.counts}            
+            rm {output.counts}.tmp
+        """ 
