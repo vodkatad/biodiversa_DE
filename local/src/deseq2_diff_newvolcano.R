@@ -51,7 +51,6 @@ plot_volcano <- function(resnona, alpha, lfc, outfile, title) {
     geom_point(aes(col = sign),size=0.5) + theme_bw() +
     scale_color_manual(values = c("blue", "#999999", "red"), drop=FALSE) + # red orange green black -> orange blue green gray 
     ggtitle(title)
-  
   nsign <- nrow(resnona[resnona$signtot=="both",])
   if (nsign > 20) {
     p + geom_text_repel(data=resnona[1:10,], aes(label=rownames(resnona)[1:10]))
