@@ -508,3 +508,14 @@ rule gsea_analysis_plot:
 ##### #####
 
 
+rule clean:
+    shell:
+        """
+            echo "WARNING: this will delete files recursively in $(pwd)"
+            echo "Kept patterns: dds.Rdata, *samples_data*, Snakefile, conf.sk"
+            printf "Type CLEAN to continue: "
+            read -r confirm
+            [ "$confirm" = "CLEAN" ] || (echo "Aborted." && exit 1)
+            find . -mindepth 1 -type f ! -name 'dds.Rdata' ! -name '*samples_data*' ! -name 'Snakefile' ! -name 'conf.sk' -delete
+            find . -mindepth 1 -depth -type d -empty ! -delete
+        """

@@ -61,10 +61,12 @@ rule samples_data:
     output: "samples_data"
     run:
         col = params.what
-        info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None, usecols=["mouse", col])
+        info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None) #usecols=["mouse", col]
+        info = info[info['KRAS'] == 0] ### redo with only KRAS wt for papero
+        info = info[['mouse', col]]
         keep = pd.read_csv(input.keep, sep='\t', header=0, index_col=None, usecols=["sample_id_R", "type"])
 
-        contains = ["LMX_BASALE", "PRX_BASALE", "LMX_BASALE.1", "PRX_BASALE.1"]
+        contains = ["LMX_BASALE", "LMX_BASALE.1"] # "PRX_BASALE", "PRX_BASALE.1"
         keep = keep.loc[keep['type'].isin(contains),]
         keep['sample_id_R'] = keep['sample_id_R'].str[:12]
 
