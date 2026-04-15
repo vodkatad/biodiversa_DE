@@ -140,6 +140,7 @@ setdiff(geni_mut, geni_all)
 
 geni <- unique(c(geni_all, geni_mut, geni_wt))
 
+
 lfc_wt <- "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/TCF7L2_2nd/WT_N2.vs.NE/WT_geno_cutoff0.05-N2.vs.NE.deseq2.tsv"
 lfc_wt <- read.table(lfc_wt, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 lfc_wt$genes <- rownames(lfc_wt)
@@ -183,4 +184,4 @@ write.table(deg[,"genes"], file="/mnt/cold1/snaketree/prj/DE_RNASeq/local/share/
             sep = "\t", col.names = FALSE, row.names = FALSE)
 
 ## CHECK GENI SIGNATURE PER BOXPLOT SSGSEA
-jakstat <-  
+# jakstat <-  

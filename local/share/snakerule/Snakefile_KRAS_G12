@@ -1,0 +1,304 @@
+## usare -j1 e --use-conda 
+include: "conf.sk"
+import os
+import pandas as pd
+import numpy as np
+from scipy.stats import pearsonr
+
+def get_all_deg_outputs():
+    outputs = []
+    for smodel in SMODELS:
+        for nom, den in MODEL_COMPARISONS.get(smodel, []):
+            comp_dir = get_comparison_dir(smodel, nom, den)
+            outputs.append(f"{comp_dir}/{smodel}_{WHAT}_cutoff{ALPHA}-{nom}.vs.{den}.deseq2.tsv")
+    return outputs
+
+def get_all_go_outputs():
+    outputs = []
+    for smodel in SMODELS:
+        for nom, den in MODEL_COMPARISONS.get(smodel, []):
+            comp_dir = get_comparison_dir(smodel, nom, den)
+            for direction in DIRECTIONS:
+                outputs.append(f"{comp_dir}/GO_results_{smodel}_{WHAT}_cutoff{ALPHA}-{nom}.vs.{den}_{direction}.tsv")
+    return outputs
+
+def get_all_gsea_outputs():
+    outputs = []
+    for smodel in SMODELS:
+        for nom, den in MODEL_COMPARISONS.get(smodel, []):
+            comp_dir = get_comparison_dir(smodel, nom, den)
+            for msign in MSIGN_TYPES:
+                outputs.append(f"{comp_dir}/GSEA_results_{smodel}_{msign}_{WHAT}_cutoff{ALPHA}-{nom}.vs.{den}.tsv")
+    return outputs
+
+rule all:
+    input:
+        # Per ogni modello, genera i file di QC nella cartella del modello
+        expand("results/{smodel}/{smodel}_dds.Rdata", smodel=SMODELS),
+        expand("results/{smodel}/{smodel}_fpkm.gz", smodel=SMODELS),
+        expand("results/{smodel}/{smodel}_tmm.gz", smodel=SMODELS),
+        expand("results/{smodel}/{smodel}_vsd.gz", smodel=SMODELS),
+        
+        # Tutti i risultati DEG (specifici per modello)
+        get_all_deg_outputs(),
+        
+        # Tutti i risultati GO (specifici per modello)
+        get_all_go_outputs(),
+        
+        # Tutti i risultati GSEA (specifici per modello)
+        get_all_gsea_outputs()
+
+rule plots:
+    input: 
+        counts="counts_kras.gz",
+        metadata="{smodel}_samples_data"
+    output: 
+        dds="results/{smodel}/{smodel}_dds.Rdata", 
+        fpkm="results/{smodel}/{smodel}_fpkm.gz", 
+        tmm="results/{smodel}/{smodel}_tmm.gz", 
+        vsd="results/{smodel}/{smodel}_vsd.gz"
+    params: 
+        tool=BIN_DIR+"/deseq2_qc_multisamples", 
+        design=DESIGN, 
+        prefix=SPECIES, 
+        minc=MINC, 
+        minsamples=MINSAMPLES, 
+        gene_len=GENE_LEN, 
+        cores=CORES
+    
+    shell:
+        """
+        {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} \
+            {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}
+        """
+
+rule de:
+    input: 
+        dds="results/{smodel}/{smodel}_dds.Rdata"
+    output: 
+        tsv="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv", 
+        volcano="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.pdf"
+    params: 
+        threads=CORES, 
+        alpha="{alpha}", 
+        factor="{what}", 
+        nom="{nom}", 
+        den="{den}", 
+        lfc=LFC
+    
+    script: 
+        SRC_DIR+"/deseq2_diff_newvolcano_multisamples.R"
+
+rule go_input_up_down:
+    input: 
+        tsv="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: 
+        up="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_up.tsv", 
+        down="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_down.tsv"
+    params: 
+        thr=PVAL, 
+        specie=SPECIES, 
+        lfc=LFC
+    
+    shell:
+        """
+        sed 1d {input} | awk '$7 < {params.thr} && $3 > {params.lfc} {{print $1}}' | \
+            perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.up}
+        sed 1d {input} | awk '$7 < {params.thr} && $3 < -{params.lfc} {{print $1}}' | \
+            perl -pane 's/^{params.specie}_(.+)/$1/g' > {output.down}
+        """
+
+rule go_universe:
+    input: 
+        tsv="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: 
+        gene_univ="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    params: 
+        specie=SPECIES
+    
+    shell:
+        """
+        sed 1d {input} | cut -f 1 | perl -pane 's/^{params.specie}_(.+)/$1/g' > {output}
+        """
+
+rule go_analysis_plot:
+    input: 
+        gene_list="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.goinsplit_{direction}.tsv", 
+        gene_univ="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gouniverse.tsv"
+    output: 
+        GO_r="{comp_dir}/GO_results_{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}.tsv", 
+        out_dir=directory("{comp_dir}/barplot_go_{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}_{direction}")
+    conda:
+        GO_ENV
+    
+    script: 
+        SRC_DIR+'/GO_analysis_multisamples.R'
+
+rule gsea_input_2:
+    input: 
+        tsv="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.deseq2.tsv"
+    output: 
+        gene_res_freq="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    params: 
+        lfc=LFC, 
+        thr=PVAL, 
+        specie=SPECIES
+    
+    shell:
+        """
+        printf "gene\\tFreq\\n" > {output}
+        sed 1d {input} | awk -v OFS='\\t' '{{print $1, $3}}' | \
+        perl -pane 's/^{params.specie}_(.+)/$1/g' >> {output}
+        """
+
+rule gsea_analysis_plot:
+    input: 
+        gene_res_freq="{comp_dir}/{smodel}_{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    output: 
+        GSEA_r="{comp_dir}/GSEA_results_{smodel}_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", 
+        GSEA_ridgeplot="{comp_dir}/{smodel}_gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
+    conda:
+        GO_ENV
+    
+    script: 
+        SRC_DIR+'/GSEA_analysis.R'
+
+
+# def find_gsea(wildcards):
+#     comp_dir = wildcards.comp_dir
+#     sign = wildcards.msign
+#     list_gsea_files = []
+    
+#     # Cerca nella directory del confronto
+#     if os.path.exists(comp_dir):
+#         for file in os.listdir(comp_dir):
+#             if sign in file and 'GSEA_results' in file and '.tsv' in file:
+#                 list_gsea_files.append(os.path.join(comp_dir, file))
+    
+#     return list_gsea_files
+
+# rule gsea_summary_files:
+#     input:
+#         list_gsea=find_gsea
+#     output:
+#         out_data="{comp_dir}/gsea_summary/data_heatmap_{msign}_th_{intersection}.csv",
+#         out_annot="{comp_dir}/gsea_summary/annot_heatmap_{msign}_th_{intersection}.csv"
+#     run:
+#         num_min_samples = int(wildcards.intersection)
+#         data_upset = pd.DataFrame(columns=['signature', 'sample'], dtype=object)
+#         sample_names = []
+        
+#         for file in input.list_gsea:
+#             # Estrai il nome del campione dal path del file
+#             sample_name = os.path.basename(file).split('_')[2]
+#             sample_names.append(sample_name)
+            
+#             results = pd.read_csv(file, sep='\t', header=0, index_col=0)
+#             best = results[(results['p.adjust'] < 0.05)]
+#             best['ID'] = np.where(best['enrichmentScore'] > 0, 
+#                                  best['ID'] + '_POS', 
+#                                  best['ID'] + '_NEG')
+            
+#             sample_cluster = [sample_name] * len(best)
+#             marker = best['ID'].tolist()
+#             data_sample_cluster = pd.DataFrame(marker, columns=['signature'])
+#             data_sample_cluster['sample'] = sample_cluster
+#             data_upset = pd.concat([data_upset, data_sample_cluster], axis=0, ignore_index=True)
+        
+#         # Filtra le signature che compaiono in almeno num_min_samples campioni
+#         sopravvissuti = []
+#         for signature in data_upset['signature'].unique():
+#             if len(data_upset.loc[data_upset['signature'] == signature]) > num_min_samples:
+#                 sopravvissuti.append(signature)
+        
+#         sample_names.append('signature')
+#         data_heat = pd.DataFrame(columns=sample_names, dtype=object)
+#         sign_heat = pd.DataFrame(columns=sample_names, dtype=object)
+        
+#         for sign in sopravvissuti:
+#             riga = {}
+#             riga_annot = {}
+#             riga['signature'] = sign
+            
+#             for sample in input.list_gsea:
+#                 sample_name = os.path.basename(sample).split('_')[2]
+#                 data = pd.read_csv(sample, header=0, sep='\t')
+#                 data['ID'] = np.where(data['enrichmentScore'] > 0, 
+#                                      data['ID'] + '_POS', 
+#                                      data['ID'] + '_NEG')
+                
+#                 try:
+#                     en = data[data['ID'] == sign]['NES'].iloc[0]
+#                     s = data[data['ID'] == sign]['p.adjust'].iloc[0]
+#                 except:
+#                     en = np.NAN
+#                     s = 1
+                
+#                 riga[sample_name] = en
+#                 riga_annot[sample_name] = s
+            
+#             data_heat = data_heat.append(riga, ignore_index=True)
+#             sign_heat = sign_heat.append(riga_annot, ignore_index=True)
+        
+#         data_heat.set_index('signature', inplace=True)
+#         sign_heat.set_index('signature', inplace=True)
+        
+#         sign_heat = pd.DataFrame(np.where(sign_heat < 0.05, '-', '°'), 
+#                                 index=data_heat.index, 
+#                                 columns=data_heat.columns)
+        
+#         data_heat.to_csv(output.out_data)
+#         sign_heat.to_csv(output.out_annot)
+
+# rule plot_gsea_summary_heatmap:
+#     input:
+#         data="{comp_dir}/gsea_summary/data_heatmap_{msign}_th_{intersection}.csv",
+#         annot="{comp_dir}/gsea_summary/annot_heatmap_{msign}_th_{intersection}.csv"
+#     output:
+#         plot="{comp_dir}/gsea_summary/heatmap_{msign}_th_{intersection}.pdf"
+#     conda:
+#         GO_ENV
+#     script: 
+#         SRC_DIR+'/gsea_heatmap.R'
+
+# def find_summary(wildcards):
+#     comp_dir = wildcards.comp_dir
+#     return f"{comp_dir}/gsea_summary/data_heatmap_{wildcards.msign}_th_{wildcards.intersection}.csv"
+
+# rule gsea_summary_genes_file:
+#     input:
+#         list_gsea=find_gsea,
+#         signature=find_summary
+#     output:
+#         intersection="{comp_dir}/gsea_summary/gene_intersection_{msign}_th_{intersection}.csv"
+#     run:
+#         num_min_samples = int(wildcards.intersection)
+#         signature_df = pd.read_csv(input.signature, header=0, index_col=0)
+        
+#         intersezioni = {}
+        
+#         for name in signature_df.index:
+#             i = 0
+#             intersezione = set()
+#             name_ = name[:-4]  # Rimuove _POS o _NEG
+            
+#             for file in input.list_gsea:
+#                 results = pd.read_csv(file, sep='\t', header=0, index_col=0)
+                
+#                 if i == 0:
+#                     intersezione.update(set(results.loc[name_, 'core_enrichment'].split('/')))
+#                     i += 1
+#                 else:
+#                     intersezione = intersezione.intersection(
+#                         set(results.loc[name_, 'core_enrichment'].split('/'))
+#                     )
+            
+#             intersezioni[name] = list(intersezione)
+        
+#         # Crea dataframe con colonne ['signature', 'gene']
+#         data = pd.DataFrame(columns=['signature', 'gene'])
+#         for key, values in intersezioni.items():
+#             for value in values:
+#                 data = data.append({'signature': key, 'gene': value}, ignore_index=True)
+        
+#         data.to_csv(output.intersection)
