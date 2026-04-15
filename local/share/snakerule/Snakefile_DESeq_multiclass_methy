@@ -52,3 +52,16 @@ rule filtering:
     input: deg = "cluster_methy_cutoff0.05.deseq2.tsv", expr = "vsd.tsv.gz", sample = "samples_datas"
     output: sign = "means_cluster_sign_genes.tsv", top = "top_100_clusters_sign_genes.tsv", pbig = "heatmap_sign_genes.png", psmall = "heatmap_100_genes.png"
     script: SRC_DIR+'/filtering_deg_results.R'
+
+
+rule clean:
+    shell:
+        """
+            echo "WARNING: this will delete files recursively in $(pwd)"
+            echo "Kept patterns: dds.Rdata, *samples_data*, Snakefile, conf.sk"
+            printf "Type CLEAN to continue: "
+            read -r confirm
+            [ "$confirm" = "CLEAN" ] || (echo "Aborted." && exit 1)
+            find . -mindepth 1 -type f ! -name 'dds.Rdata' ! -name '*samples_data*' ! -name 'Snakefile' ! -name 'conf.sk' -delete
+            find . -mindepth 1 -depth -type d -empty ! -delete
+        """
