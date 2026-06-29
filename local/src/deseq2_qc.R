@@ -29,7 +29,7 @@ library(ggplot2)
 library(edgeR)
 save.image("pippo.Rdata")
 
-data <- read.table(gzfile(counts), header=T, sep="\t", row=1)
+data <- read.table(gzfile(counts), header=T, sep="\t", row=1, check.names=FALSE)
 
 if (prefix != "all") {
   data <- data[grep(paste0("^", prefix, "_"), rownames(data)),]
@@ -51,6 +51,9 @@ if (length(intersect(rownames(metadata), colnames(data))) != nrow(metadata)) {
 }
 
 new_data <- data[,match(rownames(metadata), colnames(data))]
+rownames(metadata)
+colnames(data)
+print(head(data))
 if (!all(rownames(metadata)==colnames(new_data))) {
     stop('match issues...')
 }
