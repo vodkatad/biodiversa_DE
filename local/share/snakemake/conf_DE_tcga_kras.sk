@@ -30,7 +30,8 @@ METHY="../../../pdx_methylation"
 CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
 BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
 
-COUNTS=ROOT+"/prj/whatever/dataset/ilio_wgd/TCGA_COAD-READ_counts_v3.tsv.gz"
+COUNTS_RAW=ROOT+"/prj/whatever/dataset/ilio_wgd/TCGA_COAD-READ_counts_v3.tsv.gz"
+COUNTS="TCGA_COAD-READ_counts_v3_mss.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
 DESIGN="~KRAS_status"
@@ -38,7 +39,7 @@ SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'S
 MINC=5
 MINSAMPLES=2
 
-FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
 
 #> library(fgsea)
 #Loading required package: Rcpp
@@ -59,8 +60,8 @@ SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
 SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
 #SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 rule samples_data:
-    input: msi=MSI, kras=KRAS
-    output: "samples_data"
+    input: msi=MSI, kras=KRAS, counts=COUNTS_RAW, lens=GENE_LEN
+    output: out="samples_data", counts=COUNTS
     run:
         msi = pd.read_csv(input.msi, sep='\t', header=0, index_col=None, usecols=["PatientID", "MSIfinal"])
         kras = pd.read_csv(input.kras, sep='\t', header=0, index_col=None, usecols=["Sample ID"])
@@ -71,7 +72,18 @@ rule samples_data:
         kras_patients = set(kras["PatientID"])
         msi['KRAS_status'] = msi['PatientID'].apply(lambda pid: 'mut' if pid in kras_patients else 'wt')
 
-        msi.to_csv(output[0], header=True, index=None, sep='\t')
+        counts = pd.read_csv(input.counts, sep='\t', header=0, index_col=0)
+
+        common_patients = set(msi["PatientID"]).intersection(counts.columns)
+        counts = counts.loc[:, list(common_patients)]
+        msi = msi[msi["PatientID"].isin(counts.columns)]   
+        counts.index = ["H_" + str(g) for g in counts.index]
+
+        lens = pd.read_csv(input.lens, sep='\t', index_col=0)
+        counts = counts[counts.index.isin(lens.index)]
+
+        counts.to_csv(output.counts, header=True, index=True, sep='\t', compression='gzip')
+        msi.to_csv(output.out, header=True, index=None, sep='\t')
 
 ### to remember de rule wildcards:
 ### "response_cutoff0.05-ORSD.vs.PD.deseq2.tsv"
