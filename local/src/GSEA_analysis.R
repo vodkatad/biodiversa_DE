@@ -19,8 +19,12 @@ geneList <- gene_res_df$Freq
 names(geneList) <- as.character(gene_res_df$gene)
 geneList <- sort(geneList, decreasing = TRUE)
 
-m_t2g <- msigdbr(species = "Homo sapiens", category = type) %>% 
-  dplyr::select(gs_name, human_gene_symbol) ### altrimenti chiede gli id numerici
+m_t2g <- msigdbr(species = "Homo sapiens", collection = type) %>% 
+### Warning message:
+### The `category` argument of `msigdbr()` is deprecated as of msigdbr 10.0.0.
+### ℹ Please use the `collection` argument instead. 
+### dplyr::select(gs_name, human_gene_symbol) ### altrimenti chiede gli id numerici
+  dplyr::select(gs_name, gene_symbol) ### altrimenti chiede gli id numerici
 
 
 
