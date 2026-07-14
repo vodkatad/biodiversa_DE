@@ -232,8 +232,9 @@ rule CRIS_to_n:
 
 # we go get the separated cris classification in the biobanca prj
 BASE_CRIS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/cris'
+# broken by new snakemake pop cannot be used -> popf
 rule barplot_chisq:
-    input: pop="freqs_cris.tsv", popc='counts_cris.tsv', 
+    input: popf="freqs_cris.tsv", popc='counts_cris.tsv', 
         lmx=BASE_CRIS+"/vsd_cris_LMX_BASALE_nc_smodel.tsv", 
         lmo=BASE_CRIS+"/vsd_cris_LMO_BASALE_nc_smodel.tsv", 
         lmh=BASE_CRIS+"/vsd_cris_LMH_prediction_result.tsv",
@@ -259,7 +260,7 @@ rule CMS_to_n:
 # /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr$ cut -f 2 cms_fpkm_LMX_BASALE_nc_smodel.tsv
 BASE_CMS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/expr'
 rule cms_barplot_chisq:
-    input: pop="freqs_cms.tsv", popc=CMSCALLER, 
+    input: popf="freqs_cms.tsv", popc=CMSCALLER, 
         lmx=BASE_CMS+"/cms_vsd_LMX_BASALE_nc_smodel.tsv",
         lmo=BASE_CMS+"/cms_vsd_LMO_BASALE_nc_smodel.tsv", 
         lmh=BASE_CMS+"/cms_vsd_LMH_nc_smodel.tsv",
