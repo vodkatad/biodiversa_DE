@@ -30,15 +30,15 @@ METHY="../../../pdx_methylation"
 CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
 BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
 
-COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+COUNTS=ROOT+"/prj/whatever/dataset/ilio_wgd/TCGA_COAD-READ_counts_v3.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
-DESIGN="~cluster"
+DESIGN="~KRAS_status"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
 
-FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
+FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
 
 #> library(fgsea)
 #Loading required package: Rcpp
@@ -51,34 +51,27 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
 #GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
 
+MSI=ROOT+"/prj/whatever/local/share/data/TCGA/COAD.READ/cbioportal_TCGA_COAD-READ_MSIstatus_recovered.tsv"
+KRAS=ROOT+"/prj/whatever/local/share/data/TCGA/COAD.READ/TCGA_COAD-READ_KRASmut.tsv"
 
 # for biodiversa change - in . in metadata
 SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
 SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
 #SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 rule samples_data:
-    input: meta=METHY+"/dataset/v5/fvf/samples_info_final_fvf_v2_2024.tsv", keep=SELECTED
-    params: what="cluster"
+    input: msi=MSI, kras=KRAS
     output: "samples_data"
     run:
-        col = params.what
-        info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None, usecols=["mouse", col])
-        keep = pd.read_csv(input.keep, sep='\t', header=0, index_col=None, usecols=["sample_id_R", "type"])
+        msi = pd.read_csv(input.msi, sep='\t', header=0, index_col=None, usecols=["PatientID", "MSIfinal"])
+        kras = pd.read_csv(input.kras, sep='\t', header=0, index_col=None, usecols=["Sample ID"])
 
-        contains = ["LMX_BASALE", "PRX_BASALE", "LMX_BASALE.1", "PRX_BASALE.1"]
-        keep = keep.loc[keep['type'].isin(contains),]
-        keep['sample_id_R'] = keep['sample_id_R'].str[:12]
+        msi = msi[msi["MSIfinal"] == "MSS"]
+        kras['PatientID'] = kras['Sample ID'].str[:12]
+     
+        kras_patients = set(kras["PatientID"])
+        msi['KRAS_status'] = msi['PatientID'].apply(lambda pid: 'mut' if pid in kras_patients else 'wt')
 
-        info['model'] = info['mouse'].str[:7]
-        info['mouse'] = info['mouse'].str[:12]
-        info = info[['mouse','model','cluster']]
-
-        info = info.loc[info['mouse'].isin(keep['sample_id_R']),]
-        # info = info.loc[info['model'].isin(keep['sample_id_R'].str[:7]),]
-        ### mouse now is up to XA/XB: I think a good "half way", from 490, we have 386 samples left
-        ### if we go with the model, we keep 467.
-        
-        info.to_csv(output[0], header=True, index=None, sep='\t')
+        msi.to_csv(output[0], header=True, index=None, sep='\t')
 
 ### to remember de rule wildcards:
 ### "response_cutoff0.05-ORSD.vs.PD.deseq2.tsv"
@@ -258,7 +251,7 @@ rule CRIS_to_n:
 # we go get the separated cris classification in the biobanca prj
 BASE_CRIS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/cris'
 rule barplot_chisq:
-    input: pop="freqs_cris.tsv", popc='counts_cris.tsv', 
+    input: popf="freqs_cris.tsv", popc='counts_cris.tsv', 
         lmx=BASE_CRIS+"/vsd_cris_LMX_BASALE_nc_smodel.tsv", 
         lmo=BASE_CRIS+"/vsd_cris_LMO_BASALE_nc_smodel.tsv", 
         lmh=BASE_CRIS+"/vsd_cris_LMH_prediction_result.tsv",
@@ -284,7 +277,7 @@ rule CMS_to_n:
 # /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr$ cut -f 2 cms_fpkm_LMX_BASALE_nc_smodel.tsv
 BASE_CMS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/expr'
 rule cms_barplot_chisq:
-    input: pop="freqs_cms.tsv", popc=CMSCALLER, 
+    input: popf="freqs_cms.tsv", popc=CMSCALLER, 
         lmx=BASE_CMS+"/cms_vsd_LMX_BASALE_nc_smodel.tsv",
         lmo=BASE_CMS+"/cms_vsd_LMO_BASALE_nc_smodel.tsv", 
         lmh=BASE_CMS+"/cms_vsd_LMH_nc_smodel.tsv",

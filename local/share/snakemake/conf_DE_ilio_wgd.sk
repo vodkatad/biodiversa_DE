@@ -1,6 +1,4 @@
 import os
-import pandas as pd
-import numpy as np
 ROOT=os.environ.get('SNAKE_ROOT')
 SCRATCH_ROOT=os.getenv('SCRATCH_ROOT')
 
@@ -19,6 +17,9 @@ else:
     NEED_PRJ = ""
 
 PRJ_ROOT=find_prj_root()
+
+import pandas as pd
+import numpy as np
                                                     
 NAME="Biodiversa_up5"
 DATA=PRJ_ROOT+"/local/share/data/"+NAME
@@ -32,7 +33,7 @@ BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starO
 COUNTS=ROOT+"/prj/whatever/dataset/ilio_wgd/TCGA_COAD-READ_counts_v4.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
-DESIGN="~WGD_Status+MSI_Status" # we saw that MSI-H are strongly associated with WGD-, but MSI-L seems not, so we add it as covariate
+DESIGN="~KRAS+MSI_Status" # we saw that MSI-H are strongly associated with WGD-, but MSI-L seems not, so we add it as covariate
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2

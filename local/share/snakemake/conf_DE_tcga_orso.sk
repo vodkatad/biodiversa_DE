@@ -25,20 +25,21 @@ NAME="Biodiversa_up5"
 DATA=PRJ_ROOT+"/local/share/data/"+NAME
 BIN_DIR=PRJ_ROOT+"/local/bin"
 SRC_DIR=PRJ_ROOT+"/local/src"
-METHY="../../../pdx_methylation"
+TCGA=ROOT+"/prj/whatever/local/share/data/TCGA"
 
 CRIS_UARRAY=PRJ_ROOT+"/local/share/data/cris_from_GSE76402.tsv"
 BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
 
-COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+COUNTS_RAW=TCGA+"/BRCA/TCGA-BRCA.star_counts.tsv.gz"
+COUNTS="TCGA-BRCA_star_counts_v2.tsv.gz"
 GENE_LEN=BIT_DIR+"/gene_len"
 ###
-DESIGN="~cluster"
+DESIGN="~what_age"
 SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
 MINC=5
 MINSAMPLES=2
 
-FILTERSAMPLES="no" #  if yes keeps only samples in samples_data
+FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
 
 #> library(fgsea)
 #Loading required package: Rcpp
@@ -57,28 +58,54 @@ SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
 SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
 #SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 rule samples_data:
-    input: meta=METHY+"/dataset/v5/fvf/samples_info_final_fvf_v2_2024.tsv", keep=SELECTED
-    params: what="cluster"
+    input: meta=TCGA+"/BRCA/metadata_TCGA-BRCA.tsv"
     output: "samples_data"
     run:
-        col = params.what
-        info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None, usecols=["mouse", col])
-        keep = pd.read_csv(input.keep, sep='\t', header=0, index_col=None, usecols=["sample_id_R", "type"])
-
-        contains = ["LMX_BASALE", "PRX_BASALE", "LMX_BASALE.1", "PRX_BASALE.1"]
-        keep = keep.loc[keep['type'].isin(contains),]
-        keep['sample_id_R'] = keep['sample_id_R'].str[:12]
-
-        info['model'] = info['mouse'].str[:7]
-        info['mouse'] = info['mouse'].str[:12]
-        info = info[['mouse','model','cluster']]
-
-        info = info.loc[info['mouse'].isin(keep['sample_id_R']),]
-        # info = info.loc[info['model'].isin(keep['sample_id_R'].str[:7]),]
-        ### mouse now is up to XA/XB: I think a good "half way", from 490, we have 386 samples left
-        ### if we go with the model, we keep 467.
-        
+        info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None, usecols=["sample", "age_at_index", "paper_BRCA_Subtype_PAM50"])
+        info = info[info["paper_BRCA_Subtype_PAM50"] == "LumA"]
+        info["what_age"] = np.where(info["age_at_index"] <= 50, "young", "old")
+        info = info.drop_duplicates(subset=["sample"])
+     
         info.to_csv(output[0], header=True, index=None, sep='\t')
+
+rule gene_name:
+    input: counts=COUNTS_RAW, gn=ROOT+"/prj/whatever/local/share/data/ensembl_to_genename", samples="samples_data", lens=GENE_LEN
+    output: out=COUNTS
+    run:
+        counts = pd.read_csv(input.counts, sep='\t', index_col=0, compression='gzip')
+        ### they are already log2 transformed, so we de-log them (from XENA: log2(count+1) )
+        counts = (2 ** counts) - 1
+
+        gn = pd.read_csv(input.gn, sep='\t')
+
+        gene_dict = dict(zip(gn.iloc[:, 0], gn.iloc[:, 1]))       
+        genes_to_keep = [ensembl_id for ensembl_id in counts.index if ensembl_id in gene_dict] # remove Ensembl_ID without a gene name
+        counts = counts.loc[genes_to_keep]
+        new_index = [gene_dict[ensembl_id] for ensembl_id in counts.index] # replace Ensembl_ID with gene name
+        
+        final_index = []
+        name_counts = {}
+        for name in new_index:
+            if name in name_counts:
+                name_counts[name] += 1
+                final_index.append(f"{name}_{name_counts[name]}")
+            else:
+                name_counts[name] = 1
+                final_index.append(name)
+        
+        counts.index = final_index
+        counts = counts.round().astype(int)
+
+        samples = pd.read_csv(input.samples, sep='\t', usecols=['sample'])
+        sample_names = samples['sample'].tolist()
+        counts = counts.loc[:, counts.columns.isin(sample_names)]
+        counts.index = ["H_" + str(g) for g in counts.index]
+
+        lens = pd.read_csv(input.lens, sep='\t', index_col=0)
+        counts = counts[counts.index.isin(lens.index)]
+   
+
+        counts.to_csv(output.out, sep='\t', index=True, compression='gzip')
 
 ### to remember de rule wildcards:
 ### "response_cutoff0.05-ORSD.vs.PD.deseq2.tsv"
@@ -258,7 +285,7 @@ rule CRIS_to_n:
 # we go get the separated cris classification in the biobanca prj
 BASE_CRIS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/cris'
 rule barplot_chisq:
-    input: pop="freqs_cris.tsv", popc='counts_cris.tsv', 
+    input: popf="freqs_cris.tsv", popc="counts_cris.tsv", 
         lmx=BASE_CRIS+"/vsd_cris_LMX_BASALE_nc_smodel.tsv", 
         lmo=BASE_CRIS+"/vsd_cris_LMO_BASALE_nc_smodel.tsv", 
         lmh=BASE_CRIS+"/vsd_cris_LMH_prediction_result.tsv",
@@ -284,7 +311,7 @@ rule CMS_to_n:
 # /scratch/trcanmed/biobanca/dataset/V1/trans_sign/expr$ cut -f 2 cms_fpkm_LMX_BASALE_nc_smodel.tsv
 BASE_CMS=SCRATCH_ROOT+'/biobanca/dataset/V1/trans_sign/expr'
 rule cms_barplot_chisq:
-    input: pop="freqs_cms.tsv", popc=CMSCALLER, 
+    input: popf="freqs_cms.tsv", popc=CMSCALLER, 
         lmx=BASE_CMS+"/cms_vsd_LMX_BASALE_nc_smodel.tsv",
         lmo=BASE_CMS+"/cms_vsd_LMO_BASALE_nc_smodel.tsv", 
         lmh=BASE_CMS+"/cms_vsd_LMH_nc_smodel.tsv",
