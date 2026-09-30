@@ -83,6 +83,7 @@ mctntdeg$genes <- rownames(mctntdeg)
 
 mcant <- "/mnt/cold1/snaketree/prj/DE_RNASeq/dataset/KRAS_G12/results/CRC0031/M_C_B_vs_NT/CRC0031_treat_cutoff0.05-M_C_B.vs.NT.deseq2.tsv"
 mcant <- read.table(mcant, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+mcant$genes <- rownames(mcant)
 
 upmcant <- mcant %>% filter(padj < 0.05)
 upmcant <- upmcant %>% filter(log2FoldChange > 0.5849625)
@@ -274,6 +275,13 @@ ggplot(m_cet_m_cet_tram_all,
   )) +
   theme_minimal()
 
+tripla_tram <- ggplot(m_cet_m_cet_tram_all,
+       aes(`log2FoldChange_MRTX+CET.vs.NT`,
+           `log2FoldChange_MRTX+CET+TRAM.vs.NT`)) +
+  rasterize(geom_point(alpha = 0.7), dpi=300) +
+  theme_minimal() + scale_y_continuous(limits = c(-10,10), expand = c(0,0))
+
+cor.test(m_cet_m_cet_tram_all$`log2FoldChange_MRTX+CET.vs.NT`, m_cet_m_cet_tram_all$`log2FoldChange_MRTX+CET+TRAM.vs.NT`)
 
 cet_tram_m_cet_tram_all<- merge(ctnt, mctnt, by = "genes", all = TRUE)
 names(cet_tram_m_cet_tram_all)[names(cet_tram_m_cet_tram_all)=="log2FoldChange.x"] <- "log2FoldChange_CET+TRAM.vs.NT" 
@@ -311,3 +319,54 @@ ggplot(cet_tram_m_cet_tram_all,
     both = "#2ca02c"
   )) +
   theme_minimal()
+
+m_cet_m_cet_alp_all<- merge(mcnt, mcant, by = "genes", all = TRUE)
+names(m_cet_m_cet_alp_all)[names(m_cet_m_cet_alp_all)=="log2FoldChange.x"] <- "log2FoldChange_MRTX+CET.vs.NT" 
+names(m_cet_m_cet_alp_all)[names(m_cet_m_cet_alp_all)=="log2FoldChange.y"] <- "log2FoldChange_MRTX+CET+ALP.vs.NT" 
+
+names(m_cet_m_cet_alp_all)[names(m_cet_m_cet_alp_all)=="padj.x"] <- "padj_MRTX+CET.vs.NT" 
+names(m_cet_m_cet_alp_all)[names(m_cet_m_cet_alp_all)=="padj.y"] <- "padj_MRTX+CET+ALP.vs.NT" 
+
+m_cet_m_cet_alp_all$DEG_MRTX_CET <- ifelse(m_cet_m_cet_alp_all$`padj_MRTX+CET.vs.NT` < 0.05 & abs(m_cet_m_cet_alp_all$`log2FoldChange_MRTX+CET.vs.NT`) > 0.5849625, "DEG_MRTX_CET", "NO_DEG_MRT_CET")
+m_cet_m_cet_alp_all$DEG_MRTX_CET_ALP <- ifelse(m_cet_m_cet_alp_all$`padj_MRTX+CET+ALP.vs.NT` < 0.05 & abs(m_cet_m_cet_alp_all$`log2FoldChange_MRTX+CET+ALP.vs.NT`) > 0.5849625, "DEG_MRTX_CET_ALP", "NO_DEG_MRT_CET_ALP")
+
+
+m_cet_m_cet_alp_all <- m_cet_m_cet_alp_all %>%
+  mutate(DEG_combined = case_when(
+    DEG_MRTX_CET == "DEG_MRTX_CET" &
+      DEG_MRTX_CET_ALP == "DEG_MRTX_CET_ALP" ~ "both",
+    
+    DEG_MRTX_CET == "DEG_MRTX_CET" &
+      DEG_MRTX_CET_ALP != "DEG_MRTX_CET_ALP" ~ "MRTX_CET_only",
+    
+    DEG_MRTX_CET != "DEG_MRTX_CET" &
+      DEG_MRTX_CET_ALP == "DEG_MRTX_CET_ALP" ~ "MRTX_CET_ALP_only",
+    
+    TRUE ~ "none"
+  ))
+
+ggplot(m_cet_m_cet_alp_all,
+       aes(`log2FoldChange_MRTX+CET.vs.NT`,
+           `log2FoldChange_MRTX+CET+ALP.vs.NT`,
+           color = DEG_combined)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(values = c(
+    none = "grey70",
+    MRTX_CET_only = "#1f77b4",
+    MRTX_CET_ALP_only = "#d62728",
+    both = "#2ca02c"
+  )) +
+  theme_minimal()
+
+tripla_alp <- ggplot(m_cet_m_cet_alp_all,
+       aes(`log2FoldChange_MRTX+CET.vs.NT`,
+           `log2FoldChange_MRTX+CET+ALP.vs.NT`)) +
+  rasterize(geom_point(alpha = 0.7), dpi=300) +
+  theme_minimal()+ scale_y_continuous(limits = c(-10,10), expand = c(0,0))
+
+final_plot <- patchwork::wrap_plots(tripla_tram, tripla_alp, ncol = 2, guides = "collect") &
+  theme(
+    legend.position = "none"
+  )
+
+cor.test(m_cet_m_cet_alp_all$`log2FoldChange_MRTX+CET.vs.NT`, m_cet_m_cet_alp_all$`log2FoldChange_MRTX+CET+ALP.vs.NT`)

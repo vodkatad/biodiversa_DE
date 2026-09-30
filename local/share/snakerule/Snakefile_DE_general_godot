@@ -1,11 +1,15 @@
 include: "conf.sk"
 import os
 
-### _Marco-Ilio per lo script..effettivamente dovrei fare uno Snakefile apposta, ma mi pare un po' too much per uno script diverso..poi vediamo
+rule translate_counts:
+    input: counts=COUNTS, gtf_f=OUR_GTF, ncbi_f=NCBI, gene_len=GENE_LEN
+    output: file_counts="counts.tsv.gz", file_gene_len="gene_len.tsv"
+    script: SRC_DIR+"/translate_counts.R"
+
 rule plots:
-    input: counts=COUNTS, metadata="samples_data"
+    input: counts="counts.tsv.gz", metadata="samples_data"
     output: "dds.Rdata", "fpkm.tsv.gz", "tmm.tsv.gz", "vsd.tsv.gz"
-    params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len="gene_len.tsv", cores=CORES
     shell:
         """
             {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}

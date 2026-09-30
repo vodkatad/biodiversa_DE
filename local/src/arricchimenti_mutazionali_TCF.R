@@ -1,5 +1,4 @@
 ## arricchimenti mutazionali 
-
 d <- "/home/mferri/Domain_TCF.csv"
 d <- read.csv(d)
 d <- d[,c("Description","Start","End")]
@@ -12,8 +11,9 @@ togliere <- c("HMG-box_TCF7-like",
 d <- d %>% dplyr::filter(!Description %in% togliere)
 d$Description <- as.character(d$Description)
 d$Description <- c("C-Clamp", "CTNNB1_binding", "HMG-box")
+d_tsv <- d
 
-m <- read.table("/mnt/trcanmed/snaketree/prj/whatever/dataset/mutcheck/ba_round/TCF7L2_SOX9/manual/mutinfo_added_back.tsv", header = FALSE, stringsAsFactors = FALSE)
+m <- read.table("/mnt/trcanmed/snaketree/prj/whatever/dataset/mutcheck/ba_round/TCF7L2_SOX9/manual/mutinfo_added_back_sangerRecuperatiElenaDanno.tsv", header = FALSE, stringsAsFactors = FALSE)
 colnames(m) <- c("genomic", "sample_id", "source", "annotation")
 
 # dopo osservazioni su 
@@ -31,6 +31,16 @@ m <- m %>%
     mut_type = str_extract(annotation, "^[^:]+")
   )
 
+table <- m
+table$source <- NULL
+table$protein_change <- sub(".*p\\.", "", table$annotation)
+table$aa_pos <- NULL
+table$domain <- NULL
+table$annotation <- NULL
+table <- table[,c(2,1,4,3)]
+
+write.xlsx(table, "mutation_tcf_lmx_addedback_160326.xlsx", colNames = TRUE)
+
 m$domain <- "Inter-domain"
 
 for(i in 1:nrow(d)) {
@@ -40,7 +50,7 @@ for(i in 1:nrow(d)) {
 
 m <- m[,c("sample_id", "domain")]
 m$model <- substr(m$sample_id, 1, 7)
-m <- m[!duplicated(m$model),]
+
 
 uni <- "/mnt/trcanmed/snaketree/prj/whatever/dataset/mutcheck/ba_round/TCF7L2_SOX9/universe_models.tsv"
 uni <- read.table(uni, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
@@ -48,8 +58,16 @@ uni <- uni[!duplicated(uni$smodel),, drop=FALSE]
 bb <- "/mnt/trcanmed/snaketree/prj/pdxopedia/local/share/data/badboys"
 bb <- read.table(bb)
 uni <- uni %>% filter(!smodel %in% bb$V1)
+
+## calcolo percentuale mutazioni
+n_uni <- nrow(uni)
+mut_in_uni <- sum(unique(m$model) %in% uni$smodel)
+pct_in_universe <- mut_in_uni / n_uni * 100
+
+## wt
 wt <- uni
 wt$type <- "WT"
+m <- m[!duplicated(m$model),]
 wt <- wt %>% filter(!smodel %in% m$model)
 
 muttcf <- m
@@ -265,3 +283,36 @@ ggplot(tab, aes(x = ARID1A, y = TCF7L2, fill = class)) +
     panel.grid = element_blank(),
     legend.title = element_blank()
   )
+
+## nuovo test statistico domini binom.test {stats} 
+## p è la lunghezza del domnio lunghezza domnio end - start / lunghezza gene
+## x numero di successi: n mutati in quel dominio
+## n numero di test: numero di mutati totali 
+## alternative greater (più mutazioni dell'atteso)
+
+d_tsv$lunghezza <- (d_tsv$End - d_tsv$Start) / 602
+rownames(d_tsv) <- d_tsv$Description
+n <- 60
+
+## dominio C-Clamp
+x <- nrow(m[m$domain == "C-Clamp",])
+p <- d_tsv["C-Clamp", "lunghezza"]
+
+c_clamp <- binom.test(x, n, p=p, alternative = "greater")
+
+## dominio CTNNB1_binding
+x <- nrow(m[m$domain=="CTNNB1_binding",])
+p <- d_tsv["CTNNB1_binding", "lunghezza"]
+
+ctnnb1 <- binom.test(x, n, p=p, alternative = "greater")
+
+## dominio HMG-box
+x <- nrow(m[m$domain=="HMG-box",])
+p <- d_tsv["HMG-box", "lunghezza"]
+
+hmg <- binom.test(x, n, p=p, alternative="greater")
+
+## percentuale mutazioni origine in cbioportal
+
+cosmic <- "/home/mferri/table_TCF7L2_cosmic_100326_single.tsv"
+cosmic <- fread(cosmic, sep = "\t", header = TRUE, data.table = FALSE, quote = "")

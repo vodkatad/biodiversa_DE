@@ -1,0 +1,120 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+BROOT=os.getenv('BIOINFO_ROOT')                                                    
+NAME="KRAS_G12"
+DATA=PRJ_ROOT+"/local/share/data/KRAS_G12"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR="/mnt/cold1/bioinfotree/prj/ngs_standard_processing/dataset/RNAseq_Marika_Trametinib_03_2026"
+
+COUNTS=BIT_DIR+"/GEP.count.gz"
+SAMPLES=DATA+"/samples_names.xlsx"
+GENE_LEN=BIT_DIR+"/gene_len"
+
+###
+DESIGN="~treat+replicate" #CAMBIA APPENA CAPISCI COME FARE
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""
+
+# Lista dei modelli
+SMODELS = [
+    "CRC1620",
+    "CRC1360",
+    "CRC1139"
+]
+
+## "CRC1502" lo escludiamo perché abbiamo tolto replica 1 
+
+## counts and metadata
+
+rule all_samples_data:
+    input:
+        expand("{smodel}_samples_data", smodel=SMODELS)
+
+rule samples_data:
+    input:
+        ck=COUNTS
+    output:
+        samples_data="{smodel}_samples_data"
+    wildcard_constraints:
+        smodel="|".join(SMODELS)
+    script:
+        SRC_DIR+"/samples_data_trametinib_singles_marika.R"
+
+# Dizionario
+MODEL_COMPARISONS = {
+    "CRC1620": [
+        ("TRAM", "NT")
+    ],
+    "CRC1360": [
+        ("TRAM", "NT")
+    ],
+    "CRC1139": [
+        ("TRAM", "NT"),
+    ]
+}
+
+try:
+    COMPARISONS
+except NameError:
+    # Crea COMPARISONS come unione di tutti i confronti (per compatibilità)
+    COMPARISONS = list(set([comp for comps in MODEL_COMPARISONS.values() for comp in comps]))
+
+# what
+WHAT = "treat"
+
+# alpha
+ALPHA = "0.05"
+
+# GO (up/down)
+DIRECTIONS = ["up", "down"]
+
+# GSEA 
+MSIGN_TYPES = [
+    "H",
+    "C2",
+    "C6"
+]
+
+GO_ENV = "GO2" 
+
+# Funzione per generare il path della cartella output per ogni confronto
+def get_comparison_dir(smodel, nom, den):
+    """
+    Genera il path della directory per un confronto specifico
+    Es: results/model1/treatment_vs_control/
+    """
+    return f"results/{smodel}/{nom}_vs_{den}"
+
+# Funzione helper per ottenere i confronti di un modello specifico
+def get_model_comparisons(smodel):
+    """
+    Restituisce la lista di confronti per un modello specifico
+    """
+    return MODEL_COMPARISONS.get(smodel, [])

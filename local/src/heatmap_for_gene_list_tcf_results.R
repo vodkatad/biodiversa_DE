@@ -49,10 +49,15 @@ gene_list <- morte
 # gene_list <- c("TMIGD1","NOS2","SPHK1","IL6","RCAN1")
 # gene_list <- c("NOS2", "IL6","FANK1","NLRP6","LGALS9","S100A9",
 #                "GADD45B","IFI27","SMPD1","BMF","THBS1","PHLDA3","CDKN1A")
-gene_list <- c("SPHK1","SPRR2A","NOS2","IL6","HLA-E",
-               "NLRP6","DHX58","PGLYRP4","HSPB1","CCL16",
-               "CSF2RB","LGALS9","S100A9","DDX60","IL7R","TRAV27","IGHA1",
-               "OASL","NODAL","IRF7","IL2RG","THBS1","IL4R","NEAT1","RCAN1","TMIGD1")
+## infer
+# gene_list <- c("SPHK1","SPRR2A","NOS2","IL6","HLA-E",
+#                "NLRP6","DHX58","PGLYRP4","HSPB1","CCL16",
+#                "CSF2RB","LGALS9","S100A9","DDX60","IL7R","TRAV27","IGHA1",
+#                "OASL","NODAL","IRF7","IL2RG","THBS1","IL4R","NEAT1","RCAN1","TMIGD1")
+## stat
+gene_list <- c("BCL2L1", "BIRC5", "BCL2", "MCL1", "FLIP", "FOSL1",
+               "CCND1", "NANOG", "CDKN2A", "CDKN1A", "CDKN1B", "CDH1",
+               "VEGF", "IL8", "MMP1", "MMP2", "MMP9", "SOCS3")
 
 ## calcolo lfc per tutti i singoli
 tsv_files <- list.files(directory_path, pattern = "\\.gz$", full.names = TRUE)
@@ -207,6 +212,9 @@ w <- wilcox.test(mut_metagene, wt_metagene)$p.value
 load("vettore_metagene_bcat.rda")
 boxplot(list(BCAT = mutagene_tot, WT = wt_metagene, MUT = mut_metagene),
         ylab = "Median_logFC", ylim =c(-0.2,1.5))
+boxplot(list(WT = wt_metagene, MUT = mut_metagene),
+        ylab = "Median_logFC", ylim =c(-0.2,1.5))
+
 w2 <- wilcox.test(mutagene_tot,wt_metagene)$p.value
 w3 <- wilcox.test(mutagene_tot, mut_metagene)$p.value
 
