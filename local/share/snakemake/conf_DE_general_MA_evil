@@ -34,6 +34,11 @@ GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
 GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
 GSEA=PRJ_ROOT+"/local/src/gsea.R"
 
+
+SELECTED2='plh'
+MEDA_BASALI='plh'
+METASAFE='plh'
+
 rule rename_cols:
     input: matrix=COUNTS_PRE, meta=META
     output: hmat=COUNTS

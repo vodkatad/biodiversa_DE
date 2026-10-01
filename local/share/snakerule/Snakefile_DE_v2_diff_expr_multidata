@@ -1,10 +1,15 @@
 include: "conf.sk"
 import os
 
+rule translate_counts:
+    input: counts=COUNTS, gtf_f=OUR_GTF, ncbi_f=NCBI, gene_len=GENE_LEN
+    output: file_counts="counts.tsv.gz", file_gene_len="gene_len.tsv"
+    script: SRC_DIR+"/translate_counts.R"
+
 rule plots:
     input: counts=COUNTS, metadata= "samples_datas_{first}_{second}"
     output: "dds_{first}_{second}.Rdata", "fpkm_{first}_{second}.tsv.gz", "tmm_{first}_{second}.tsv.gz", "vsd_{first}_{second}.tsv.gz"
-    params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len=GENE_LEN, cores=CORES
+    params: tool=BIN_DIR+"/deseq2_qc", design=DESIGN, prefix=SPECIES, minc=MINC, minsamples=MINSAMPLES, gene_len="gene_len.tsv", cores=CORES
     shell:
         """
             {params.tool} {input.counts} {input.metadata} {params.design} {params.prefix} {params.minc} {params.minsamples} {params.gene_len} {output} {params.cores}

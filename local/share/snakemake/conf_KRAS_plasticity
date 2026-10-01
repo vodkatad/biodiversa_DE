@@ -1,0 +1,69 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT= os.getenv('SNAKE_ROOT')
+PROOT=ROOT
+if ROOT != '/scratch/trcanmed':
+    PROOT=ROOT+'/prj'
+                                                    
+NAME="Class comparison LMO-LMX"
+DATA=PRJ_ROOT+"/local/share/data/"+NAME
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+BASE_DATA=PRJ_ROOT+"/local/share/data"
+BIT_DIR='/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/dataset/july2020_starOK'
+#BIT_DIR='/scratch/trcanmed/RNASeq_biod_metadata/dataset/july2020_starOK'
+
+COUNTS=BIT_DIR+"/merged_hs_mm.tsv.gz"
+GENE_LEN=BIT_DIR+"/gene_len"
+###
+#DESIGN="~batch+time+treat"
+DESIGN="~KRAS"
+SPECIES="H" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data # WTF :(
+
+#> library(fgsea)
+#Loading required package: Rcpp
+#> p1 <- gmtPathways("c5.bp.v7.0.symbols.gmt")
+#> pathways <- list(p1)
+#> save(pathways, file="bp_hs_symbol.RData")
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+#GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
+#GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
+PDO_CETUXI=PRJ_ROOT+'/local/share/data/pdo_cetuxi'
+
+LFC=0.5849625 # 1.5 FC
+#LFC=0
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+
+
+MARKER='/scratch/trcanmed/DE_RNASeq/local/share/data/marker_genes_lymphoma.txt'
+MEDA_DIR="/mnt/trcanmed/snaketree/prj/RNASeq_biod_metadata/local/share/data"
+H_MARKER=""
+M_MARKER=""
+SELECTED=""
+
+## faccio Rscript di /home/mferri/plasticity_gsea_kras.R se ok aggiungere regola
+
+## gsea special per quelle signature
+rule gsea_analysis_plot_plasticity:
+    input: gene_res_freq = "{what}_cutoff{alpha}-{nom}.vs.{den}.gseain_2.tsv"
+    output: GSEA_r = "GSEA_results_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.tsv", GSEA_ridgeplot = "gsea_ridgeplot_{msign}_{what}_cutoff{alpha}-{nom}.vs.{den}.pdf"
+    script: SRC_DIR+'/GSEA_analysis_plasticity.R'

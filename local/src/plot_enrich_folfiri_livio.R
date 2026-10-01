@@ -1,3 +1,11 @@
+library(clusterProfiler)
+library(tidyverse)
+library(dplyr)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(ggplot2)
+
 gene_res_f <- "/scratch/trcanmed/DE_RNASeq/dataset/deg_folfiri_new/type_cutoff0.05-PD.vs.PR.gseain_2.tsv"
 
 gene_res_df <- read.table(gene_res_f, quote = "", sep = "\t", header = TRUE)
@@ -8,7 +16,7 @@ geneList <- sort(geneList, decreasing = TRUE)
 type <- "H"
 
 m_t2g <- msigdbr(species = "Homo sapiens", category = type) %>% 
-  dplyr::select(gs_name, human_gene_symbol) ### altrimenti chiede gli id numerici
+  dplyr::select(gs_name, gene_symbol) ### altrimenti chiede gli id numerici
 
 em <- GSEA(geneList, TERM2GENE = m_t2g, pvalueCutoff = 1)
 #save.image("gsea_results.R")
