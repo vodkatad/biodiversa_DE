@@ -67,8 +67,11 @@ ggplot(gs2val.df, aes(x = value, y = category, fill = sign)) +
   scale_y_discrete(labels = label_func) +
   xlab(NULL) + ylab(NULL) +
   DOSE::theme_dose()
+<<<<<<< HEAD
 
 #ggsave(GSEA_ridgeplot, width = 300, height = 107, useDingbats=FALSE, units = "mm")
+=======
+>>>>>>> a302f66797eab793b2a6415bfa58130b56f37941
 ggsave(GSEA_ridgeplot, width = 300, height = 107, useDingbats=FALSE, units = "mm")
 
 #save.image(rdata) ### scommentato da mv 23/01/25 per deg 5vs4

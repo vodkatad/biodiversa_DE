@@ -1,0 +1,80 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+BROOT=os.getenv('BIOINFO_ROOT')                                                    
+NAME="evil_MA"
+DATA=PRJ_ROOT+"/local/share/data/ss_AP_02_2026"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/KRASinh_simo'
+
+COUNTS_PRE=BIT_DIR+"/GEP.count.gz"
+COUNTS=COUNTS_PRE
+GENE_LEN=BIT_DIR+"/gene_len"
+META=DATA+'/ss_AP_02_2026.txt'
+##META="meta.txt"
+###
+DESIGN="~cond+rep"
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+#FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+
+rule samples_data:
+    input: META
+    output: "samples_data"
+    shell: """ 
+        tr "-" "." <  {input} > {output}
+           """
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""
+
+rule corr_early_late:
+    input: vsd_file="vsd.tsv.gz", samples_file="samples_data", tsv_deg="passage_cutoff0.05-early.vs.late.deseq2.tsv"
+    output: tsv="correlation_early_late.tsv", pdf1="CRC0095_corr_early_late.pdf", pdf2="CRC1460_corr_early_late.pdf", cor_pval="correlazioni_pval_early_late.tsv"
+    script: SRC_DIR+"/correlazioni_early_late.R"
+
+# added to troubleshoot different cors early-late o-x, rerun the 2/6
+rule heatmap_corr_el:
+    input: vsd_file="vsd.tsv.gz", samples_file="samples_data"
+    output: result="correlation_matrix_early_late.tsv", res_pdf="heatmap_correlation_early_late.pdf"
+    script: SRC_DIR+"/heatmap_correlation_early_late_vodka.R"
+
+rule usable_reads:
+    input: meta="../../local/share/data/early_late/ss_early_late_biobanca.txt", reads="/mnt/cold1/bioinfotree/prj/ngs_standard_processing/dataset/earlylate_biobanca/usable_reads",
+            ega = "/mnt/cold2/snaketree/prj/EGAs/earlylate/EGAsubmitter/dataset/submission/EGASTORE/samples_EGAID.tsv", run="/mnt/cold2/snaketree/prj/EGAs/earlylate/EGAsubmitter/dataset/submission/EGASTORE/runs_EGAID.tsv"
+    output: us_reads="usable_reads_early_late.xlsx"
+    script: SRC_DIR+"/excel_usable_reads_early_late.R"
+
+rule heatmap_corr_el_othergenes:
+    input: vsd_file="vsd.tsv.gz", samples_file="samples_data", genes='/mnt/trcanmed/snaketree/stash/kept_genes_correlation_simo_parallello.tsv'
+    output: result="correlation_matrix_early_late_keepgenes.tsv", res_pdf="heatmap_correlation_early_late_keepgenes.pdf"
+    script: SRC_DIR+"/heatmap_correlation_early_late_vodka_keepgenes.R"
+
+rule go_delta:
+    input: gene_list= "shift.tsv", gene_univ = "universe.tsv"
+    output: GO_r = "GOshift.tsv", out_dir=directory('barplot_go_shift')
+    script: SRC_DIR+'/GO_analysis.R'

@@ -77,7 +77,8 @@ MODEL_COMPARISONS = {
         ("MRTX", "NT"),
         ("M_C", "NT"),
         ("M_C_T", "NT"),
-        ("M_C_B", "NT")
+        ("M_C_B", "NT"),
+        ("C_T", "NT")
     ],
     "CRC1598": [
         ("M_C", "NT")
@@ -103,7 +104,7 @@ DIRECTIONS = ["up", "down"]
 MSIGN_TYPES = [
     "H",
     "C2",
-    "C5"
+    "C6"
 ]
 
 GO_ENV = "GO" 

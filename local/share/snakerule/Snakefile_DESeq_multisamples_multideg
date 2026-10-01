@@ -1,3 +1,4 @@
+## stare nell'ambiente base di amamba
 ## usare -j1 e --use-conda 
 include: "conf.sk"
 import os
@@ -33,24 +34,24 @@ def get_all_gsea_outputs():
 
 rule all:
     input:
-        # Per ogni modello, genera i file di QC nella cartella del modello
+        # file di QC ed expr
         expand("results/{smodel}/{smodel}_dds.Rdata", smodel=SMODELS),
         expand("results/{smodel}/{smodel}_fpkm.gz", smodel=SMODELS),
         expand("results/{smodel}/{smodel}_tmm.gz", smodel=SMODELS),
         expand("results/{smodel}/{smodel}_vsd.gz", smodel=SMODELS),
         
-        # Tutti i risultati DEG (specifici per modello)
+        # DEG
         get_all_deg_outputs(),
         
-        # Tutti i risultati GO (specifici per modello)
+        # GO
         get_all_go_outputs(),
         
-        # Tutti i risultati GSEA (specifici per modello)
+        # GSEA
         get_all_gsea_outputs()
 
 rule plots:
     input: 
-        counts="counts_kras.gz",
+        counts=COUNTS,
         metadata="{smodel}_samples_data"
     output: 
         dds="results/{smodel}/{smodel}_dds.Rdata", 
@@ -302,3 +303,4 @@ rule gsea_analysis_plot:
 #                 data = data.append({'signature': key, 'gene': value}, ignore_index=True)
         
 #         data.to_csv(output.intersection)
+

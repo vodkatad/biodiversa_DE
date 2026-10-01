@@ -55,7 +55,6 @@ new_data <- data[,match(rownames(metadata), colnames(data))]
 if (!all(rownames(metadata)==colnames(new_data))) {
     stop('match issues...')
 }
-save.image('paperoga.Rdata')
 ## TMM from edgeR without filtering expression ###
 #group <- as.factor(metadataf$terms(fdesign)[[2]])
 #manca filtro idiota!
@@ -92,22 +91,18 @@ colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
 pheatf <- paste0(outprefix, "_vsd_dists.pdf")
 pheatmap(sampleDistMatrix,clustering_distance_rows=sampleDists, clustering_distance_cols=sampleDists, col=colors, file=pheatf)
 if (design != "~1") {
-    out <- tryCatch(
-        {
-           ints <- attr(terms(fdesign),"term.labels")
-           for (i in seq(1, length(ints))) {
-               plotPCA(vsd, intgroup=ints[i])
-               ggsave(paste0(outprefix, "_", ints[i], "_pca.pdf"))
-           }
-        },
-        error=function(cond) {
-            message(cond)
-        },
-        warning=function(cond) {
-            message(cond)
-        },
-        finally=function(cond) { dev.off() }
-    )
+    ints <- attr(terms(fdesign),"term.labels")
+    message("Found term labels: ", paste(ints, collapse=", "))
+    for (i in seq(1, length(ints))) {
+        message("Creating PCA plot for: ", ints[i])
+        p <- plotPCA(vsd, intgroup=ints[i])
+        fname <- paste0(outprefix, "_", ints[i], "_pca.pdf")
+        message("About to save to: ", fname)
+        print(p)
+        ggsave(fname, plot=p)
+        message("Successfully saved: ", fname)
+    }
+    message("PCA plots completed")
 }
 
 cc <- counts(dds,normalized=TRUE)

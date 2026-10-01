@@ -1,0 +1,73 @@
+import os
+def find_prj_root(path=os.getcwd()):
+	if os.path.isfile(os.path.join(path,".PRJ_ROOT")):
+		return path
+	else:
+		if path:
+			return find_prj_root(os.path.dirname(path))
+		else:
+			raise Exception("Can not find the PRJ_ROOT directory")
+
+
+PRJ_ROOT=find_prj_root()
+ROOT=os.getenv('SNAKE_ROOT')                                                    
+BROOT=os.getenv('BIOINFO_ROOT')                                                    
+NAME="DLL1_sorted"
+DATA=PRJ_ROOT+"/local/share/data/DLL1_sorted"
+BIN_DIR=PRJ_ROOT+"/local/bin"
+SRC_DIR=PRJ_ROOT+"/local/src"
+
+BIT_DIR=BROOT+'/prj/ngs_standard_processing/dataset/RNAseq_Marika_Trametinib_03_2026'
+
+COUNTS_PRE=BIT_DIR+"/GEP.count.gz"
+COUNTS=COUNTS_PRE
+GENE_LEN=BIT_DIR+"/gene_len"
+#PREMETA=DATA+'/ss_ko_atoh1.txt'
+##META="meta.txt"
+###
+DESIGN="~group"
+SPECIES="all" # if all do not filter, otherwise keep all genes that starts with 'SPECIES_'
+MINC=5
+MINSAMPLES=2
+
+#FILTERSAMPLES="yes" #  if yes keeps only samples in samples_data
+
+GSEA_PATHWAYS=PRJ_ROOT+"/local/share/data/gsea/Hallmark_curated_hs_symbol.RData"
+GSEA_PATHWAYS_NOTHALL=PRJ_ROOT+"/local/share/data/gsea/Not_hallmark_hs_entrez.RData"
+GSEA=PRJ_ROOT+"/local/src/gsea.R"
+SAMPLES_GENERAL="general/samples_data"
+
+# rule ss:
+#     input: PREMETA
+#     output: META
+#     shell:
+#         """
+#             echo -e "old_id\\tnew_id" > {output}
+#             bawk '{{print $2,$2}}' {input} >> {output}
+#         """
+
+#rule rename_cols:
+#    input: matrix=COUNTS_PRE, meta=PREMETA
+#    output: hmat=COUNTS
+#    script: SRC_DIR+'/rename_columns_ko_atoh1.R'
+
+# rule samples_data:
+#     input: meta=PREMETA
+#     output: tsv="samples_data"
+#     script: SRC_DIR+"/samples_data_ko_atoh1.R"
+
+LFC=0.5849625 # 1.5 FC
+CORES=6
+PVAL=0.05
+
+DEBUG="yes"
+MARKER=""
+MEDA_DIR=""
+SELECTED=""
+
+rule samples_data:
+	input: data=COUNTS
+	output: tsv="samples_data"
+	script: SRC_DIR+"/samples_data_DLL1_sorted.R"
+
+
