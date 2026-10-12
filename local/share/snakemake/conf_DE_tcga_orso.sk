@@ -52,20 +52,27 @@ GSEA=PRJ_ROOT+"/local/src/gsea.R"
 #GSEA_INPUT=PRJ_ROOT+"/local/src/gsea_input_from_cr.R"
 #GSEA_XLS=PRJ_ROOT+"/local/src/gsea_genes_signature.R"
 
-
 # for biodiversa change - in . in metadata
 SELECTED=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier"
 SELECTED2=BIT_DIR+"/selected_metadata_annot_final_nolinfo_nooutlier_replisafe"
-#SELECTED_30 = "scratch/trcanmed/DE_RNASeq/dataset/Biodiversa_up5_starOK/magnifici_30_lmx.tsv"
 rule samples_data:
-    input: meta=TCGA+"/BRCA/metadata_TCGA-BRCA.tsv"
+    input: meta=TCGA+"/BRCA/metadata_TCGA-BRCA.tsv", cbio=TCGA+"/BRCA/brca_tcga_pancancer_atlas_2018_clinical_data_cbioportal.tsv"
     output: "samples_data"
     run:
-        info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None, usecols=["sample", "age_at_index", "paper_BRCA_Subtype_PAM50"])
+        info = pd.read_csv(input.meta, sep='\t', header=0, index_col=None, usecols=["patient", "sample", "age_at_index", "paper_BRCA_Subtype_PAM50"])
+        info = info.drop_duplicates(subset=["patient"])
         info = info[info["paper_BRCA_Subtype_PAM50"] == "LumA"]
         info["what_age"] = np.where(info["age_at_index"] <= 50, "young", "old")
-        info = info.drop_duplicates(subset=["sample"])
-     
+
+        cb = pd.read_csv(input.cbio, sep='\t', header=0, index_col=None, usecols=["Patient ID", "Sample ID", "Diagnosis Age", "Cancer Type Detailed"])
+        cb = cb[cb["Cancer Type Detailed"].isin([
+            "Breast Invasive Lobular Carcinoma", 
+            "Breast Invasive Ductal Carcinoma", 
+            "Breast Invasive Carcinoma (NOS)"
+        ])]
+
+        info = info[info["patient"].isin(cb["Patient ID"])]   
+
         info.to_csv(output[0], header=True, index=None, sep='\t')
 
 rule gene_name:
