@@ -1,5 +1,4 @@
 include: "conf.sk"
-import os
 
 ### _Marco-Ilio per lo script..effettivamente dovrei fare uno Snakefile apposta, ma mi pare un po' too much per uno script diverso..poi vediamo
 rule plots:

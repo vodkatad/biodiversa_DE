@@ -71,8 +71,9 @@ rule samples_data:
             "Breast Invasive Carcinoma (NOS)"
         ])]
 
-        info = info[info["patient"].isin(cb["Patient ID"])]   
-
+        info = info[info["patient"].isin(cb["Patient ID"])]
+        info = info.drop(columns=["patient"])
+   
         info.to_csv(output[0], header=True, index=None, sep='\t')
 
 rule gene_name:
@@ -115,12 +116,10 @@ rule gene_name:
         counts.to_csv(output.out, sep='\t', index=True, compression='gzip')
 
 ### to remember de rule wildcards:
-### "response_cutoff0.05-ORSD.vs.PD.deseq2.tsv"
 ### {what} is the column
 ### {alpha} is the pvalue
 ### {nom} is the first parameter for the contrast
 ### {den} is the second parameter for the contrast
-
 
 LFC=0.5849625 # 1.5 FC
 CORES=6
