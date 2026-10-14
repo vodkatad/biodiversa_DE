@@ -12,7 +12,7 @@ gene_res_f <- snakemake@input[["gene_res_freq"]]
 GSEA_r <- snakemake@output[["GSEA_r"]]
 GSEA_ridgeplot <- snakemake@output[["GSEA_ridgeplot"]]
 type <- snakemake@wildcards[["msign"]]
-rdata <- snakemake@output[["rdata"]] ### added by mv on 23/01/25 to save image with given wc
+#rdata <- snakemake@output[["rdata"]] ### added by mv on 23/01/25 to save image with given wc
 gene_res_df <- read.table(gene_res_f, quote = "", sep = "\t", header = TRUE)
 ###order
 geneList <- gene_res_df$Freq
@@ -67,11 +67,6 @@ ggplot(gs2val.df, aes(x = value, y = category, fill = sign)) +
   scale_y_discrete(labels = label_func) +
   xlab(NULL) + ylab(NULL) +
   DOSE::theme_dose()
-<<<<<<< HEAD
-
-#ggsave(GSEA_ridgeplot, width = 300, height = 107, useDingbats=FALSE, units = "mm")
-=======
->>>>>>> a302f66797eab793b2a6415bfa58130b56f37941
 ggsave(GSEA_ridgeplot, width = 300, height = 107, useDingbats=FALSE, units = "mm")
 
 #save.image(rdata) ### scommentato da mv 23/01/25 per deg 5vs4
