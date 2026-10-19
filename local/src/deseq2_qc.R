@@ -29,7 +29,7 @@ library(ggplot2)
 library(edgeR)
 save.image("pippo.Rdata")
 
-data <- read.table(gzfile(counts), header=T, sep="\t", row=1, check.names=FALSE) ### MV added check.names=FALSE for TCGA
+data <- read.table(gzfile(counts), header=T, sep="\t", row=1)# check.names=FALSE) ### MV added check.names=FALSE for TCGA
 
 if (prefix != "all") {
   data <- data[grep(paste0("^", prefix, "_"), rownames(data)),]

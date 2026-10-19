@@ -10,11 +10,13 @@ meta <- snakemake@output[["meta"]]
 #casi <- "/scratch/trcanmed/DE_RNASeq/dataset/kras_deg/rasdep_20220207.txt"
 #casi_f <- read.table(casi, quote = "", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 casi_f <- as.data.frame(read_excel(casi))
-casi_f$...3 <- NULL
-casi_f$...4 <- NULL
-casi_f$...5 <- NULL
-casi_f$...6 <- NULL
-casi_f$...7 <- NULL
+#casi_f$...3 <- NULL # vodka commented 14/10/26 cause original rasdep?
+#casi_f$...4 <- NULL
+#casi_f$...5 <- NULL
+#casi_f$...6 <- NULL
+#casi_f$...7 <- NULL
+rownames(casi_f) <- casi_f[,1]
+colnames(casi_f)[1] <- 'Case'
 quarti <- quantile(casi_f$RASDEPscore, c(1/4, 3/4))
 casi_f$quartile <- NA
 rownames(casi_f) <- casi_f$Case

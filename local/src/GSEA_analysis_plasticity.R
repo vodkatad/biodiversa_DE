@@ -6,6 +6,8 @@ library(enrichplot)
 library(DOSE)
 library(ggplot2)
 
+set.seed(2323)
+
 gene_res_f <- snakemake@input[["gene_res_freq"]]
 GSEA_r <- snakemake@output[["GSEA_r"]]
 GSEA_ridgeplot <- snakemake@output[["GSEA_ridgeplot"]]
@@ -27,7 +29,7 @@ if (type == "plasticity") {
     dplyr::select(gs_name, gene_symbol)
 }
 
-em <- GSEA(geneList, TERM2GENE = m_t2g, pvalueCutoff = 1)
+em <- GSEA(geneList, TERM2GENE = m_t2g, pvalueCutoff = 1, nPerm = 1000)
 
 write.table(em@result, file = GSEA_r, quote = FALSE, sep = "\t", row.names = TRUE,
             col.names = TRUE)
